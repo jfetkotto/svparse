@@ -1,0 +1,5 @@
+# go test binaries
+*.test
+
+# editor/OS cruft
+.DS_Store

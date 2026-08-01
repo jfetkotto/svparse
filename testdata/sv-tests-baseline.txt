@@ -1,0 +1,84 @@
+# Baseline for parser/corpus_test.go's TestSVTestsCorpusMatchesBaseline.
+#
+# One "path expected-count # reason" line per vendored file that produces a
+# nonzero preprocessor+parser error count. Every entry is deliberate: either
+# an intentional sv-tests negative test (:should_fail_because:), or a
+# genuinely out-of-scope construct for a declaration-grade parser (see
+# the design note in ../parser/corpus_test.go). Any file NOT listed here
+# is expected to produce zero errors -- a regression there fails the test
+# the same as a baseline mismatch does.
+#
+# Updating this file is a deliberate act, not a formality: a new entry
+# should come with a real reason, and a removed entry should mean a genuine
+# fix landed (with its own commit, its own tests) -- never a silent baseline
+# regeneration.
+
+# --- Intentional sv-tests negative tests (:should_fail_because:) ---
+chapter-22/22.5.1--define-expansion_12.sv 1 # should_fail_because: fewer actual than formal macro args with no default for the rest
+chapter-22/22.5.1--define-expansion_18.sv 2 # should_fail_because: function-like macro invoked without parentheses
+chapter-22/22.5.1--define-expansion_21.sv 3 # should_fail_because: macro text split across string literals
+chapter-22/22.5.1--define-expansion_6.sv 1 # should_fail_because: fewer actual than formal macro args with no default for the rest
+chapter-22/22.5.1--define-expansion_7.sv 1 # should_fail_because: function-like macro invoked without parentheses
+chapter-5/5.6--wrong-identifiers.sv 2 # should_fail_because: identifiers starting with a digit or $
+chapter-6/6.19--enum_value_inv.sv 4 # should_fail_because: invalid enum value
+chapter-6/6.19--enum_xx_inv.sv 4 # should_fail_because: invalid enum value
+chapter-6/6.19--enum_xx_inv_order.sv 4 # should_fail_because: invalid enum value
+chapter-6/6.20.5--specparam_inv.sv 1 # should_fail_because: invalid specparam -- also see the specparam entry below (not implemented regardless)
+chapter-6/6.9.2--vector_vectored_inv.sv 2 # should_fail_because: invalid vectored net declaration
+chapter-7/structures/packed/default-value.sv 1 # should_fail_because: invalid packed struct default value
+chapter-8/8.25.1--parametrized_class_invalid_scope_resolution.sv 1 # should_fail_because: invalid parametrized-class scope resolution
+chapter-8/8.26.4--illegal_forward_def_implements.sv 3 # should_fail_because: illegal forward-typedef interface-class implements
+chapter-8/8.26.6.2--parameter_type_conflict_unresolved.sv 2 # should_fail_because: unresolved parameter type conflict
+chapter-8/8.26.6.3--diamond_relationship_parametrized.sv 6 # should_fail_because: invalid parametrized diamond relationship
+
+# --- Out of scope: non-ANSI port declarations (ports declared by name in the header, direction given separately in the body) ---
+chapter-22/22.6--ifdef-behavioral.sv 2 # non-ANSI port declaration ("output"/"input" in the body)
+chapter-22/22.6--ifdef-nested.sv 1 # non-ANSI port declaration ("output out;" in the body)
+
+# --- Out of scope: preprocessor macro operators this preprocessor doesn't implement ---
+chapter-22/22.5.1--define-expansion_25.sv 1 # escaped-quote-within-stringify operator (`\`") not implemented -- the `" / `" stringize delimiters themselves are supported
+
+# --- Out of scope: `include forms this preprocessor doesn't resolve ---
+chapter-22/22.5.1--include-define-expansion.sv 2 # `include argument built via a macro invocation (stringize-expanded to a path) -- handleInclude doesn't macro-expand its argument before checking it's a quoted literal
+chapter-5/5.6.4--compiler-directives-include.sv 1 # `include "/dev/null" -- absolute path outside the vendored corpus, platform-specific, not resolved by this harness's relative resolver
+
+# --- Out of scope: `begin_keywords/`end_keywords dynamic keyword-set switching (LRM 22.11) ---
+chapter-5/5.6.4--compiler-directives-begin-keywords.sv 3 # relies on `begin_keywords changing which identifiers are keywords; not implemented
+
+# --- Out of scope: this harness has no :defines: metadata support ---
+chapter-5/5.6.4--compiler-directives-preprocessor-macro_0.sv 2 # requires :defines: TEST_VAR (an external +define+, not something in the source itself); without it the file's own `else branch is (intentionally) invalid placeholder text
+
+# --- Out of scope: bare (non-typedef'd) enum/struct/union used inline as a variable's type -- documented limitation ---
+chapter-6/6.19--enum_anon.sv 1 # bare anonymous enum as a variable's type
+chapter-6/6.19--enum_xx.sv 4 # bare anonymous enum as a variable's type
+chapter-6/6.19.2--enum_sequence.sv 1 # bare anonymous enum as a variable's type
+chapter-6/6.19.2--enum_sequence_range.sv 1 # bare anonymous enum as a variable's type
+chapter-5/5.10-structure-replication.sv 1 # bare anonymous struct as a variable's type
+chapter-6/6.24.3--bitstream_cast.sv 1 # bare anonymous struct as a variable's type
+chapter-7/structures/packed/basic.sv 1 # bare anonymous packed struct as a variable's type
+chapter-7/structures/packed/signed.sv 5 # bare anonymous packed struct as a variable's type
+chapter-7/structures/packed/unsigned.sv 5 # bare anonymous packed struct as a variable's type
+chapter-7/structures/unpacked/basic.sv 1 # bare anonymous unpacked struct as a variable's type
+chapter-7/structures/unpacked/default-value.sv 1 # bare anonymous unpacked struct as a variable's type
+chapter-7/unions/packed/basic.sv 1 # bare anonymous packed union as a variable's type
+chapter-7/unions/tagged/basic.sv 1 # bare anonymous tagged union as a variable's type
+chapter-7/unions/tagged/packed.sv 1 # bare anonymous tagged packed union as a variable's type
+chapter-7/unions/unpacked/basic.sv 1 # bare anonymous unpacked union as a variable's type
+
+# --- Out of scope: other declaration forms not implemented ---
+chapter-6/6.20.5--specparam.sv 1 # specparam (LRM 24.5, specify-block parameters) not supported
+chapter-6/6.23--type_op.sv 3 # type(expr) type-reference operator not supported
+chapter-6/6.6.7--nettype.sv 1 # user-defined nettype (LRM 6.6.7) not supported
+chapter-6/6.6.7--nettype_resolution_fn.sv 2 # user-defined nettype with a resolution function (LRM 6.6.7) not supported
+chapter-6/6.6.8--interconnect.sv 1 # interconnect nets (LRM 6.6.8) not supported
+
+# --- Out of scope: niche net qualifiers (already a documented limitation) ---
+chapter-6/6.9.2--vector_scalared.sv 3 # "scalared" net qualifier not supported
+chapter-6/6.9.2--vector_vectored.sv 3 # "vectored" net qualifier not supported
+
+# --- Out of scope: class parameterization ("#(...)" overrides on a class type, extends clause, or instantiation) ---
+chapter-8/8.25--parametrized_class_extend.sv 3 # "extends Base #(...)"
+chapter-8/8.25.1--parametrized_class_scope_resolution.sv 1 # parametrized-class-typed instance declaration
+chapter-8/8.26.6.2--parameter_type_conflict.sv 2 # "extends Base #(...)"
+chapter-8/8.26.6.3--diamond_relationship.sv 2 # "extends Base #(...)"
+chapter-8/8.5--parameters.sv 1 # parametrized-class-typed instance declaration
