@@ -202,11 +202,12 @@ func (p *preprocessor) expandMacro(def *macroDef, invocationTok Token, src *toke
 // already carry -- correct for nested expansion, since an argument's
 // true origin doesn't change by being substituted elsewhere); every
 // other body token is tagged with this invocation. Once every parameter
-// is substituted, mergeTokenPaste and mergeStringize resolve any “ `` “/
-// “ `" “ operators the body contained -- after substitution, not before,
-// so “ a``b “ pastes the ACTUAL arguments for a/b together, and
-// “ `"x`" “ stringizes x's actual argument text, matching the LRM's
-// "arguments are substituted before paste/stringize are evaluated" order.
+// is substituted, mergeTokenPaste and mergeStringize resolve any paste
+// (two adjacent backticks) or stringize (“ `" “) operator the body
+// contained -- after substitution, not before, so pasting a and b uses
+// their ACTUAL arguments, and “ `"x`" “ stringizes x's actual argument
+// text, matching the LRM's "arguments are substituted before
+// paste/stringize are evaluated" order.
 func (p *preprocessor) substitute(def *macroDef, argGroups [][]Token, invocation *Token) []Token {
 	var expansion []Token
 	for _, bodyTok := range def.body {
@@ -224,16 +225,17 @@ func (p *preprocessor) substitute(def *macroDef, argGroups [][]Token, invocation
 	return mergeStringize(mergeTokenPaste(expansion))
 }
 
-// mergeTokenPaste resolves every “ `` “ (KindPaste) operator in toks: its
+// mergeTokenPaste resolves every paste (two adjacent backticks,
+// KindPaste) operator in toks: its
 // immediate left and right neighbors (if any -- a paste at either end of
 // the body, with nothing on that side, is simply dropped, per the LRM
 // leaving it a no-op there) are merged into one token, spelled as the
 // concatenation of their Text, positioned at the left neighbor's
 // position (or the right neighbor's, if there is no left one). Repeats
-// until no KindPaste tokens remain, so a chain like "a``b``c" resolves
-// left to right in successive passes ("a"+"b" -> "ab", then "ab"+"c" ->
-// "abc") rather than needing special-case handling for more than one
-// paste in a row.
+// until no KindPaste tokens remain, so a chain of three pasted
+// identifiers resolves left to right in successive passes ("a"+"b" ->
+// "ab", then "ab"+"c" -> "abc") rather than needing special-case
+// handling for more than one paste in a row.
 func mergeTokenPaste(toks []Token) []Token {
 	for {
 		idx := -1

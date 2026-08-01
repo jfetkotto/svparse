@@ -5,8 +5,9 @@ import "github.com/jfetkotto/svparse/token"
 // scanDirective scans whatever follows a backtick: a compiler directive
 // (a backtick immediately followed by an identifier -- “ `define“,
 // “ `ifdef“, “ `include“, “ `timescale“, ...; Text excludes the
-// backtick), the macro token-paste operator (“ `` “, KindPaste), or a
-// macro stringize delimiter (“ `" “, KindMacroQuote). None of these is
+// backtick), the macro token-paste operator (two adjacent backticks,
+// KindPaste), or a macro stringize delimiter (“ `" “, KindMacroQuote).
+// None of these is
 // interpreted here -- a preprocessor consumes them from the token stream
 // this lexer produces (expanding a directive/macro reference, or
 // resolving a paste/stringize pair during expansion -- see
