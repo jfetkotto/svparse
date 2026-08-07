@@ -663,7 +663,7 @@ func (p *parser) parseContainer(kind ast.ContainerKind, endKeyword string) (ast.
 
 	c.Params = p.parseParamPortList()
 	c.Ports = p.parsePortList()
-	p.skipHeaderToSemi() // consumes the header's trailing ';' (and, defensively, anything unexpected still remaining before it)
+	p.skipHeaderToSemiStrict() // consumes the header's trailing ';' (and, defensively, anything unexpected still remaining before it)
 
 	body, end, _ := p.parseBody(endKeyword)
 	c.Body = append(headerImports, body...)
@@ -683,7 +683,7 @@ func (p *parser) parsePackage() (ast.Decl, bool) {
 	pkg := &ast.Package{Name: nameTok.Text}
 	pkg.Position = namePosition(nameTok)
 
-	p.skipHeaderToSemi()
+	p.skipHeaderToSemiStrict()
 
 	body, end, _ := p.parseBody("endpackage")
 	pkg.Body = body
@@ -692,14 +692,18 @@ func (p *parser) parsePackage() (ast.Decl, bool) {
 }
 
 // skipHeaderToSemi consumes tokens up to and including the next top-
-// level ';'. Used by parseContainer (ports/parameter ports are already
-// parsed by the time this runs, so what's left is just the terminating
-// ';' itself, or defensively any unexpected trailing content before it)
-// and parsePackage (which has no header content of its own to parse at
-// all -- this is the whole header). parseClass consumes its own
-// trailing ';' directly instead, having already parsed everything a
-// class header can contain (params/extends/implements). Depth-aware
-// ( { [ regardless, so a port list's own parens can't confuse it.
+// level ';'. Shared by every header-only or single-statement construct
+// this parser recognizes but doesn't parse -- "default clocking"/
+// "disable iff", defparam, modport, bind, timeunit/timeprecision, export,
+// let, alias, and gate/switch primitive instantiations (see their own
+// cases in parseDecl's switch below) -- whose remaining content can
+// legitimately itself start with what would otherwise look like a new
+// declaration: e.g. an "export \"DPI-C\" function name;" DPI re-export's
+// own required "function"/"task" keyword. This deliberately has no
+// isDeclBoundaryKeyword awareness for that reason -- see
+// skipHeaderToSemiStrict below for the narrower variant used where no
+// such legitimate content is possible. Depth-aware ( { [ regardless, so
+// a port list's or instantiation's own parens can't confuse it.
 func (p *parser) skipHeaderToSemi() {
 	depth := 0
 	for {
@@ -717,6 +721,53 @@ func (p *parser) skipHeaderToSemi() {
 		case token.KindSemi:
 			if depth == 0 {
 				p.advance()
+				return
+			}
+		}
+		p.advance()
+	}
+}
+
+// skipHeaderToSemiStrict is skipHeaderToSemi generalized with awareness
+// of isDeclBoundaryKeyword, for the subset of skipHeaderToSemi's callers
+// -- parseContainer's header, parsePackage (which has no header content
+// of its own at all), and all four parseTypedef* variants' trailing ';'
+// -- where, by the time this runs, everything the header/typedef can
+// legitimately contain (ports, parameter ports, header imports, the
+// typedef's own name) has already been parsed, so nothing besides the
+// terminator itself or malformed trailing content can remain. Without
+// this, a missing ';' here silently runs straight through the next
+// declaration's own tokens and steals them -- the same failure mode
+// skipProceduralConstruct had, fixed the same way: a decl-boundary
+// keyword at depth zero stops the scan (unconsumed, left for the next
+// parseBody iteration to parse fresh) and records an error, and EOF with
+// no ';' ever found is now an error too, rather than returning silently.
+// No isTypeCastKeyword guard is needed here (contrast collectExprUntil)
+// -- nothing expression-shaped, and so nothing that could contain a
+// cast, is ever legitimately left for this to scan over.
+func (p *parser) skipHeaderToSemiStrict() {
+	depth := 0
+	for {
+		tok := p.peek()
+		if tok.Kind == token.KindEOF {
+			p.errorf(tok, "unexpected end of file, expected ';'")
+			return
+		}
+		switch tok.Kind {
+		case token.KindLParen, token.KindLBrace, token.KindLBrack:
+			depth++
+		case token.KindRParen, token.KindRBrace, token.KindRBrack:
+			if depth > 0 {
+				depth--
+			}
+		case token.KindSemi:
+			if depth == 0 {
+				p.advance()
+				return
+			}
+		case token.KindKeyword:
+			if depth == 0 && isDeclBoundaryKeyword(tok.Text) {
+				p.errorf(tok, "expected ';' before %q", tok.Text)
 				return
 			}
 		}

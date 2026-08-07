@@ -1,6 +1,9 @@
 package parser
 
-import "github.com/jfetkotto/svparse/token"
+import (
+	"github.com/jfetkotto/svparse/preprocessor"
+	"github.com/jfetkotto/svparse/token"
+)
 
 // endKeywords are the container/member end keywords this parser's
 // grammar covers -- used both to detect "this container is done" and,
@@ -37,6 +40,51 @@ func isEndKeyword(text string) bool { return endKeywords[text] }
 // (dataTypeKeywords, defined in variables.go).
 func isDeclStartKeyword(text string) bool {
 	return containerStartKeywords[text] || dataTypeKeywords[text]
+}
+
+// proceduralStartKeywords are the keywords that begin a procedural block
+// or statement recognized (but never parsed) at container scope --
+// initial/always*/final (LRM 9.2) or a continuous assignment (LRM 10.3).
+// Concurrent assertions (LRM 16.14) reuse concurrentAssertionKeywords,
+// already defined in containers.go for parseDecl's own dispatch/labeled-
+// form lookahead, rather than duplicating "assert"/"assume"/"cover"/
+// "restrict" here.
+var proceduralStartKeywords = map[string]bool{
+	"initial": true, "always": true, "always_comb": true, "always_ff": true,
+	"always_latch": true, "final": true, "assign": true,
+}
+
+// isDeclBoundaryKeyword reports whether text is a keyword that plausibly
+// starts a NEW declaration/construct this parser recognizes at container
+// scope -- the union of isDeclStartKeyword, isEndKeyword,
+// proceduralStartKeywords, and concurrentAssertionKeywords. Unlike
+// isDeclStartKeyword/isEndKeyword, which recover() uses to know where a
+// fully-abandoned declaration can pick back up, this is used by the
+// handful of "scan forward for my own terminating ';'" helpers
+// (skipProceduralConstruct, skipHeaderToSemiStrict, collectExprUntil)
+// that -- unlike recover() -- are NOT already in a failure state: they
+// believe they're still scanning content belonging to the declaration
+// currently being parsed, and have no other way to notice the real
+// terminator went missing and they've wandered into the next
+// declaration's own tokens instead. Each call site applies this only at
+// a point it has already established is bracket/paren/block depth zero
+// for its own construct -- isDeclBoundaryKeyword itself does no depth
+// tracking of its own.
+func isDeclBoundaryKeyword(text string) bool {
+	return isDeclStartKeyword(text) || isEndKeyword(text) || proceduralStartKeywords[text] || concurrentAssertionKeywords[text]
+}
+
+// isTypeCastKeyword reports whether tok is a builtin type keyword
+// immediately followed by "'" -- a type/sign cast ("int'(x)",
+// "signed'(y)", LRM 6.24.1), not a new declaration starting with that
+// type keyword. Without this, a cast legitimately appearing inside an
+// expression this parser otherwise never inspects (a parameter's default
+// value, or any other unparsed content a decl-boundary-aware scan passes
+// over) would be misread as the next declaration beginning and cut short
+// mid-expression -- the same same-text-different-role ambiguity
+// isWaitOrDisableFork resolves for "fork" via one token of lookahead.
+func isTypeCastKeyword(tok, next preprocessor.Token) bool {
+	return tok.Kind == token.KindKeyword && dataTypeKeywords[tok.Text] && next.Kind == token.KindTick
 }
 
 // recover skips tokens -- tracking ( { [ depth so a ';' nested inside

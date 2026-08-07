@@ -46,7 +46,7 @@ func (p *parser) parseTypedef() (ast.Decl, bool) {
 		alias.Position = td.Position
 		td.Underlying = alias
 	}
-	p.skipHeaderToSemi()
+	p.skipHeaderToSemiStrict()
 	return td, true
 }
 
@@ -72,7 +72,7 @@ func (p *parser) parseTypedefStruct() (ast.Decl, bool) {
 	s.Position = namePosition(nameTok)
 	td := &ast.Typedef{Name: nameTok.Text, Underlying: s}
 	td.Position = s.Position
-	p.skipHeaderToSemi()
+	p.skipHeaderToSemiStrict()
 	return td, true
 }
 
@@ -101,7 +101,7 @@ func (p *parser) parseTypedefUnion() (ast.Decl, bool) {
 	u.Position = namePosition(nameTok)
 	td := &ast.Typedef{Name: nameTok.Text, Underlying: u}
 	td.Position = u.Position
-	p.skipHeaderToSemi()
+	p.skipHeaderToSemiStrict()
 	return td, true
 }
 
@@ -163,7 +163,7 @@ func (p *parser) parseTypedefEnum() (ast.Decl, bool) {
 	e.Position = namePosition(nameTok)
 	td := &ast.Typedef{Name: nameTok.Text, Underlying: e}
 	td.Position = e.Position
-	p.skipHeaderToSemi()
+	p.skipHeaderToSemiStrict()
 	return td, true
 }
 

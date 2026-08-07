@@ -173,6 +173,74 @@ func TestParameterDeclNestedCommaInDefaultNotSplit(t *testing.T) {
 	}
 }
 
+func TestParameterDeclMissingSemicolonRecordsErrorAndRecoversNextDecl(t *testing.T) {
+	f, errs := parseSrc(t, `package pkg_config;
+localparam int WIDTH_A = 8
+localparam int WIDTH_B = 16;
+endpackage`)
+	if len(errs) == 0 {
+		t.Fatalf("expected an error for the missing ';' after WIDTH_A's declaration")
+	}
+	pkg := f.Decls[0].(*ast.Package)
+	if len(pkg.Body) != 2 {
+		t.Fatalf("expected both WIDTH_A and WIDTH_B to survive as separate decls, got %+v", pkg.Body)
+	}
+	a, ok := pkg.Body[0].(*ast.Parameter)
+	if !ok || a.Name != "WIDTH_A" {
+		t.Fatalf("expected WIDTH_A first, got %+v", pkg.Body[0])
+	}
+	if len(a.Default) != 1 || a.Default[0].Text != "8" {
+		t.Fatalf("expected WIDTH_A's default to be just \"8\" (not tokens stolen from WIDTH_B), got %+v", a.Default)
+	}
+	b, ok := pkg.Body[1].(*ast.Parameter)
+	if !ok || b.Name != "WIDTH_B" || len(b.Default) != 1 || b.Default[0].Text != "16" {
+		t.Fatalf("expected WIDTH_B to be parsed independently, got %+v", pkg.Body[1])
+	}
+}
+
+func TestParameterDeclDefaultWithTypeCastIsNotMistakenForNextDecl(t *testing.T) {
+	// "int'(x)" (LRM 6.24.1) starts with the same "int" keyword text
+	// isDeclBoundaryKeyword otherwise treats as a new declaration's type
+	// -- it must not be mistaken for one when it's really the cast
+	// operator of this parameter's own default value expression.
+	body := moduleBody(t, "parameter int W = int'(x);")
+	w := body[0].(*ast.Parameter)
+	want := []string{"int", "'", "(", "x", ")"}
+	got := tokenTexts(w.Default)
+	if len(got) != len(want) {
+		t.Fatalf("W.Default = %v, want %v", got, want)
+	}
+	for i := range want {
+		if got[i] != want[i] {
+			t.Fatalf("W.Default = %v, want %v", got, want)
+		}
+	}
+}
+
+func TestParameterDeclTypeParameterDefaultIsBareTypeKeyword(t *testing.T) {
+	// "parameter type name = logic;" (LRM 6.20.4) -- typ.Name == "type"
+	// here, and the default value is itself a type, so a bare builtin
+	// type keyword ("logic") is legitimate, expected content, not a sign
+	// the next declaration has begun. Found via the sv-tests corpus
+	// baseline (chapter-6/6.23--localparam_type_decl.sv) regressing
+	// during development of the decl-boundary check.
+	body := moduleBody(t, "localparam type testtype = logic;\ntesttype t;")
+	if len(body) != 2 {
+		t.Fatalf("expected 2 decls (testtype, t), got %+v", body)
+	}
+	p, ok := body[0].(*ast.Parameter)
+	if !ok || p.Name != "testtype" || p.Type.Name != "type" {
+		t.Fatalf("unexpected testtype param: %+v", body[0])
+	}
+	if len(p.Default) != 1 || p.Default[0].Text != "logic" {
+		t.Fatalf("expected testtype's default to be the bare keyword \"logic\", got %+v", p.Default)
+	}
+	v, ok := body[1].(*ast.Variable)
+	if !ok || v.Name != "t" {
+		t.Fatalf("expected variable t declared with type testtype, got %+v", body[1])
+	}
+}
+
 func TestLocalparamDecl(t *testing.T) {
 	body := moduleBody(t, "localparam int MAX = 255;")
 	p := body[0].(*ast.Parameter)
