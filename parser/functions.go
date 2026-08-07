@@ -282,12 +282,40 @@ func (p *parser) skipBody(endKeyword string) preprocessor.Token {
 // same construct rather than returning and leaving them dangling at
 // container scope, where they'd otherwise misparse as their own bad
 // declaration.
+//
+// If the real terminator is missing entirely, this used to run silently
+// to end of file, quietly deleting every following declaration from the
+// parse result with no diagnostic at all (unlike skipBody, which already
+// errors on EOF); it now records the same "unexpected end of file" error
+// skipBody does. Similarly, a keyword that plausibly starts a new
+// declaration (isDeclBoundaryKeyword) reached at depth zero is treated
+// as a sign the real terminator was skipped over already: an error is
+// recorded and the scan stops immediately, the boundary token itself
+// left UNCONSUMED so parseBody's own dispatch loop parses it fresh as
+// its own declaration next, instead of it being silently swallowed as
+// more of this one. A builtin type keyword immediately followed by "'"
+// is excluded (isTypeCastKeyword) -- an "int'(x)"-style cast (LRM
+// 6.24.1) is ordinary, legal content of an unparsed expression here, not
+// a sign the next declaration has begun. The keyword immediately
+// following the already-consumed initial/always*/final/assign/assert/
+// assume/cover/restrict keyword is exempted too (atStatementStart) --
+// LRM 10.4.1/16.14 permit a procedural continuous assignment or
+// concurrent assertion as a construct's own single, un-begin/end-wrapped
+// statement (e.g. "initial assign x = y;"), so that one keyword is
+// unambiguously part of THIS construct, not a new one starting; a
+// decl-boundary keyword reappearing any deeper into an unwrapped single
+// statement (e.g. a bare if/else with a nested "assign" in each branch)
+// isn't similarly protected -- rare enough, and precisely handling it
+// would mean tracking if/else statement structure this parser otherwise
+// never looks at, accepted here as a known gap rather than solved.
 func (p *parser) skipProceduralConstruct() {
 	blockDepth := 0
 	parenDepth := 0
+	atStatementStart := true
 	for {
 		tok := p.peek()
 		if tok.Kind == token.KindEOF {
+			p.errorf(tok, "unexpected end of file, expected ';'")
 			return
 		}
 		switch tok.Kind {
@@ -301,6 +329,7 @@ func (p *parser) skipProceduralConstruct() {
 			if isWaitOrDisableFork(tok.Text, p.peekAt(1)) {
 				p.advance() // "wait"/"disable"
 				p.advance() // "fork"
+				atStatementStart = false
 				continue
 			}
 			if blockOpenKeywords[tok.Text] {
@@ -315,6 +344,7 @@ func (p *parser) skipProceduralConstruct() {
 					// have no such label.
 					p.skipEndLabel()
 				}
+				atStatementStart = false
 				continue
 			} else if blockCloseKeywords[tok.Text] {
 				if blockDepth > 0 {
@@ -328,22 +358,30 @@ func (p *parser) skipProceduralConstruct() {
 					}
 					if blockDepth == 0 && parenDepth == 0 {
 						if p.continueAfterStatement() {
+							atStatementStart = true
 							continue
 						}
 						return
 					}
+					atStatementStart = false
 					continue
 				}
+			} else if !atStatementStart && blockDepth == 0 && parenDepth == 0 &&
+				isDeclBoundaryKeyword(tok.Text) && !isTypeCastKeyword(tok, p.peekAt(1)) {
+				p.errorf(tok, "expected ';' before %q", tok.Text)
+				return
 			}
 		case token.KindSemi:
 			if blockDepth == 0 && parenDepth == 0 {
 				p.advance()
 				if p.continueAfterStatement() {
+					atStatementStart = true
 					continue
 				}
 				return
 			}
 		}
+		atStatementStart = false
 		p.advance()
 	}
 }

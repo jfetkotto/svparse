@@ -21,6 +21,55 @@ func TestTypedefPlainAlias(t *testing.T) {
 	}
 }
 
+func TestTypedefMissingSemicolonRecordsErrorAndRecoversNextDecl(t *testing.T) {
+	f, errs := parseSrc(t, `package pkg_config;
+typedef enum int { OPT_A, OPT_B } mode_t
+localparam int WIDTH_B = 16;
+endpackage`)
+	if len(errs) == 0 {
+		t.Fatalf("expected an error for the missing ';' after mode_t's typedef")
+	}
+	pkg := f.Decls[0].(*ast.Package)
+	if len(pkg.Body) != 2 {
+		t.Fatalf("expected both the typedef and WIDTH_B to survive as separate decls, got %+v", pkg.Body)
+	}
+	td, ok := pkg.Body[0].(*ast.Typedef)
+	if !ok || td.Name != "mode_t" {
+		t.Fatalf("expected typedef mode_t first, got %+v", pkg.Body[0])
+	}
+	param, ok := pkg.Body[1].(*ast.Parameter)
+	if !ok || param.Name != "WIDTH_B" {
+		t.Fatalf("expected WIDTH_B to survive as its own declaration, got %+v", pkg.Body[1])
+	}
+}
+
+func TestTypedefPlainAliasMissingSemicolonRecordsErrorAndRecoversNextDecl(t *testing.T) {
+	f, errs := parseSrc(t, "module top;\ntypedef logic [7:0] byte_t\nlogic done;\nendmodule")
+	if len(errs) == 0 {
+		t.Fatalf("expected an error for the missing ';' after byte_t's typedef")
+	}
+	c := f.Decls[0].(*ast.Container)
+	if len(c.Body) != 2 {
+		t.Fatalf("expected both the typedef and done to survive, got %+v", c.Body)
+	}
+	if _, ok := c.Body[0].(*ast.Typedef); !ok {
+		t.Fatalf("expected a typedef first, got %+v", c.Body[0])
+	}
+	if v, ok := c.Body[1].(*ast.Variable); !ok || v.Name != "done" {
+		t.Fatalf("expected variable done second, got %+v", c.Body[1])
+	}
+}
+
+func TestTypedefUnterminatedAtEOFRecordsError(t *testing.T) {
+	f, errs := parseSrc(t, "module top;\ntypedef logic [7:0] byte_t")
+	if len(errs) == 0 {
+		t.Fatalf("expected an error for the missing ';' with no more input")
+	}
+	if len(f.Decls) != 1 {
+		t.Fatalf("expected the module itself still recorded, got %+v", f.Decls)
+	}
+}
+
 func TestTypedefForwardDeclaration(t *testing.T) {
 	body := moduleBody(t, "typedef class my_future_class;")
 	td := body[0].(*ast.Typedef)

@@ -200,6 +200,18 @@ func TestParseUnterminatedContainerAtEOFRecordsError(t *testing.T) {
 	}
 }
 
+func TestParseContainerHeaderUnterminatedAtEOFRecordsError(t *testing.T) {
+	// Unlike TestParseUnterminatedContainerAtEOFRecordsError (EOF right at
+	// the header's own terminating ';', a clean cut with nothing left
+	// over), this drops the ';' entirely -- skipHeaderToSemiStrict must
+	// notice and error rather than silently returning at EOF the way it
+	// used to.
+	_, errs := parseSrc(t, "module top")
+	if len(errs) == 0 {
+		t.Fatalf("expected an error for the missing header ';'")
+	}
+}
+
 func TestParseUnrecognizedTopLevelTokenRecordsErrorAndRecovers(t *testing.T) {
 	// A bare number can't start any declaration this parser recognizes
 	// (unlike a bare identifier, which is now a legitimate, if perhaps

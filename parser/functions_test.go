@@ -291,6 +291,85 @@ logic [7:0] data;`)
 	}
 }
 
+func TestProceduralConstructMissingSemicolonRecordsErrorAndRecoversNextDecl(t *testing.T) {
+	f, errs := parseSrc(t, `module top;
+assign sig_a = sig_b
+logic swallowed_signal;
+assign sig_c = sig_a;
+endmodule`)
+	if len(errs) == 0 {
+		t.Fatalf("expected an error for the missing ';' after \"assign sig_a = sig_b\"")
+	}
+	c := f.Decls[0].(*ast.Container)
+	if len(c.Body) != 1 {
+		t.Fatalf("expected exactly 1 surviving declaration (swallowed_signal), got %+v", c.Body)
+	}
+	v, ok := c.Body[0].(*ast.Variable)
+	if !ok || v.Name != "swallowed_signal" {
+		t.Fatalf("expected variable swallowed_signal to survive, got %+v", c.Body[0])
+	}
+}
+
+func TestConcurrentAssertionMissingSemicolonRecordsErrorAndRecoversFollowingDecl(t *testing.T) {
+	// Two consecutive missing-';' assertions -- skipProceduralConstruct is
+	// reached for "assert"/"assume"/"cover"/"restrict" the same way it is
+	// for "assign", per parseDecl's dispatch (containers.go).
+	f, errs := parseSrc(t, `module top;
+assert property (a)
+assert property (b);
+logic done;
+endmodule`)
+	if len(errs) == 0 {
+		t.Fatalf("expected an error for the missing ';' after the first assert property")
+	}
+	c := f.Decls[0].(*ast.Container)
+	if len(c.Body) != 1 {
+		t.Fatalf("expected exactly 1 surviving declaration (done), got %+v", c.Body)
+	}
+	if v, ok := c.Body[0].(*ast.Variable); !ok || v.Name != "done" {
+		t.Fatalf("expected variable done, got %+v", c.Body[0])
+	}
+}
+
+func TestProceduralConstructUnterminatedAtEOFRecordsError(t *testing.T) {
+	f, errs := parseSrc(t, "module top;\nassign sig_a = sig_b")
+	if len(errs) == 0 {
+		t.Fatalf("expected an error for the missing ';' with no more input")
+	}
+	if len(f.Decls) != 1 {
+		t.Fatalf("expected the module itself still recorded despite the unterminated body, got %+v", f.Decls)
+	}
+}
+
+func TestProceduralBlockCastExpressionIsNotMistakenForNextDeclaration(t *testing.T) {
+	// "int'(y)" (LRM 6.24.1) reuses the "int" keyword text
+	// isDeclBoundaryKeyword otherwise treats as a new declaration's type
+	// -- it must not be misread as one here.
+	body := moduleBody(t, "initial x = int'(y);\nlogic done;")
+	if len(body) != 1 {
+		t.Fatalf("expected exactly 1 declaration (done), got %+v", body)
+	}
+	if v, ok := body[0].(*ast.Variable); !ok || v.Name != "done" {
+		t.Fatalf("expected variable done, got %+v", body[0])
+	}
+}
+
+func TestProceduralBlockAssignAsSingleStatementIsNotMistakenForNextDeclaration(t *testing.T) {
+	// "initial assign x = y;" (LRM 10.4.1, a procedural continuous
+	// assignment) as a construct's own single, un-begin/end-wrapped
+	// statement -- reuses the same "assign" keyword text
+	// isDeclBoundaryKeyword otherwise treats as the start of a new
+	// module-scope continuous assignment; it must not be mistaken for one
+	// as the very first token of the construct being skipped.
+	body := moduleBody(t, "initial assign x = y;\nlogic done;")
+	if len(body) != 1 {
+		t.Fatalf("expected exactly 1 declaration (done), got %+v", body)
+	}
+	if v, ok := body[0].(*ast.Variable); !ok || v.Name != "done" {
+		t.Fatalf("expected variable done, got %+v", body[0])
+	}
+}
+
 func TestProceduralBlockWithNestedCaseStatement(t *testing.T) {
 	// case/endcase is itself a blockOpen/blockCloseKeywords pair -- confirm
 	// nested block-keyword depth is tracked correctly inside an always

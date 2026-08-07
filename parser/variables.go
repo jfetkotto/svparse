@@ -115,6 +115,19 @@ func (p *parser) parseParameterDecl() ([]ast.Decl, bool) {
 	if !ok {
 		return nil, false
 	}
+	// A "type" parameter (LRM 6.20.4, "parameter type name = logic;")
+	// legitimately has a bare type/user keyword as its default value --
+	// parseTypeBase's isTypeNameToken accepts any keyword as a type name,
+	// so the bare "type" keyword itself parses as typ.Name here, and
+	// what follows "=" is a type, not an expression. collectExprUntil's
+	// isDeclBoundaryKeyword check would misread that value (e.g. the
+	// builtin keyword "logic") as the next declaration already starting;
+	// collectUntil, with no such awareness, is the correct, deliberate
+	// choice for this one case.
+	collectDefault := p.collectExprUntil
+	if typ.Name == "type" {
+		collectDefault = p.collectUntil
+	}
 
 	makeParam := func(nameTok preprocessor.Token) *ast.Parameter {
 		param := &ast.Parameter{IsLocal: isLocal, Type: typ, Name: nameTok.Text}
@@ -126,7 +139,7 @@ func (p *parser) parseParameterDecl() ([]ast.Decl, bool) {
 	first.UnpackedDims = p.parseDims()
 	if p.peek().Kind == token.KindAssign {
 		p.advance()
-		first.Default = p.collectUntil(token.KindComma, token.KindSemi)
+		first.Default = collectDefault(token.KindComma, token.KindSemi)
 	}
 	decls := []ast.Decl{first}
 
@@ -140,7 +153,7 @@ func (p *parser) parseParameterDecl() ([]ast.Decl, bool) {
 		next.UnpackedDims = p.parseDims()
 		if p.peek().Kind == token.KindAssign {
 			p.advance()
-			next.Default = p.collectUntil(token.KindComma, token.KindSemi)
+			next.Default = collectDefault(token.KindComma, token.KindSemi)
 		}
 		decls = append(decls, next)
 	}

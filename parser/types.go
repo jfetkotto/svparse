@@ -129,6 +129,57 @@ func (p *parser) collectUntil(stopKinds ...token.Kind) []preprocessor.Token {
 	}
 }
 
+// collectExprUntil is collectUntil, generalized with awareness of
+// isDeclBoundaryKeyword -- used only where the tokens being collected are
+// a specific declaration's own trailing content (currently just a
+// parameter/localparam's default value expression, see
+// parseParameterDecl) rather than a bracket-bounded group like
+// collectUntil's other callers (ExtendsArgs in classes.go, skipParenGroup,
+// a dimension's range here in types.go -- all bounded by a bracket the
+// SAME construct just opened, a structurally different and lower-risk
+// situation: nothing downstream of that bracket has a plausible read as
+// the start of an unrelated declaration). If the terminator collectUntil
+// is looking for (comma/';') is missing, it has no way to notice and just
+// keeps collecting straight through the next declaration's own tokens,
+// silently stealing them; collectExprUntil instead also stops (without
+// consuming) at a keyword that plausibly starts a new declaration at
+// depth zero, so the caller's own existing "did I actually find my
+// terminator" check fires and reports the missing ';' instead of the
+// theft going unnoticed. A builtin type keyword immediately followed by
+// "'" is excluded (isTypeCastKeyword) -- "int'(x)"-style casts (LRM
+// 6.24.1) are ordinary, legal content of a default value expression, not
+// a sign the next declaration has begun.
+func (p *parser) collectExprUntil(stopKinds ...token.Kind) []preprocessor.Token {
+	depth := 0
+	var out []preprocessor.Token
+	for {
+		tok := p.peek()
+		if tok.Kind == token.KindEOF {
+			return out
+		}
+		if depth == 0 {
+			for _, k := range stopKinds {
+				if tok.Kind == k {
+					return out
+				}
+			}
+			if tok.Kind == token.KindKeyword && isDeclBoundaryKeyword(tok.Text) && !isTypeCastKeyword(tok, p.peekAt(1)) {
+				return out
+			}
+		}
+		switch tok.Kind {
+		case token.KindLParen, token.KindLBrace, token.KindLBrack, token.KindTickLBrace:
+			depth++
+		case token.KindRParen, token.KindRBrace, token.KindRBrack:
+			if depth > 0 {
+				depth--
+			}
+		}
+		out = append(out, tok)
+		p.advance()
+	}
+}
+
 // splitByCommaUntil splits tokens from the cursor into comma-separated
 // groups (depth-aware across ( { [ '{ , same as collectUntil) until a
 // top-level token of stopKind is consumed, or input runs out. The
