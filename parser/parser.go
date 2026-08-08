@@ -139,3 +139,22 @@ func (p *parser) errorf(tok preprocessor.Token, format string, args ...any) {
 func namePosition(nameTok preprocessor.Token) ast.Position {
 	return ast.Position{File: nameTok.File, Line: nameTok.Line, Character: nameTok.Character}
 }
+
+// endOfName returns the End position for a declaration that has no body to
+// span -- a prototype (extern / pure virtual / DPI import function or task,
+// an extern or pure constraint): just past the last character of its own
+// name.
+//
+// Deliberately name-WIDTH, not zero-width. A zero-width End makes the
+// declaration's span contain nothing at all, including the name's own
+// first column, which breaks every half-open "is this position inside that
+// declaration" test a consumer builds on Position/End -- sigils' hover and
+// goto-definition on a file-scope DPI import used to find nothing for
+// exactly this reason. It also makes an LSP documentSymbol's selectionRange
+// (the name) fall outside its range (the declaration), which the protocol
+// forbids. Matching the convention every other name-only declaration here
+// already follows (a typedef, an enum member, a variable) costs nothing and
+// avoids both.
+func endOfName(nameTok preprocessor.Token) (endLine, endCharacter int) {
+	return nameTok.Line, nameTok.Character + token.UTF16Len(nameTok.Text)
+}

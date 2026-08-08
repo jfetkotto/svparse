@@ -53,7 +53,7 @@ func (p *parser) parseFunction(isPrototype bool) (ast.Decl, bool) {
 	}
 
 	if isPrototype {
-		fn.EndLine, fn.EndCharacter = fn.Line, fn.Character
+		fn.EndLine, fn.EndCharacter = endOfName(nameTok)
 		return fn, true
 	}
 
@@ -91,7 +91,7 @@ func (p *parser) parseTask(isPrototype bool) (ast.Decl, bool) {
 	}
 
 	if isPrototype {
-		task.EndLine, task.EndCharacter = task.Line, task.Character
+		task.EndLine, task.EndCharacter = endOfName(nameTok)
 		return task, true
 	}
 
