@@ -221,15 +221,12 @@ func isWhitespace(r rune) bool {
 	return r == ' ' || r == '\t' || r == '\n' || r == '\r'
 }
 
-// isIdentStart/isIdentChar are deliberately ASCII-only, per the SV
-// grammar's identifier production (Annex A: [a-zA-Z_][a-zA-Z0-9_$]*) --
-// unlike sigils's own scanner, which uses unicode.IsLetter as a looser
-// approximation since it only needs to find declaration keywords, not be
-// lexically exact.
-func isIdentStart(r rune) bool {
-	return (r >= 'a' && r <= 'z') || (r >= 'A' && r <= 'Z') || r == '_'
-}
+// isIdentStart/isIdentChar are the SV grammar's ASCII-only identifier
+// production (Annex A: [a-zA-Z_][a-zA-Z0-9_$]*), kept in the token package
+// so every consumer that has to agree on where an identifier begins and
+// ends -- this lexer, and anything downstream deciding what word a cursor
+// sits on or whether a proposed name is writable -- shares one definition
+// rather than approximating it separately. See token/ident.go.
+func isIdentStart(r rune) bool { return token.IsIdentStart(r) }
 
-func isIdentChar(r rune) bool {
-	return isIdentStart(r) || (r >= '0' && r <= '9') || r == '$'
-}
+func isIdentChar(r rune) bool { return token.IsIdentChar(r) }
