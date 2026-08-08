@@ -91,7 +91,7 @@ func isTypeCastKeyword(tok, next preprocessor.Token) bool {
 // (e.g. a struct body) isn't mistaken for the enclosing, malformed
 // declaration's own terminator -- until a top-level ';' (consumed) or a
 // recognized container-start/end keyword (not consumed, left for the
-// caller's dispatch loop to see). Generalizes nols's own popMatching's
+// caller's dispatch loop to see). Generalizes sigils's own popMatching's
 // "a stray/mismatched keyword doesn't corrupt the rest of the parse"
 // philosophy: one malformed declaration doesn't take down parsing of
 // everything after it.

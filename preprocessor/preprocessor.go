@@ -11,7 +11,7 @@
 // no notion of a workspace, multiple files beyond what “ `include “
 // itself pulls in, or which macros "should" already be defined coming
 // in. A caller wanting company-workspace-wide `+define+`/`+incdir+`
-// semantics (as nols's filelist convention allows) builds that on top,
+// semantics (as sigils's filelist convention allows) builds that on top,
 // via IncludeResolver and whatever it seeds into a fresh call to
 // Preprocess.
 package preprocessor
@@ -52,7 +52,7 @@ type Error struct {
 // text and a canonical path used both for source-map attribution and
 // include-cycle detection. Preprocess never touches a filesystem
 // directly -- this is the only seam a workspace-specific caller
-// implements, mirroring how nols's own workspace.FilelistDiscoverer
+// implements, mirroring how sigils's own workspace.FilelistDiscoverer
 // already resolves and dedupes paths in its own domain.
 type IncludeResolver interface {
 	Resolve(includedPath, fromFile string) (text, resolvedPath string, err error)

@@ -76,7 +76,7 @@ func (l *lexer) run() {
 // Line numbers are zero-based; char is a UTF-16 column (see
 // token.UTF16Width). A bare '\r' is treated as zero-width, insignificant
 // whitespace -- it doesn't advance the column and (unlike '\n') doesn't
-// advance the line either, matching how nols's own line-splitting already
+// advance the line either, matching how sigils's own line-splitting already
 // strips '\r' rather than counting it as document content.
 func (l *lexer) advance() rune {
 	r := l.runes[l.i]
@@ -223,7 +223,7 @@ func isWhitespace(r rune) bool {
 
 // isIdentStart/isIdentChar are deliberately ASCII-only, per the SV
 // grammar's identifier production (Annex A: [a-zA-Z_][a-zA-Z0-9_$]*) --
-// unlike nols's own scanner, which uses unicode.IsLetter as a looser
+// unlike sigils's own scanner, which uses unicode.IsLetter as a looser
 // approximation since it only needs to find declaration keywords, not be
 // lexically exact.
 func isIdentStart(r rune) bool {

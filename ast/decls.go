@@ -20,7 +20,7 @@ const (
 
 // Variable is one declared net/variable name -- "logic [7:0] a, b, c;"
 // becomes three Variable nodes sharing an equal Type, one per name,
-// mirroring how nols's own lexical scanner already treats multi-name
+// mirroring how sigils's own lexical scanner already treats multi-name
 // declarations. Also doubles as a struct/union member, which has the
 // identical shape (IsRand/IsRandC are always false there -- SV's rand/
 // randc qualifiers only apply to class properties).
@@ -97,7 +97,7 @@ type EnumMember struct {
 
 // Port is one ANSI port list entry (see the parser's design doc for why
 // only ANSI-style port lists are supported -- the same limitation
-// nols's own scanPortList already has).
+// sigils's own scanPortList already has).
 type Port struct {
 	declBase
 	Direction    Direction

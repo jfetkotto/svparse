@@ -107,7 +107,7 @@ func (p *parser) parseTask(isPrototype bool) (ast.Decl, bool) {
 // resolveQualifiedName checks for a "::" immediately after a
 // function/task's parsed name -- an out-of-class method body matching an
 // extern prototype declared inside a class, e.g. "function void
-// foo::bar(); ... endfunction" (mirrors nols's own internal/sv/scan.go,
+// foo::bar(); ... endfunction" (mirrors sigils's own internal/sv/scan.go,
 // which already handles this exact pattern for its own goto-definition/
 // declaration support). If present, consumes the "::" and the real name
 // that follows, returning that as the effective name. The class

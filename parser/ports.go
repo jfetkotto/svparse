@@ -7,7 +7,7 @@ import (
 )
 
 // parsePortList parses a module/interface/program's ANSI port list. Only
-// ANSI-style port lists are supported -- the same scope limit nols's own
+// ANSI-style port lists are supported -- the same scope limit sigils's own
 // scanPortList already has (see internal/sv/scan.go there) -- carried
 // forward deliberately, not a new limitation.
 func (p *parser) parsePortList() []ast.Port {

@@ -216,7 +216,7 @@ func TestDPIImportTask(t *testing.T) {
 }
 
 func TestFunctionAndExternPrototypeBothFound(t *testing.T) {
-	// Mirrors nols's own TestScanDeclarationsExternFunctionHasNoBody --
+	// Mirrors sigils's own TestScanDeclarationsExternFunctionHasNoBody --
 	// both the extern prototype (inside the class -- parseBody/parseDecl
 	// are shared machinery, not container-specific, so this already works
 	// even though class-specific features like extends/constraints land
