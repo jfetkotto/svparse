@@ -13,7 +13,7 @@ const (
 )
 
 // Container is a module, interface, or program -- one Go type for all
-// three, since their shape doesn't actually differ, matching how nols's
+// three, since their shape doesn't actually differ, matching how sigils's
 // own sv.Declaration uses a Kind field rather than a type per kind.
 type Container struct {
 	declBase

@@ -65,7 +65,7 @@ var concurrentAssertionKeywords = map[string]bool{
 // parseBody repeatedly dispatches on the next token via parseDecl until
 // it consumes endKeyword (matched=true), hits a different recognized end
 // keyword without consuming it (an implicitly unterminated body,
-// tolerated the same way nols's own scanner tolerates a stray end-
+// tolerated the same way sigils's own scanner tolerates a stray end-
 // keyword, just inverted -- missing rather than extra), or runs out of
 // input. endKeyword == "" means top-level: there's no enclosing
 // container, so parsing simply runs to EOF and end/matched are
