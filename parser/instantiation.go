@@ -38,14 +38,16 @@ func (p *parser) parseVariableOrInstantiation() ([]ast.Decl, bool) {
 		typ.PackedDims = p.parseDims()
 	}
 
-	groups, closed := p.splitByCommaUntil(token.KindSemi)
+	groups, closed := p.splitDeclaratorsToSemi()
 	if !closed {
 		p.errorf(p.peek(), "unterminated declaration, expected ';'")
 	}
-	if len(groups) == 0 {
-		return nil, false
-	}
 
+	// From here on the statement has been consumed, so every exit reports
+	// ok=true even when nothing could be built from it -- see
+	// parseVariableDeclQualified for why "consumed but empty" must not look
+	// like "didn't recognize anything here". splitByCommaUntil always
+	// flushes at least one group, so groups[0] is safe to index.
 	if hasParamOverrides || firstGroupLooksLikeInstance(groups[0]) {
 		inst := &ast.Instantiation{ModuleType: typ.Name, ParamOverrides: paramOverrides}
 		inst.Position = namePosition(typeNameTok)
@@ -55,7 +57,7 @@ func (p *parser) parseVariableOrInstantiation() ([]ast.Decl, bool) {
 			}
 		}
 		if len(inst.Instances) == 0 {
-			return nil, false
+			return nil, true
 		}
 		return []ast.Decl{inst}, true
 	}
@@ -65,9 +67,6 @@ func (p *parser) parseVariableOrInstantiation() ([]ast.Decl, bool) {
 		if v, ok := p.parseVariableDeclarator(g, typ); ok {
 			decls = append(decls, v)
 		}
-	}
-	if len(decls) == 0 {
-		return nil, false
 	}
 	return decls, true
 }

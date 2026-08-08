@@ -125,7 +125,7 @@ func (p *parser) parseStructUnionBody() ([]ast.Variable, bool) {
 		}
 		typ := p.parseTypeBase()
 		typ.PackedDims = p.parseDims()
-		groups, closed := p.splitByCommaUntil(token.KindSemi)
+		groups, closed := p.splitDeclaratorsToSemi()
 		if !closed {
 			p.errorf(p.peek(), "unterminated struct/union member, expected ';'")
 			break

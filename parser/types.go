@@ -188,6 +188,32 @@ func (p *parser) collectExprUntil(stopKinds ...token.Kind) []preprocessor.Token 
 // ("logic a, b, c;", stopKind Semi) or an enum body ("{A, B, C}",
 // stopKind RBrace).
 func (p *parser) splitByCommaUntil(stopKind token.Kind) (groups [][]preprocessor.Token, closed bool) {
+	return p.splitByComma(stopKind, false)
+}
+
+// splitDeclaratorsToSemi is splitByCommaUntil(Semi) with the same
+// isDeclBoundaryKeyword awareness collectExprUntil has, for the callers
+// whose list is terminated by the declaration's own ';' rather than by a
+// bracket the same construct just opened -- a variable/net declaration, a
+// virtual interface handle, the declarator half of the
+// variable-vs-instantiation split, and a struct/union member.
+//
+// Without it, a declaration missing its ';' scans straight through the
+// NEXT declaration's tokens and swallows them into its own last group:
+// "logic" alone on a line above "module top;" consumed "module top ;",
+// failed to parse it as a declarator, and deleted the module from the
+// result entirely. Stopping (unconsumed) at a decl-boundary keyword makes
+// the caller's existing "did I actually find my terminator" check fire and
+// report the missing ';' instead, leaving the next declaration for
+// parseBody to dispatch on normally. A builtin type keyword immediately
+// followed by "'" is exempt (isTypeCastKeyword), same as in
+// collectExprUntil: an "int'(x)" cast is ordinary content of an
+// initializer, not the next declaration starting.
+func (p *parser) splitDeclaratorsToSemi() (groups [][]preprocessor.Token, closed bool) {
+	return p.splitByComma(token.KindSemi, true)
+}
+
+func (p *parser) splitByComma(stopKind token.Kind, stopAtDeclBoundary bool) (groups [][]preprocessor.Token, closed bool) {
 	depth := 0
 	var current []preprocessor.Token
 	flush := func() { groups = append(groups, current); current = nil }
@@ -201,6 +227,11 @@ func (p *parser) splitByCommaUntil(stopKind token.Kind) (groups [][]preprocessor
 			flush()
 			p.advance()
 			return groups, true
+		}
+		if stopAtDeclBoundary && depth == 0 && tok.Kind == token.KindKeyword &&
+			isDeclBoundaryKeyword(tok.Text) && !isTypeCastKeyword(tok, p.peekAt(1)) {
+			flush()
+			return groups, false
 		}
 		switch tok.Kind {
 		case token.KindLParen, token.KindLBrace, token.KindLBrack, token.KindTickLBrace:
