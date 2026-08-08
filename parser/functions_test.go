@@ -617,3 +617,67 @@ logic done;`)
 		t.Fatalf("expected variable done, got %+v", body[0])
 	}
 }
+
+// A prototype has no body to span, but its End must still cover its own
+// name rather than collapsing to zero width -- a zero-width span contains
+// no position at all, including the name's first column, which silently
+// breaks every "is the cursor inside this declaration" consumer built on
+// Position/End (sigils' hover and goto-definition on a file-scope DPI
+// import, an LSP documentSymbol's selectionRange-inside-range rule).
+func TestPrototypeSpansItsOwnName(t *testing.T) {
+	cases := []struct {
+		name string
+		src  string
+		want string
+	}{
+		{"extern function", "class c;\nextern function void bar();\nendclass", "bar"},
+		{"extern task", "class c;\nextern task run();\nendclass", "run"},
+		{"pure virtual function", "virtual class c;\npure virtual function int f();\nendclass", "f"},
+		{"dpi import function", "module m;\nimport \"DPI-C\" function void c_proc(int x);\nendmodule", "c_proc"},
+		{"dpi import task", "module m;\nimport \"DPI-C\" task c_task(int x);\nendmodule", "c_task"},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			f, errs := parseSrc(t, tc.src)
+			if len(errs) != 0 {
+				t.Fatalf("unexpected errors: %+v", errs)
+			}
+			line, char, endLine, endChar, ok := findPrototypeSpan(f.Decls, tc.want)
+			if !ok {
+				t.Fatalf("no prototype named %q found in %+v", tc.want, f.Decls)
+			}
+			if endLine != line {
+				t.Errorf("EndLine = %d, want %d (a prototype occupies one line)", endLine, line)
+			}
+			if wantEnd := char + len(tc.want); endChar != wantEnd {
+				t.Errorf("EndCharacter = %d, want %d (name %q starts at %d)", endChar, wantEnd, tc.want, char)
+			}
+		})
+	}
+}
+
+// findPrototypeSpan locates a prototype function/task named want, at top
+// level or one container deep, and returns its start/end position.
+func findPrototypeSpan(decls []ast.Decl, want string) (line, char, endLine, endChar int, ok bool) {
+	for _, d := range decls {
+		var body []ast.Decl
+		switch n := d.(type) {
+		case *ast.Function:
+			if n.Prototype && n.Name == want {
+				return n.Line, n.Character, n.EndLine, n.EndCharacter, true
+			}
+		case *ast.Task:
+			if n.Prototype && n.Name == want {
+				return n.Line, n.Character, n.EndLine, n.EndCharacter, true
+			}
+		case *ast.Class:
+			body = n.Body
+		case *ast.Container:
+			body = n.Body
+		}
+		if line, char, endLine, endChar, ok := findPrototypeSpan(body, want); ok {
+			return line, char, endLine, endChar, ok
+		}
+	}
+	return 0, 0, 0, 0, false
+}

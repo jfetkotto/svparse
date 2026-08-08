@@ -127,7 +127,7 @@ func (p *parser) parseConstraintPrototype() (ast.Decl, bool) {
 	}
 	c := &ast.Constraint{Name: nameTok.Text, Prototype: true}
 	c.Position = namePosition(nameTok)
-	c.EndLine, c.EndCharacter = c.Line, c.Character
+	c.EndLine, c.EndCharacter = endOfName(nameTok)
 
 	if p.peek().Kind == token.KindSemi {
 		p.advance()
