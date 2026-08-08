@@ -482,3 +482,26 @@ func TestClassWithPureVirtualTaskMemberIsAPrototype(t *testing.T) {
 		t.Fatalf("unexpected pure virtual task: %+v", task)
 	}
 }
+
+// "'{" is a brace opener that "}" closes, so a skip that counts "}" as a
+// closer must count "'{" as an opener too -- otherwise an assignment-pattern
+// literal in a constraint body closes the block early and everything after
+// it is reparsed as though it were a class member.
+func TestConstraintBodyWithAssignmentPattern(t *testing.T) {
+	f, errs := parseSrc(t, "class c;\n  constraint pat { arr == '{1, 2, 3}; }\n  int after;\nendclass")
+	if len(errs) != 0 {
+		t.Fatalf("unexpected errors: %+v", errs)
+	}
+	cls := f.Decls[0].(*ast.Class)
+	if len(cls.Body) != 2 {
+		t.Fatalf("expected constraint + int after, got %d members: %+v", len(cls.Body), cls.Body)
+	}
+	con, ok := cls.Body[0].(*ast.Constraint)
+	if !ok || con.Name != "pat" {
+		t.Fatalf("expected constraint pat, got %+v", cls.Body[0])
+	}
+	v, ok := cls.Body[1].(*ast.Variable)
+	if !ok || v.Name != "after" {
+		t.Fatalf("expected variable after, got %+v", cls.Body[1])
+	}
+}

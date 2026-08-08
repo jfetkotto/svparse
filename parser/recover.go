@@ -109,7 +109,7 @@ func (p *parser) recover() {
 	depth := 0
 	updateDepth := func(kind token.Kind) {
 		switch kind {
-		case token.KindLParen, token.KindLBrace, token.KindLBrack:
+		case token.KindLParen, token.KindLBrace, token.KindLBrack, token.KindTickLBrace:
 			depth++
 		case token.KindRParen, token.KindRBrace, token.KindRBrack:
 			if depth > 0 {

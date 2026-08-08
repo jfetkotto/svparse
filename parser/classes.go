@@ -153,7 +153,10 @@ func (p *parser) skipBracedBlock() (closeTok preprocessor.Token) {
 			return tok
 		}
 		switch tok.Kind {
-		case token.KindLBrace:
+		case token.KindLBrace, token.KindTickLBrace:
+			// "'{" opens a brace that "}" closes just like a plain "{" does
+			// -- an assignment-pattern literal inside a constraint body would
+			// otherwise close the block early on its own "}".
 			depth++
 		case token.KindRBrace:
 			depth--

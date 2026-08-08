@@ -319,7 +319,7 @@ func (p *parser) skipProceduralConstruct() {
 			return
 		}
 		switch tok.Kind {
-		case token.KindLParen, token.KindLBrack, token.KindLBrace:
+		case token.KindLParen, token.KindLBrack, token.KindLBrace, token.KindTickLBrace:
 			parenDepth++
 		case token.KindRParen, token.KindRBrack, token.KindRBrace:
 			if parenDepth > 0 {

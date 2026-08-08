@@ -727,7 +727,7 @@ func (p *parser) skipHeaderToSemi() {
 			return
 		}
 		switch tok.Kind {
-		case token.KindLParen, token.KindLBrace, token.KindLBrack:
+		case token.KindLParen, token.KindLBrace, token.KindLBrack, token.KindTickLBrace:
 			depth++
 		case token.KindRParen, token.KindRBrace, token.KindRBrack:
 			if depth > 0 {
@@ -769,7 +769,7 @@ func (p *parser) skipHeaderToSemiStrict() {
 			return
 		}
 		switch tok.Kind {
-		case token.KindLParen, token.KindLBrace, token.KindLBrack:
+		case token.KindLParen, token.KindLBrace, token.KindLBrack, token.KindTickLBrace:
 			depth++
 		case token.KindRParen, token.KindRBrace, token.KindRBrack:
 			if depth > 0 {
