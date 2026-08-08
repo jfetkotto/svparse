@@ -20,11 +20,11 @@ chapter-22/22.5.1--define-expansion_21.sv 4 # should_fail_because: macro text sp
 chapter-22/22.5.1--define-expansion_6.sv 1 # should_fail_because: fewer actual than formal macro args with no default for the rest
 chapter-22/22.5.1--define-expansion_7.sv 1 # should_fail_because: function-like macro invoked without parentheses
 chapter-5/5.6--wrong-identifiers.sv 2 # should_fail_because: identifiers starting with a digit or $
-chapter-6/6.19--enum_value_inv.sv 4 # should_fail_because: invalid enum value
-chapter-6/6.19--enum_xx_inv.sv 4 # should_fail_because: invalid enum value
-chapter-6/6.19--enum_xx_inv_order.sv 4 # should_fail_because: invalid enum value
+chapter-6/6.19--enum_value_inv.sv 2 # should_fail_because: invalid enum value
+chapter-6/6.19--enum_xx_inv.sv 2 # should_fail_because: invalid enum value
+chapter-6/6.19--enum_xx_inv_order.sv 2 # should_fail_because: invalid enum value
 chapter-6/6.20.5--specparam_inv.sv 1 # should_fail_because: invalid specparam -- also see the specparam entry below (not implemented regardless)
-chapter-6/6.9.2--vector_vectored_inv.sv 2 # should_fail_because: invalid vectored net declaration
+chapter-6/6.9.2--vector_vectored_inv.sv 1 # should_fail_because: invalid vectored net declaration
 chapter-7/structures/packed/default-value.sv 1 # should_fail_because: invalid packed struct default value
 chapter-8/8.25.1--parametrized_class_invalid_scope_resolution.sv 1 # should_fail_because: invalid parametrized-class scope resolution
 chapter-8/8.26.4--illegal_forward_def_implements.sv 3 # should_fail_because: illegal forward-typedef interface-class implements
@@ -50,14 +50,14 @@ chapter-5/5.6.4--compiler-directives-preprocessor-macro_0.sv 2 # requires :defin
 
 # --- Out of scope: bare (non-typedef'd) enum/struct/union used inline as a variable's type -- documented limitation ---
 chapter-6/6.19--enum_anon.sv 1 # bare anonymous enum as a variable's type
-chapter-6/6.19--enum_xx.sv 4 # bare anonymous enum as a variable's type
+chapter-6/6.19--enum_xx.sv 2 # bare anonymous enum as a variable's type
 chapter-6/6.19.2--enum_sequence.sv 1 # bare anonymous enum as a variable's type
 chapter-6/6.19.2--enum_sequence_range.sv 1 # bare anonymous enum as a variable's type
 chapter-5/5.10-structure-replication.sv 1 # bare anonymous struct as a variable's type
 chapter-6/6.24.3--bitstream_cast.sv 1 # bare anonymous struct as a variable's type
 chapter-7/structures/packed/basic.sv 1 # bare anonymous packed struct as a variable's type
-chapter-7/structures/packed/signed.sv 5 # bare anonymous packed struct as a variable's type
-chapter-7/structures/packed/unsigned.sv 5 # bare anonymous packed struct as a variable's type
+chapter-7/structures/packed/signed.sv 2 # bare anonymous packed struct as a variable's type
+chapter-7/structures/packed/unsigned.sv 2 # bare anonymous packed struct as a variable's type
 chapter-7/structures/unpacked/basic.sv 1 # bare anonymous unpacked struct as a variable's type
 chapter-7/structures/unpacked/default-value.sv 1 # bare anonymous unpacked struct as a variable's type
 chapter-7/unions/packed/basic.sv 1 # bare anonymous packed union as a variable's type
@@ -67,14 +67,14 @@ chapter-7/unions/unpacked/basic.sv 1 # bare anonymous unpacked union as a variab
 
 # --- Out of scope: other declaration forms not implemented ---
 chapter-6/6.20.5--specparam.sv 1 # specparam (LRM 24.5, specify-block parameters) not supported
-chapter-6/6.23--type_op.sv 3 # type(expr) type-reference operator not supported
+chapter-6/6.23--type_op.sv 1 # type(expr) type-reference operator not supported
 chapter-6/6.6.7--nettype.sv 1 # user-defined nettype (LRM 6.6.7) not supported
 chapter-6/6.6.7--nettype_resolution_fn.sv 2 # user-defined nettype with a resolution function (LRM 6.6.7) not supported
 chapter-6/6.6.8--interconnect.sv 1 # interconnect nets (LRM 6.6.8) not supported
 
 # --- Out of scope: niche net qualifiers (already a documented limitation) ---
-chapter-6/6.9.2--vector_scalared.sv 3 # "scalared" net qualifier not supported
-chapter-6/6.9.2--vector_vectored.sv 3 # "vectored" net qualifier not supported
+chapter-6/6.9.2--vector_scalared.sv 1 # "scalared" net qualifier not supported
+chapter-6/6.9.2--vector_vectored.sv 1 # "vectored" net qualifier not supported
 
 # --- Out of scope: class parameterization ("#(...)" overrides on a class type, extends clause, or instantiation) ---
 chapter-8/8.25--parametrized_class_extend.sv 3 # "extends Base #(...)"

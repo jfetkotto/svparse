@@ -91,6 +91,7 @@ func (p *parser) parseBody(endKeyword string) (decls []ast.Decl, end preprocesso
 			}
 		}
 
+		before := p.pos
 		newDecls, ok := p.parseDecl()
 		if ok {
 			decls = append(decls, newDecls...)
@@ -104,7 +105,21 @@ func (p *parser) parseBody(endKeyword string) (decls []ast.Decl, end preprocesso
 			// cost, worth it for guaranteeing every recovery has some
 			// recorded error rather than silently skipping.
 			p.errorf(tok, "unexpected token %q, skipping to the next declaration", tok.Text)
-			p.recover()
+			// recover() only applies when parseDecl honored its "ok=false
+			// means the cursor didn't move" contract. A parse function that
+			// consumed part (or all) of a malformed declaration before
+			// giving up has already made forward progress, and the cursor
+			// now sits at whatever follows -- very often the NEXT
+			// declaration's first token. recover() unconditionally consumes
+			// the token it starts on and then skips to the following ';',
+			// so running it there deletes that next declaration outright
+			// (a half-typed "logic" above a module used to take the whole
+			// module with it). Skipping recover() can't spin the loop:
+			// either the cursor moved here, or recover() runs and consumes
+			// at least one token.
+			if p.pos == before {
+				p.recover()
+			}
 		}
 	}
 }

@@ -49,7 +49,7 @@ func (p *parser) parseVariableDeclQualified(isRand, isRandC, isStatic bool) ([]a
 	typ := p.parseTypeBase()
 	typ.PackedDims = p.parseDims()
 
-	groups, closed := p.splitByCommaUntil(token.KindSemi)
+	groups, closed := p.splitDeclaratorsToSemi()
 	if !closed {
 		p.errorf(p.peek(), "unterminated variable declaration, expected ';'")
 	}
@@ -63,9 +63,13 @@ func (p *parser) parseVariableDeclQualified(isRand, isRandC, isStatic bool) ([]a
 			decls = append(decls, v)
 		}
 	}
-	if len(decls) == 0 {
-		return nil, false
-	}
+	// ok=true even with nothing to show for it: the statement was consumed
+	// through its ';' above, so this is "parsed, produced no declarations",
+	// not "didn't recognize anything here". Reporting failure instead would
+	// send parseBody into recover() at a cursor that has already moved past
+	// this statement, eating whatever follows -- see parseBody's own guard.
+	// Every group that failed already recorded its own error via
+	// parseVariableDeclarator, so nothing goes unreported.
 	return decls, true
 }
 
@@ -197,7 +201,7 @@ func (p *parser) parseVirtualInterfaceDecl() ([]ast.Decl, bool) {
 	}
 	typ.PackedDims = p.parseDims()
 
-	groups, closed := p.splitByCommaUntil(token.KindSemi)
+	groups, closed := p.splitDeclaratorsToSemi()
 	if !closed {
 		p.errorf(p.peek(), "unterminated variable declaration, expected ';'")
 	}
@@ -208,8 +212,5 @@ func (p *parser) parseVirtualInterfaceDecl() ([]ast.Decl, bool) {
 			decls = append(decls, v)
 		}
 	}
-	if len(decls) == 0 {
-		return nil, false
-	}
-	return decls, true
+	return decls, true // consumed through ';' -- see parseVariableDeclQualified
 }
