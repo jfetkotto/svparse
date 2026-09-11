@@ -27,7 +27,6 @@ chapter-6/6.19--enum_xx_inv_order.sv 2 # should_fail_because: invalid enum value
 chapter-6/6.20.5--specparam_inv.sv 1 # should_fail_because: invalid specparam -- also see the specparam entry below (not implemented regardless)
 chapter-6/6.9.2--vector_vectored_inv.sv 1 # should_fail_because: invalid vectored net declaration
 chapter-7/structures/packed/default-value.sv 1 # should_fail_because: invalid packed struct default value
-chapter-8/8.25.1--parametrized_class_invalid_scope_resolution.sv 1 # should_fail_because: invalid parametrized-class scope resolution
 chapter-8/8.26.4--illegal_forward_def_implements.sv 3 # should_fail_because: illegal forward-typedef interface-class implements
 chapter-8/8.26.6.2--parameter_type_conflict_unresolved.sv 2 # should_fail_because: unresolved parameter type conflict
 chapter-8/8.26.6.3--diamond_relationship_parametrized.sv 6 # should_fail_because: invalid parametrized diamond relationship
@@ -78,8 +77,6 @@ chapter-6/6.9.2--vector_scalared.sv 1 # "scalared" net qualifier not supported
 chapter-6/6.9.2--vector_vectored.sv 1 # "vectored" net qualifier not supported
 
 # --- Out of scope: class parameterization ("#(...)" overrides on a class type, extends clause, or instantiation) ---
-chapter-8/8.25--parametrized_class_extend.sv 3 # "extends Base #(...)"
-chapter-8/8.25.1--parametrized_class_scope_resolution.sv 1 # parametrized-class-typed instance declaration
+chapter-8/8.25--parametrized_class_extend.sv 2 # "extends Base #(...)" -- was 3 while "par_cls #(N) inst;" also misparsed as an instantiation
 chapter-8/8.26.6.2--parameter_type_conflict.sv 2 # "extends Base #(...)"
 chapter-8/8.26.6.3--diamond_relationship.sv 2 # "extends Base #(...)"
-chapter-8/8.5--parameters.sv 1 # parametrized-class-typed instance declaration

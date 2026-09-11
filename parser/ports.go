@@ -40,7 +40,7 @@ func (p *parser) parsePortList() []ast.Port {
 // resolved/inherited one -- see ast.Direction's doc comment for why the
 // parser doesn't resolve LRM direction inheritance itself.
 func (p *parser) parsePortEntry(group []preprocessor.Token) (ast.Port, bool) {
-	sub := newSubParser(group)
+	sub := p.newSubParser(group)
 	dir := sub.consumeDirection()
 
 	typ, nameTok, ok := sub.parseInterfacePortHeader()
@@ -183,7 +183,7 @@ func (p *parser) parseParamPortList() []ast.Parameter {
 // first entry per the LRM (later entries inherit it); this just consumes
 // it if present on any entry, uniformly.
 func (p *parser) parseParamPortEntry(group []preprocessor.Token) (ast.Parameter, bool) {
-	sub := newSubParser(group)
+	sub := p.newSubParser(group)
 	isLocal := false
 	switch sub.peek().Text {
 	case "parameter":

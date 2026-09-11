@@ -195,7 +195,7 @@ func (p *parser) parseEnumBody() ([]ast.EnumMember, bool) {
 // otherwise represented -- a rare feature, out of scope beyond not
 // letting it confuse the parser.
 func (p *parser) parseEnumMemberGroup(group []preprocessor.Token) (ast.EnumMember, bool) {
-	sub := newSubParser(group)
+	sub := p.newSubParser(group)
 	nameTok, ok := sub.expectIdent()
 	if !ok {
 		p.mergeErrors(sub)

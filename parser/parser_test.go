@@ -408,3 +408,30 @@ func TestParseNeverPanicsOnArbitraryInput(t *testing.T) {
 		}()
 	}
 }
+
+// Every error must be attributable to a real file and position. An empty
+// comma group (a stray comma, an everyday mid-edit state) gives its
+// sub-parser no tokens of its own to point at, and used to produce
+// File "" line 0 character 0 -- a diagnostic on line 1 of no file.
+func TestErrorsFromEmptyGroupsAreAttributed(t *testing.T) {
+	for name, src := range map[string]string{
+		"port list":       "module top(input logic clk, , output logic rst);\nendmodule\n",
+		"declarator":      "module top;\n  logic a, , b;\nendmodule\n",
+		"empty decl":      "module top;\n  logic ;\nendmodule\n",
+		"argument list":   "module top;\n  function void f(int a, , int b);\n  endfunction\nendmodule\n",
+		"enum body":       "package p;\n  typedef enum int { A, , B } e;\nendpackage\n",
+		"param port list": "module top #(parameter W = 1, , parameter X = 2) ();\nendmodule\n",
+	} {
+		t.Run(name, func(t *testing.T) {
+			_, errs := parseSrc(t, src)
+			if len(errs) == 0 {
+				t.Fatalf("expected at least one error")
+			}
+			for _, e := range errs {
+				if e.File == "" {
+					t.Errorf("error not attributed to any file: %+v", e)
+				}
+			}
+		})
+	}
+}
