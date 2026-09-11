@@ -1,6 +1,8 @@
 package parser
 
 import (
+	"fmt"
+	"strings"
 	"testing"
 
 	"github.com/jfetkotto/svparse/ast"
@@ -259,4 +261,39 @@ func FuzzParseNeverPanics(f *testing.F) {
 		toks, _ := preprocessor.Preprocess("fuzz.sv", src, nil)
 		Parse("fuzz.sv", toks)
 	})
+}
+
+// BenchmarkPreprocessAndParse covers the whole pipeline on a realistic
+// file, which is what sigils runs for every rescan -- i.e. on every
+// keystroke in an open buffer, and once per file at startup across a
+// worker pool. Nothing here had a benchmark before, so a change to the
+// lexer or the skip helpers had no way to be measured rather than assumed.
+func BenchmarkPreprocessAndParse(b *testing.B) {
+	src := benchRTL(40)
+	b.SetBytes(int64(len(src)))
+	b.ResetTimer()
+	for range b.N {
+		toks, ppErrs := preprocessor.Preprocess("bench.sv", src, nil)
+		if len(ppErrs) != 0 {
+			b.Fatalf("unexpected preprocessor errors: %+v", ppErrs)
+		}
+		if _, errs := Parse("bench.sv", toks); len(errs) != 0 {
+			b.Fatalf("unexpected parse errors: %+v", errs)
+		}
+	}
+}
+
+func benchRTL(modules int) string {
+	var b strings.Builder
+	for i := range modules {
+		fmt.Fprintf(&b, "module m%d #(parameter int W = 8) (\n", i)
+		b.WriteString("  input  wire logic [W-1:0] a,\n  input  wire logic [W-1:0] b,\n  output var  logic [W-1:0] y\n);\n")
+		for j := range 20 {
+			fmt.Fprintf(&b, "  logic [W-1:0] t%d;\n  assign t%d = (a[%d] & b[%d]) | (a >> 1) ^ {b[0], a[1:0]};\n", j, j, j, j)
+		}
+		b.WriteString("  always_comb begin\n    y = a;\n  end\n")
+		fmt.Fprintf(&b, "  leaf #(.W(W)) u%d (.a(a), .b(b), .y(y));\n", i)
+		b.WriteString("endmodule\n\n")
+	}
+	return b.String()
 }
