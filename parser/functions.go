@@ -1,6 +1,8 @@
 package parser
 
 import (
+	"maps"
+
 	"github.com/jfetkotto/svparse/ast"
 	"github.com/jfetkotto/svparse/preprocessor"
 	"github.com/jfetkotto/svparse/token"
@@ -57,9 +59,9 @@ func (p *parser) parseFunction(isPrototype bool) (ast.Decl, bool) {
 		return fn, true
 	}
 
-	end := p.skipBody("endfunction")
+	end, found := p.skipBody("endfunction")
 	fn.EndLine, fn.EndCharacter = end.Line, end.Character
-	if end.Kind != token.KindEOF {
+	if found {
 		p.advance() // "endfunction"
 		p.skipEndLabel()
 	}
@@ -95,9 +97,9 @@ func (p *parser) parseTask(isPrototype bool) (ast.Decl, bool) {
 		return task, true
 	}
 
-	end := p.skipBody("endtask")
+	end, found := p.skipBody("endtask")
 	task.EndLine, task.EndCharacter = end.Line, end.Character
-	if end.Kind != token.KindEOF {
+	if found {
 		p.advance() // "endtask"
 		p.skipEndLabel()
 	}
@@ -211,7 +213,18 @@ func (p *parser) parseArgEntry(group []preprocessor.Token) (ast.Arg, bool) {
 // specific pair opened or closed. "randcase" closes via "endcase" the
 // same as "case"/"casex"/"casez" (and, like them, has no block label of
 // its own to skip).
-var blockOpenKeywords = map[string]bool{"begin": true, "fork": true, "case": true, "casex": true, "casez": true, "randcase": true}
+// caseOpenKeywords are the case-family openers alone -- the subset of
+// blockOpenKeywords that "endcase" closes. skipToKeyword needs them
+// separately: it tracks one construct's nesting at a time, and a generate
+// case's body can contain a nested procedural case whose own "endcase"
+// must not be mistaken for the outer one's.
+var caseOpenKeywords = map[string]bool{"case": true, "casex": true, "casez": true, "randcase": true}
+
+var blockOpenKeywords = func() map[string]bool {
+	m := map[string]bool{"begin": true, "fork": true}
+	maps.Copy(m, caseOpenKeywords)
+	return m
+}()
 var blockCloseKeywords = map[string]bool{"end": true, "join": true, "join_any": true, "join_none": true, "endcase": true}
 
 // isWaitOrDisableFork reports whether tok ("wait"/"disable") is
@@ -230,19 +243,39 @@ func isWaitOrDisableFork(text string, next preprocessor.Token) bool {
 }
 
 // skipBody consumes a function/task's body -- never parsed, since
-// statement/expression grammar is entirely out of scope for this parser
-// -- stopping at endKeyword ("endfunction"/"endtask") at depth zero,
-// left unconsumed for the caller.
-func (p *parser) skipBody(endKeyword string) preprocessor.Token {
+// statement/expression grammar is entirely out of scope for this parser.
+// It returns the token it stopped at, left unconsumed, and whether that
+// token is endKeyword ("endfunction"/"endtask") itself: false means the
+// body ran out before its own terminator (end of file, or an enclosing
+// construct's end keyword), so the caller must not consume it.
+func (p *parser) skipBody(endKeyword string) (preprocessor.Token, bool) {
 	depth := 0
 	for {
 		tok := p.peek()
 		if tok.Kind == token.KindEOF {
 			p.errorf(tok, "unexpected end of file, expected %s", endKeyword)
-			return tok
+			return tok, false
 		}
-		if depth == 0 && tok.Kind == token.KindKeyword && tok.Text == endKeyword {
-			return tok
+		if tok.Kind == token.KindKeyword && isEndKeyword(tok.Text) {
+			// Checked at ANY depth, deliberately. A container or
+			// subroutine end keyword can never legally appear inside a
+			// begin/fork/case, so reaching one means the block nesting is
+			// already broken -- almost always an unclosed "begin", the
+			// single most common mid-edit state there is. Gating this on
+			// depth zero (as every stop condition here used to be) leaves
+			// depth stuck above zero with nothing able to lower it again,
+			// so the scan runs to end of file and every declaration after
+			// this one silently vanishes from the parse result. Same
+			// failure isWaitOrDisableFork already prevents for "wait
+			// fork;", generalized.
+			if tok.Text != endKeyword {
+				p.errorf(tok, "expected %s before %q", endKeyword, tok.Text)
+				return tok, false // left unconsumed: it belongs to an enclosing construct
+			}
+			if depth > 0 {
+				p.errorf(tok, "expected \"end\" before %q", tok.Text)
+			}
+			return tok, true
 		}
 		if tok.Kind == token.KindKeyword {
 			if isWaitOrDisableFork(tok.Text, p.peekAt(1)) {
@@ -326,6 +359,18 @@ func (p *parser) skipProceduralConstruct() {
 				parenDepth--
 			}
 		case token.KindKeyword:
+			if isEndKeyword(tok.Text) {
+				// Checked before the depth-gated branches below, and at
+				// any depth -- see skipBody for why. "endcase" is not an
+				// isEndKeyword, so the blockCloseKeywords branch still
+				// owns it.
+				if blockDepth > 0 {
+					p.errorf(tok, "expected \"end\" before %q", tok.Text)
+				} else {
+					p.errorf(tok, "expected ';' before %q", tok.Text)
+				}
+				return
+			}
 			if isWaitOrDisableFork(tok.Text, p.peekAt(1)) {
 				p.advance() // "wait"/"disable"
 				p.advance() // "fork"

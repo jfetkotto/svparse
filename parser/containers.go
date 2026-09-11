@@ -308,7 +308,7 @@ func (p *parser) parseDecl() ([]ast.Decl, bool) {
 		// way a container does, since the header's own "(...)"/"@(...)"
 		// hold expression content this parser doesn't model either.
 		p.advance()
-		p.skipToKeyword("endgroup")
+		p.skipToKeyword("endgroup", nil)
 		p.skipEndLabel()
 		return nil, true
 	case "property":
@@ -322,14 +322,14 @@ func (p *parser) parseDecl() ([]ast.Decl, bool) {
 		// starts with "assert"/"assume"/"cover", never with a bare
 		// "property" token reaching this dispatch.
 		p.advance()
-		p.skipToKeyword("endproperty")
+		p.skipToKeyword("endproperty", nil)
 		p.skipEndLabel()
 		return nil, true
 	case "sequence":
 		// A sequence declaration (LRM 16.11): "sequence name [(...)]; ...
 		// endsequence [: name]" -- same treatment as "property" above.
 		p.advance()
-		p.skipToKeyword("endsequence")
+		p.skipToKeyword("endsequence", nil)
 		p.skipEndLabel()
 		return nil, true
 	case "clocking":
@@ -341,7 +341,7 @@ func (p *parser) parseDecl() ([]ast.Decl, bool) {
 		// declaration of its own -- is a different shape entirely, starting
 		// with "default", not "clocking"; see the "default" case below.
 		p.advance()
-		p.skipToKeyword("endclocking")
+		p.skipToKeyword("endclocking", nil)
 		p.skipEndLabel()
 		return nil, true
 	case "default":
@@ -369,7 +369,7 @@ func (p *parser) parseDecl() ([]ast.Decl, bool) {
 		// overlap precisely is out of scope; skipped wholesale like the
 		// other verification constructs above.
 		p.advance()
-		p.skipToKeyword("endchecker")
+		p.skipToKeyword("endchecker", nil)
 		p.skipEndLabel()
 		return nil, true
 	case "specify":
@@ -377,7 +377,7 @@ func (p *parser) parseDecl() ([]ast.Decl, bool) {
 		// checks/path delays, entirely out of scope. No block label to
 		// consume ("endspecify" has none, unlike the constructs above).
 		p.advance()
-		p.skipToKeyword("endspecify")
+		p.skipToKeyword("endspecify", nil)
 		return nil, true
 	case "defparam":
 		// "defparam u1.WIDTH = 8;" (LRM 23.10, legacy pre-parameter-override
@@ -457,7 +457,7 @@ func (p *parser) parseDecl() ([]ast.Decl, bool) {
 		}
 		p.advance() // "global"
 		p.advance() // "clocking"
-		p.skipToKeyword("endclocking")
+		p.skipToKeyword("endclocking", nil)
 		p.skipEndLabel()
 		return nil, true
 	case "generate", "endgenerate":
@@ -510,7 +510,7 @@ func (p *parser) parseDecl() ([]ast.Decl, bool) {
 		// way for/if's do.
 		p.advance()
 		p.skipParenGroup()
-		p.skipToKeyword("endcase")
+		p.skipToKeyword("endcase", caseOpenKeywords)
 		return nil, true
 	}
 	if gatePrimitiveKeywords[tok.Text] {
@@ -817,17 +817,44 @@ func (p *parser) skipParenGroup() {
 // "declaration-grade, not full grammar" treatment of a function/task
 // body, including its same unexpected-EOF error if keyword is never
 // reached.
-func (p *parser) skipToKeyword(keyword string) {
+func (p *parser) skipToKeyword(keyword string, openers map[string]bool) {
 	depth := 0
+	nested := 0
 	for {
 		tok := p.peek()
 		if tok.Kind == token.KindEOF {
 			p.errorf(tok, "unexpected end of file, expected %s", keyword)
 			return
 		}
-		if depth == 0 && tok.Kind == token.KindKeyword && tok.Text == keyword {
-			p.advance()
-			return
+		if tok.Kind == token.KindKeyword {
+			if openers[tok.Text] {
+				// A construct of the same kind opening inside this one, so
+				// the next matching end keyword closes THAT, not this. Only
+				// the generate-case caller passes a set: a covergroup,
+				// property, sequence, clocking block, specify block or
+				// checker cannot contain another of its own kind, but a
+				// generate case's body routinely contains a procedural one.
+				nested++
+				p.advance()
+				continue
+			}
+			if depth == 0 && tok.Text == keyword {
+				if nested > 0 {
+					nested--
+					p.advance()
+					continue
+				}
+				p.advance()
+				return
+			}
+			if isEndKeyword(tok.Text) {
+				// A container or subroutine end keyword at any depth means
+				// this construct's own terminator was never reached -- see
+				// skipBody, same reasoning and same failure if it runs on.
+				// Left unconsumed for the caller's dispatch.
+				p.errorf(tok, "expected %s before %q", keyword, tok.Text)
+				return
+			}
 		}
 		switch tok.Kind {
 		case token.KindLParen, token.KindLBrace, token.KindLBrack, token.KindTickLBrace:
