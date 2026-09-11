@@ -1,6 +1,8 @@
 package lexer
 
 import (
+	"fmt"
+	"strings"
 	"testing"
 
 	"github.com/jfetkotto/svparse/token"
@@ -208,5 +210,33 @@ func TestLexNeverPanicsOnArbitraryInput(t *testing.T) {
 			}()
 			Lex(in)
 		}()
+	}
+}
+
+// benchSource builds a file with the punctuation mix real RTL has: the
+// single-character tokens ';' ',' '(' ')' '.' dominate, and none of them
+// starts a multi-character operator.
+func benchSource(modules int) string {
+	var b strings.Builder
+	for i := range modules {
+		fmt.Fprintf(&b, "module m%d #(parameter int W = 8) (\n", i)
+		b.WriteString("  input  wire logic [W-1:0] a,\n  input  wire logic [W-1:0] b,\n  output var  logic [W-1:0] y\n);\n")
+		for j := range 20 {
+			fmt.Fprintf(&b, "  logic [W-1:0] t%d;\n  assign t%d = (a[%d] & b[%d]) | (a >> 1) ^ {b[0], a[1:0]};\n", j, j, j, j)
+		}
+		fmt.Fprintf(&b, "  leaf #(.W(W)) u%d (.a(a), .b(b), .y(y));\n", i)
+		b.WriteString("endmodule\n\n")
+	}
+	return b.String()
+}
+
+func BenchmarkLexRTL(b *testing.B) {
+	src := benchSource(40)
+	b.SetBytes(int64(len(src)))
+	b.ResetTimer()
+	for range b.N {
+		if _, errs := Lex(src); len(errs) != 0 {
+			b.Fatalf("unexpected lex errors: %+v", errs)
+		}
 	}
 }

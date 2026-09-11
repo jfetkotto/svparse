@@ -43,10 +43,34 @@ var multiCharOperators = []struct {
 	{"~&", token.KindNand}, {"~|", token.KindNor}, {"~^", token.KindXnor}, {"^~", token.KindXnorAlt},
 }
 
+// multiCharByFirstRune buckets multiCharOperators by their first rune, so
+// scanOperator tries only the handful of candidates that could possibly
+// match instead of all of them.
+//
+// The most frequent punctuation in SystemVerilog -- ';' ',' '(' ')' '.' --
+// starts no multi-character operator at all, and each used to fail every
+// entry in the table before reaching the single-character map. That is the
+// hottest loop in the lexer, and the lexer runs over every file on every
+// rescan.
+var multiCharByFirstRune map[rune][]struct {
+	text string
+	kind token.Kind
+}
+
 func init() {
 	sort.Slice(multiCharOperators, func(i, j int) bool {
 		return len(multiCharOperators[i].text) > len(multiCharOperators[j].text)
 	})
+	multiCharByFirstRune = make(map[rune][]struct {
+		text string
+		kind token.Kind
+	})
+	// Built from the already length-sorted slice, so each bucket inherits
+	// the longest-first order maximal munch depends on.
+	for _, op := range multiCharOperators {
+		r := rune(op.text[0])
+		multiCharByFirstRune[r] = append(multiCharByFirstRune[r], op)
+	}
 }
 
 var singleCharOperators = map[rune]token.Kind{
@@ -72,7 +96,7 @@ func isOperatorStart(r rune) bool {
 func (l *lexer) scanOperator() {
 	startLine, startChar := l.line, l.char
 
-	for _, op := range multiCharOperators {
+	for _, op := range multiCharByFirstRune[l.runes[l.i]] {
 		if l.matchesAt(op.text) {
 			l.advanceN(len(op.text))
 			l.emit(op.kind, op.text, startLine, startChar)
