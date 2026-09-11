@@ -58,6 +58,12 @@ type Type struct {
 	PackageQualifier string // "" unless Pkg::Type
 	Name             string
 	PackedDims       []Dim
+
+	// ParamOverrides carries a parameterized type reference's "#( ... )"
+	// arguments -- the class-type half of the same syntax an Instantiation
+	// uses, e.g. the "#(8)" in "my_class #(8) obj;". nil for the ordinary
+	// unparameterized case.
+	ParamOverrides []ParamOverride
 }
 
 // Dim is one array/bit-range dimension: [Left:Right] (a range) or

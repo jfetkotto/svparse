@@ -9,6 +9,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/jfetkotto/svparse/ast"
 	"github.com/jfetkotto/svparse/preprocessor"
 )
 
@@ -152,4 +153,66 @@ func TestSVTestsCorpusMatchesBaseline(t *testing.T) {
 			t.Errorf("baseline entry %q doesn't match any vendored file", path)
 		}
 	}
+}
+
+// TestSVTestsCorpusSpansAreWellFormed pins the invariant that every
+// declaration's End is at or after its start.
+//
+// It is corpus-wide rather than example-based on purpose: the bug it
+// guards against was not one wrong node but a whole convention that was
+// only ever applied to the seven declarations that span a real body, so
+// every other kind carried End{0,0} against a nonzero start -- a
+// backwards range. A per-node test would have had to be written for each
+// kind that was already missing one. Running it over all 387 vendored
+// files means a newly added declaration kind is covered the day it can
+// appear in real source.
+func TestSVTestsCorpusSpansAreWellFormed(t *testing.T) {
+	walkCorpus(t, func(t *testing.T, relPath, text string) {
+		toks, _ := preprocessor.Preprocess(relPath, text, corpusIncludeResolver{})
+		f, _ := Parse(relPath, toks)
+		walkDeclSpans(t, f.Decls)
+	})
+}
+
+func walkDeclSpans(t *testing.T, decls []ast.Decl) {
+	t.Helper()
+	for _, d := range decls {
+		pos := d.Pos()
+		if pos.EndLine < pos.Line || (pos.EndLine == pos.Line && pos.EndCharacter < pos.Character) {
+			t.Errorf("%T %s: end %d:%d precedes start %d:%d",
+				d, declName(d), pos.EndLine, pos.EndCharacter, pos.Line, pos.Character)
+		}
+		switch n := d.(type) {
+		case *ast.Container:
+			walkDeclSpans(t, n.Body)
+		case *ast.Class:
+			walkDeclSpans(t, n.Body)
+		case *ast.Package:
+			walkDeclSpans(t, n.Body)
+		}
+	}
+}
+
+func declName(d ast.Decl) string {
+	switch n := d.(type) {
+	case *ast.Container:
+		return n.Name
+	case *ast.Class:
+		return n.Name
+	case *ast.Package:
+		return n.Name
+	case *ast.Function:
+		return n.Name
+	case *ast.Task:
+		return n.Name
+	case *ast.Variable:
+		return n.Name
+	case *ast.Typedef:
+		return n.Name
+	case *ast.Parameter:
+		return n.Name
+	case *ast.Instantiation:
+		return n.ModuleType
+	}
+	return "?"
 }

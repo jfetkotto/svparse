@@ -36,6 +36,9 @@ type parser struct {
 	toks []preprocessor.Token
 	pos  int
 	errs []Error
+
+	// fallback positions eofToken when toks is empty -- see newSubParser.
+	fallback preprocessor.Token
 }
 
 // Parse parses toks. preprocessor.Token is the canonical input -- not
@@ -95,10 +98,14 @@ func (p *parser) peekAt(offset int) preprocessor.Token {
 
 // eofToken synthesizes an end-of-input marker positioned just after the
 // last real token in toks (so an "unexpected end of input" error points
-// somewhere sensible), or the zero position if toks is empty.
+// somewhere sensible), falling back to the position a sub-parser was
+// created at when toks is empty -- see newSubParser.
 func (p *parser) eofToken() preprocessor.Token {
 	if len(p.toks) == 0 {
-		return preprocessor.Token{Token: token.Token{Kind: token.KindEOF}}
+		return preprocessor.Token{
+			Token: token.Token{Kind: token.KindEOF, Line: p.fallback.Line, Character: p.fallback.Character},
+			File:  p.fallback.File,
+		}
 	}
 	last := p.toks[len(p.toks)-1]
 	return preprocessor.Token{
@@ -135,15 +142,32 @@ func (p *parser) errorf(tok preprocessor.Token, format string, args ...any) {
 }
 
 // namePosition returns the ast.Position a declaration's Position field
-// should start with, given the token that names it.
+// should start with, given the token that names it -- spanning the name
+// itself, so a declaration with no body to span still has a usable range.
+//
+// The End half is set here rather than at each call site because leaving
+// it to the caller did not work: only the seven declarations that go on to
+// span a real body (container, package, class, function, task, constraint)
+// ever assigned one, so every OTHER declaration -- variable, port,
+// parameter, typedef, enum member, import, instantiation -- carried
+// End{0,0} against a nonzero start, i.e. a BACKWARDS range rather than
+// merely an empty one. Every half-open containment test a consumer builds
+// on Position/End fails for those, and an LSP documentSymbol whose
+// range.end precedes its range.start is protocol-invalid. Declarations
+// that do span a body simply overwrite what this sets.
 func namePosition(nameTok preprocessor.Token) ast.Position {
-	return ast.Position{File: nameTok.File, Line: nameTok.Line, Character: nameTok.Character}
+	endLine, endCharacter := endOfName(nameTok)
+	return ast.Position{
+		File: nameTok.File, Line: nameTok.Line, Character: nameTok.Character,
+		EndLine: endLine, EndCharacter: endCharacter,
+	}
 }
 
 // endOfName returns the End position for a declaration that has no body to
-// span -- a prototype (extern / pure virtual / DPI import function or task,
-// an extern or pure constraint): just past the last character of its own
-// name.
+// span: just past the last character of its own name. Applied to every
+// declaration by namePosition, and re-applied explicitly by a prototype
+// (extern / pure virtual / DPI import function or task, an extern or pure
+// constraint), which takes the body-spanning path but has no body.
 //
 // Deliberately name-WIDTH, not zero-width. A zero-width End makes the
 // declaration's span contain nothing at all, including the name's own

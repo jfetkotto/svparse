@@ -99,7 +99,7 @@ func (p *parser) parseVariableDeclQualified(isRand, isRandC, isStatic bool) ([]a
 // name {unpacked-dims} [= initial]. Shared with struct/union member
 // parsing (see typedef.go), which has the identical shape.
 func (p *parser) parseVariableDeclarator(group []preprocessor.Token, typ ast.Type) (*ast.Variable, bool) {
-	sub := newSubParser(group)
+	sub := p.newSubParser(group)
 	nameTok, ok := sub.expectIdent()
 	if !ok {
 		p.mergeErrors(sub)

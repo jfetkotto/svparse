@@ -179,7 +179,7 @@ func (p *parser) parseArgList() []ast.Arg {
 }
 
 func (p *parser) parseArgEntry(group []preprocessor.Token) (ast.Arg, bool) {
-	sub := newSubParser(group)
+	sub := p.newSubParser(group)
 	dir := sub.consumeDirection()
 
 	typ, nameTok, ok := sub.parseTypeAndName()

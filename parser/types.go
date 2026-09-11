@@ -326,8 +326,18 @@ func (p *parser) splitByComma(stopKind token.Kind, stopAtDeclBoundary bool) (gro
 // port connection) without that group's own bounds/EOF handling
 // interacting with the outer token stream. Its errors accumulate
 // separately and must be merged back via mergeErrors.
-func newSubParser(toks []preprocessor.Token) *parser {
-	return &parser{toks: toks}
+// newSubParser builds a parser over one already-comma-isolated group,
+// carrying the parent's current position as a fallback for eofToken.
+//
+// That fallback is what keeps an EMPTY group attributable. A stray comma
+// ("module top(input logic clk, , output logic rst);") produces a group
+// with no tokens at all, and a sub-parser over it has nothing of its own
+// to point an error at -- so "expected an identifier" used to be recorded
+// at File "" line 0 character 0, landing a diagnostic on line 1 of no
+// file. In a multi-file session with include attribution that is
+// unattributable noise.
+func (p *parser) newSubParser(toks []preprocessor.Token) *parser {
+	return &parser{toks: toks, fallback: p.peek()}
 }
 
 func (p *parser) mergeErrors(sub *parser) {

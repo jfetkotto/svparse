@@ -224,3 +224,46 @@ func TestInstantiationVsVariableArrayDisambiguation(t *testing.T) {
 		t.Fatalf("expected a Variable second, got %T", body[1])
 	}
 }
+
+// A "#( ... )" prefix does not make something an instantiation: a
+// parameterized class type declaration has the identical prefix and is a
+// variable. Only the declarator's own shape tells them apart.
+func TestParameterizedClassTypeIsAVariableNotAnInstantiation(t *testing.T) {
+	body := moduleBody(t, "my_class #(8) obj;")
+	if len(body) != 1 {
+		t.Fatalf("expected 1 decl, got %+v", body)
+	}
+	v, ok := body[0].(*ast.Variable)
+	if !ok {
+		t.Fatalf("expected *ast.Variable, got %T", body[0])
+	}
+	if v.Name != "obj" || v.Type.Name != "my_class" {
+		t.Fatalf("unexpected variable: %+v", v)
+	}
+	if len(v.Type.ParamOverrides) != 1 {
+		t.Fatalf("expected the #(8) overrides to be kept on the type, got %+v", v.Type.ParamOverrides)
+	}
+}
+
+func TestParameterizedClassTypeWithNamedOverrideAndQualifier(t *testing.T) {
+	body := moduleBody(t, "pkg_cfg::fifo #(.W(8)) f;")
+	v, ok := body[0].(*ast.Variable)
+	if !ok {
+		t.Fatalf("expected *ast.Variable, got %T", body[0])
+	}
+	if v.Type.PackageQualifier != "pkg_cfg" || v.Type.Name != "fifo" || v.Name != "f" {
+		t.Fatalf("unexpected variable: %+v", v)
+	}
+}
+
+// The discriminator must still call a real instantiation an instantiation.
+func TestParameterizedInstantiationIsStillAnInstantiation(t *testing.T) {
+	body := moduleBody(t, "leaf #(.W(8)) u0 (.a(x));")
+	inst, ok := body[0].(*ast.Instantiation)
+	if !ok {
+		t.Fatalf("expected *ast.Instantiation, got %T", body[0])
+	}
+	if inst.ModuleType != "leaf" || len(inst.Instances) != 1 || inst.Instances[0].Name != "u0" {
+		t.Fatalf("unexpected instantiation: %+v", inst)
+	}
+}

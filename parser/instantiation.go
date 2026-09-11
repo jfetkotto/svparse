@@ -48,7 +48,13 @@ func (p *parser) parseVariableOrInstantiation() ([]ast.Decl, bool) {
 	// parseVariableDeclQualified for why "consumed but empty" must not look
 	// like "didn't recognize anything here". splitByCommaUntil always
 	// flushes at least one group, so groups[0] is safe to index.
-	if hasParamOverrides || firstGroupLooksLikeInstance(groups[0]) {
+	// firstGroupLooksLikeInstance is authoritative on its own: a "#( ... )"
+	// prefix does NOT settle the question, because a parameterized class
+	// type declaration ("my_class #(8) obj;", everywhere in UVM-style code)
+	// has the identical prefix and is a variable, not an instantiation.
+	// Only the declarator's own shape distinguishes them -- an instance
+	// always has "name [dims] (", a type declarator never does.
+	if firstGroupLooksLikeInstance(groups[0]) {
 		inst := &ast.Instantiation{ModuleType: typ.Name, ParamOverrides: paramOverrides}
 		inst.Position = namePosition(typeNameTok)
 		for _, g := range groups {
@@ -62,6 +68,7 @@ func (p *parser) parseVariableOrInstantiation() ([]ast.Decl, bool) {
 		return []ast.Decl{inst}, true
 	}
 
+	typ.ParamOverrides = paramOverrides
 	var decls []ast.Decl
 	for _, g := range groups {
 		if v, ok := p.parseVariableDeclarator(g, typ); ok {
@@ -150,7 +157,7 @@ func parseParamOverrideGroup(group []preprocessor.Token) ast.ParamOverride {
 // parseInstanceGroup parses one already-comma-isolated instance:
 // name {instance-array-dims} ( connections ).
 func (p *parser) parseInstanceGroup(group []preprocessor.Token) (ast.Instance, bool) {
-	sub := newSubParser(group)
+	sub := p.newSubParser(group)
 	nameTok, ok := sub.expectIdent()
 	if !ok {
 		p.mergeErrors(sub)
