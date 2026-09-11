@@ -19,6 +19,7 @@ chapter-22/22.5.1--define-expansion_18.sv 2 # should_fail_because: function-like
 chapter-22/22.5.1--define-expansion_21.sv 3 # should_fail_because: macro text split across string literals; the unterminated string corrupts the initial statement's own token stream too, reported as "expected ';' before \"endmodule\"" -- was 4 while the statement skip ran to EOF (taking endmodule with it, so the container reported its own unexpected-EOF as well)
 chapter-22/22.5.1--define-expansion_6.sv 1 # should_fail_because: fewer actual than formal macro args with no default for the rest
 chapter-22/22.5.1--define-expansion_7.sv 1 # should_fail_because: function-like macro invoked without parentheses
+chapter-22/22.5.1--define-expansion_8.sv 1 # should_fail_because: more actual than formal macro args -- newly detected; svparse used to drop the surplus silently, so this file sat outside the baseline entirely
 chapter-5/5.6--wrong-identifiers.sv 2 # should_fail_because: identifiers starting with a digit or $
 chapter-6/6.19--enum_value_inv.sv 2 # should_fail_because: invalid enum value
 chapter-6/6.19--enum_xx_inv.sv 2 # should_fail_because: invalid enum value

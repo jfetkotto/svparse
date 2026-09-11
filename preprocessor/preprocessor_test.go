@@ -1,6 +1,8 @@
 package preprocessor
 
 import (
+	"fmt"
+	"strings"
 	"testing"
 
 	"github.com/jfetkotto/svparse/token"
@@ -332,4 +334,64 @@ func TestPreprocessNeverPanicsOnArbitraryInput(t *testing.T) {
 			Preprocess("root.sv", in, nil)
 		}()
 	}
+}
+
+// The mirror of TestUnbalancedEndifIsIgnoredNotFatal. An unterminated
+// conditional used to be the quietest possible failure: every token after
+// it is skipped, so the file reaches the parser with its declarations
+// gone, and errs was EMPTY -- nothing anywhere explained why.
+func TestUnterminatedIfdefIsReported(t *testing.T) {
+	toks, errs := pp(t, "`ifdef FOO\nmodule top;\nendmodule\n")
+	assertTexts(t, toks)
+	if len(errs) != 1 {
+		t.Fatalf("expected one error for the unterminated `ifdef, got %+v", errs)
+	}
+	if errs[0].Line != 0 {
+		t.Fatalf("expected the error at the `ifdef itself (line 0), got %+v", errs[0])
+	}
+	if !strings.Contains(errs[0].Message, "unterminated") {
+		t.Fatalf("unexpected message: %q", errs[0].Message)
+	}
+}
+
+func TestUnterminatedIfdefReportsOnePerOpenFrame(t *testing.T) {
+	_, errs := pp(t, "`ifdef A\n`ifdef B\n")
+	if len(errs) != 2 {
+		t.Fatalf("expected one error per open frame, got %+v", errs)
+	}
+}
+
+func TestTerminatedIfdefReportsNothing(t *testing.T) {
+	_, errs := pp(t, "`ifdef FOO\n`endif\nafter\n")
+	if len(errs) != 0 {
+		t.Fatalf("expected no errors, got %+v", errs)
+	}
+}
+
+// A macro chain that doubles at each level is not recursive, so neither
+// the self-reference guard nor the include-cycle guard sees anything
+// wrong -- without a budget this expands to 2^n tokens and never returns.
+// Driven against a deliberately tiny maxSteps so the test proves the
+// budget stops it without having to burn the real 20-million-token one.
+func TestRunawayMacroExpansionIsBounded(t *testing.T) {
+	var src strings.Builder
+	const levels = 40
+	src.WriteString("`define L0 x\n")
+	for i := 1; i <= levels; i++ {
+		fmt.Fprintf(&src, "`define L%d `L%d `L%d\n", i, i-1, i-1)
+	}
+	fmt.Fprintf(&src, "`L%d\n", levels)
+
+	p := newPreprocessor(nil)
+	p.maxSteps = 100_000
+	p.including["test.sv"] = true
+	p.pushFile("test.sv", src.String())
+	p.run()
+
+	for _, e := range p.errs {
+		if strings.Contains(e.Message, "giving up") {
+			return
+		}
+	}
+	t.Fatalf("expected the expansion budget to stop this, got %+v", p.errs)
 }

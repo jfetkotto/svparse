@@ -1,6 +1,9 @@
 package preprocessor
 
-import "testing"
+import (
+	"strings"
+	"testing"
+)
 
 func TestFunctionLikeMacroBasic(t *testing.T) {
 	toks, errs := pp(t, "`define ADD(a,b) ((a)+(b))\n`ADD(1,2)")
@@ -107,5 +110,27 @@ func TestFunctionLikeMacroExpansionTaggedWithInvocation(t *testing.T) {
 		if toks[i].MacroName != want {
 			t.Errorf("token %d (%q): MacroName = %q, want %q", i, toks[i].Text, toks[i].MacroName, want)
 		}
+	}
+}
+
+// The too-few-arguments direction has always been reported; the surplus
+// direction used to be dropped silently, so "`F(1,2)" on a one-parameter
+// macro expanded to "1" with nothing said about the 2. LRM 22.5.1 makes
+// it an error, and sv-tests pins it (chapter-22/22.5.1--define-expansion_8).
+func TestFunctionLikeMacroWithTooManyArgumentsIsReported(t *testing.T) {
+	toks, errs := pp(t, "`define F(a) a\n`F(1,2)\n")
+	assertTexts(t, toks, "1")
+	if len(errs) != 1 {
+		t.Fatalf("expected one error, got %+v", errs)
+	}
+	if !strings.Contains(errs[0].Message, "expects 1") {
+		t.Fatalf("unexpected message: %q", errs[0].Message)
+	}
+}
+
+func TestFunctionLikeMacroWithExactArgumentsIsNotReported(t *testing.T) {
+	_, errs := pp(t, "`define F(a,b) a b\n`F(1,2)\n")
+	if len(errs) != 0 {
+		t.Fatalf("expected no errors, got %+v", errs)
 	}
 }
