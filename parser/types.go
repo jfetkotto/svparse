@@ -15,6 +15,10 @@ import (
 // follows isn't actually a name (an identifier), rewinds and
 // reinterprets the whole thing as an implicit-typed bare name instead.
 func (p *parser) parseTypeAndName() (ast.Type, preprocessor.Token, bool) {
+	if t, nameTok, ok := p.netTypeAndName(); ok {
+		return t, nameTok, true
+	}
+
 	save := p.pos
 	t := p.parseTypeBase()
 	t.PackedDims = p.parseDims()
@@ -27,6 +31,70 @@ func (p *parser) parseTypeAndName() (ast.Type, preprocessor.Token, bool) {
 	p.pos = save
 	nameTok, ok := p.expectIdent()
 	return ast.Type{}, nameTok, ok
+}
+
+// netTypeAndName parses the "[net_type] data_type name" shape -- LRM
+// 23.2.2.3's net_port_type, e.g. "input wire logic [3:0] req". The net
+// type itself is consumed and not tracked, the same treatment
+// consumeDirection already gives "var" in the identical grammar slot:
+// ast.Type describes the data type, and "wire logic x" declares the very
+// same data type "logic x" does.
+//
+// Because a net-type keyword is equally valid AS the type ("wire x",
+// "uwire w", "wire [3:0] clk"), this is a probe, not a decision: it
+// commits only when swallowing the keyword still leaves a NAMED type
+// followed by an identifier (a real type name, not one of
+// nonTypeNameQualifiers), and otherwise rewinds both the cursor and the
+// error list, leaving parseTypeAndName's own greedy path to parse the
+// entry exactly as it did before this existed.
+func (p *parser) netTypeAndName() (ast.Type, preprocessor.Token, bool) {
+	if !netTypeKeywords[p.peek().Text] {
+		return ast.Type{}, preprocessor.Token{}, false
+	}
+	savePos, saveErrs := p.pos, len(p.errs)
+	p.advance() // the net-type keyword
+
+	t := p.parseTypeBase()
+	t.PackedDims = p.parseDims()
+	if t.Name != "" && !nonTypeNameQualifiers[t.Name] {
+		if nameTok := p.peek(); nameTok.Kind == token.KindIdent {
+			p.advance()
+			return t, nameTok, true
+		}
+	}
+
+	p.pos = savePos
+	p.errs = p.errs[:saveErrs]
+	return ast.Type{}, preprocessor.Token{}, false
+}
+
+// consumeNetTypeQualifier is netTypeAndName's counterpart for a net
+// declaration written as a statement ("wire logic foo;"), where the same
+// [net_type] data_type shape is legal. It swallows the net-type keyword
+// only when the keyword is qualifying a following data type, not serving
+// as the declaration's own type ("uwire w;", "wire [3:0] x;").
+//
+// Decided by lookahead rather than netTypeAndName's rewind because this
+// caller splits declarators only after the type is parsed, so there is no
+// single point at which a failed attempt could be backed out: the keyword
+// is qualifying something else only if a type-name token follows it and
+// that token is itself followed by a declarator's start -- a name, a
+// packed dimension, or a "::" package qualifier. nonTypeNameQualifiers are
+// excluded despite lexing as type-name tokens, so "wire signed [3:0] x"
+// and "tri1 scalared [15:0] a" both keep naming the net type as their
+// type, as before.
+func (p *parser) consumeNetTypeQualifier() {
+	if !netTypeKeywords[p.peek().Text] {
+		return
+	}
+	next := p.peekAt(1)
+	if !isTypeNameToken(next) || nonTypeNameQualifiers[next.Text] {
+		return
+	}
+	switch p.peekAt(2).Kind {
+	case token.KindIdent, token.KindLBrack, token.KindColonColon:
+		p.advance()
+	}
 }
 
 // parseTypeBase greedily consumes signed/unsigned and one type name

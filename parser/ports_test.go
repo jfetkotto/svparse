@@ -293,3 +293,102 @@ func TestPortsMalformedEntryDoesNotBlockOthers(t *testing.T) {
 		t.Fatalf("unexpected ports: %+v", c.Ports)
 	}
 }
+
+// The reported real-world shape: a port written "direction net_type
+// data_type name" (LRM 23.2.2.3's net_port_type) used to fail
+// parseTypeAndName outright and be dropped from the port list entirely,
+// leaving only a generic "expected an identifier, found \"wire\"" behind.
+func TestPortsNetTypeKeywordBeforeDataType(t *testing.T) {
+	c := moduleWithPorts(t, "module leaf(input wire logic clk, input logic rst, output var logic data, input wire logic [3:0] requestBuff_a); endmodule")
+	if len(c.Ports) != 4 {
+		t.Fatalf("expected 4 ports, got %+v", c.Ports)
+	}
+	clk := c.Ports[0]
+	if clk.Direction != ast.DirInput || clk.Type.Name != "logic" || clk.Name != "clk" {
+		t.Fatalf("unexpected clk port: %+v", clk)
+	}
+	req := c.Ports[3]
+	if req.Direction != ast.DirInput || req.Type.Name != "logic" || req.Name != "requestBuff_a" {
+		t.Fatalf("unexpected requestBuff_a port: %+v", req)
+	}
+	if len(req.Type.PackedDims) != 1 {
+		t.Fatalf("expected 1 packed dim on requestBuff_a, got %+v", req.Type.PackedDims)
+	}
+}
+
+func TestPortsEveryNetTypeKeywordBeforeDataType(t *testing.T) {
+	for _, netType := range []string{
+		"wire", "tri", "tri0", "tri1", "triand", "trior", "trireg",
+		"wand", "wor", "uwire", "supply0", "supply1",
+	} {
+		t.Run(netType, func(t *testing.T) {
+			c := moduleWithPorts(t, "module leaf(input "+netType+" logic [3:0] sig); endmodule")
+			if len(c.Ports) != 1 {
+				t.Fatalf("expected 1 port, got %+v", c.Ports)
+			}
+			p := c.Ports[0]
+			if p.Direction != ast.DirInput || p.Type.Name != "logic" || p.Name != "sig" {
+				t.Fatalf("unexpected port: %+v", p)
+			}
+		})
+	}
+}
+
+func TestPortsNetTypeKeywordBeforePackageQualifiedType(t *testing.T) {
+	c := moduleWithPorts(t, "module leaf(input wire pkg_cfg::cfg_t cfg); endmodule")
+	if len(c.Ports) != 1 {
+		t.Fatalf("expected 1 port, got %+v", c.Ports)
+	}
+	p := c.Ports[0]
+	if p.Type.PackageQualifier != "pkg_cfg" || p.Type.Name != "cfg_t" || p.Name != "cfg" {
+		t.Fatalf("unexpected port: %+v", p)
+	}
+}
+
+func TestPortsNetTypeKeywordBeforeUserType(t *testing.T) {
+	c := moduleWithPorts(t, "module leaf(input wire cfg_t cfg); endmodule")
+	if len(c.Ports) != 1 {
+		t.Fatalf("expected 1 port, got %+v", c.Ports)
+	}
+	if p := c.Ports[0]; p.Type.Name != "cfg_t" || p.Name != "cfg" {
+		t.Fatalf("unexpected port: %+v", c.Ports[0])
+	}
+}
+
+// A net-type keyword with no data type after it is the port's own type,
+// not a qualifier -- netTypeAndName must rewind for each of these rather
+// than claim the keyword and leave the entry unparseable.
+func TestPortsBareNetTypeKeywordRemainsTheType(t *testing.T) {
+	for name, src := range map[string]string{
+		"no data type": "module leaf(input wire clk); endmodule",
+		"packed dims":  "module leaf(input wire [3:0] clk); endmodule",
+		"signed":       "module leaf(input wire signed [3:0] clk); endmodule",
+	} {
+		t.Run(name, func(t *testing.T) {
+			c := moduleWithPorts(t, src)
+			if len(c.Ports) != 1 {
+				t.Fatalf("expected 1 port, got %+v", c.Ports)
+			}
+			p := c.Ports[0]
+			if p.Name != "clk" {
+				t.Fatalf("unexpected port name: %+v", p)
+			}
+			if p.Type.Name != "wire" {
+				t.Fatalf("expected the net-type keyword to remain the type, got %+v", p.Type)
+			}
+		})
+	}
+}
+
+// LRM 6.9.2's "vectored"/"scalared" sit where a data type would and lex as
+// type-name tokens, but qualify the net rather than typing it. They are
+// unsupported either way -- what matters is that the [net_type] data_type
+// shape doesn't quietly claim one as a type name and turn a recorded error
+// into a wrong parse (the same baseline sv-tests pins for the statement
+// form, chapter-6/6.9.2--vector_scalared.sv).
+func TestPortsNetQualifierIsNotClaimedAsADataType(t *testing.T) {
+	_, errs := parseSrc(t, "module leaf(input tri1 scalared [15:0] clk); endmodule")
+	if len(errs) != 1 {
+		t.Fatalf("expected 1 error, got %+v", errs)
+	}
+}
