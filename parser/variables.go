@@ -22,6 +22,27 @@ var dataTypeKeywords = map[string]bool{
 	"genvar": true, // LRM 27.4 -- a generate for-loop's index variable, declared like any other variable outside the loop header itself
 }
 
+// netTypeKeywords are the net types (LRM 6.7.1's net_type) that may
+// precede a data type rather than being one: "net_port_type ::=
+// [net_type] data_type_or_implicit" (LRM 23.2.2.3). Deliberately its own
+// set rather than a subset check against dataTypeKeywords, which also
+// holds "logic", "int", "signed" and friends -- none of those may ever be
+// swallowed as a leading qualifier.
+var netTypeKeywords = map[string]bool{
+	"wire": true, "tri": true, "tri0": true, "tri1": true, "triand": true, "trior": true, "trireg": true,
+	"wand": true, "wor": true, "uwire": true, "supply0": true, "supply1": true,
+}
+
+// nonTypeNameQualifiers are keywords that occupy the slot a data type
+// would, and lex as type-name tokens, but qualify a type rather than being
+// one: LRM 6.9.2's "vectored"/"scalared" net qualifiers, and the signing
+// qualifiers parseTypeBase consumes on their own. A net-type keyword
+// followed by one of these is still naming its OWN type ("tri1 scalared
+// [15:0] a"), so the [net_type] data_type shape must not claim it.
+var nonTypeNameQualifiers = map[string]bool{
+	"signed": true, "unsigned": true, "vectored": true, "scalared": true,
+}
+
 func isVariableStartKeyword(text string) bool {
 	return dataTypeKeywords[text]
 }
@@ -46,6 +67,7 @@ func (p *parser) parseVariableDecl() ([]ast.Decl, bool) {
 // doesn't need to wait for the general identifier-vs-instantiation
 // disambiguation a later commit adds.
 func (p *parser) parseVariableDeclQualified(isRand, isRandC, isStatic bool) ([]ast.Decl, bool) {
+	p.consumeNetTypeQualifier()
 	typ := p.parseTypeBase()
 	typ.PackedDims = p.parseDims()
 

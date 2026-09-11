@@ -287,3 +287,54 @@ func TestParameterDeclWithUnpackedDimMultipleNames(t *testing.T) {
 		t.Fatalf("unexpected B: %+v", b)
 	}
 }
+
+// The statement form of the same [net_type] data_type shape ports use
+// (LRM 6.7.1) -- see consumeNetTypeQualifier.
+func TestVariableNetTypeKeywordBeforeDataType(t *testing.T) {
+	body := moduleBody(t, "wire logic foo;\nwire logic [3:0] bar;\nwire cfg_t baz;\nwire pkg_cfg::cfg_t qux;")
+	if len(body) != 4 {
+		t.Fatalf("expected 4 decls, got %+v", body)
+	}
+	foo := body[0].(*ast.Variable)
+	if foo.Type.Name != "logic" || foo.Name != "foo" {
+		t.Fatalf("unexpected foo: %+v", foo)
+	}
+	bar := body[1].(*ast.Variable)
+	if bar.Type.Name != "logic" || bar.Name != "bar" || len(bar.Type.PackedDims) != 1 {
+		t.Fatalf("unexpected bar: %+v", bar)
+	}
+	baz := body[2].(*ast.Variable)
+	if baz.Type.Name != "cfg_t" || baz.Name != "baz" {
+		t.Fatalf("unexpected baz: %+v", baz)
+	}
+	qux := body[3].(*ast.Variable)
+	if qux.Type.PackageQualifier != "pkg_cfg" || qux.Type.Name != "cfg_t" || qux.Name != "qux" {
+		t.Fatalf("unexpected qux: %+v", qux)
+	}
+}
+
+// A net-type keyword that IS the declaration's type must stay that way --
+// the lookahead in consumeNetTypeQualifier is what keeps these (and
+// TestVariableUwireDeclaration above) parsing as they always did.
+func TestVariableBareNetTypeKeywordRemainsTheType(t *testing.T) {
+	for name, tc := range map[string]struct {
+		src   string
+		count int
+	}{
+		"no data type": {"wire w;", 1},
+		"packed dims":  {"wire [3:0] w;", 1},
+		"signed":       {"wire signed [3:0] w;", 1},
+		"comma list":   {"wire w, x;", 2},
+	} {
+		t.Run(name, func(t *testing.T) {
+			body := moduleBody(t, tc.src)
+			if len(body) != tc.count {
+				t.Fatalf("expected %d decls, got %+v", tc.count, body)
+			}
+			v := body[0].(*ast.Variable)
+			if v.Type.Name != "wire" || v.Name != "w" {
+				t.Fatalf("unexpected variable: %+v", v)
+			}
+		})
+	}
+}
