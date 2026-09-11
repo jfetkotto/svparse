@@ -130,3 +130,33 @@ func TestGenerateWithoutGenerateKeywords(t *testing.T) {
 		t.Fatalf("expected the leaf instantiation to be parsed, got %+v", body)
 	}
 }
+
+// A generate case's body routinely contains a procedural case. Before
+// skipToKeyword tracked its own openers, the scan stopped at the INNER
+// "endcase", resuming the parse mid-generate-case: the declarations after
+// it were then misdispatched and swallowed by error recovery.
+func TestGenerateCaseWithNestedCaseKeepsFollowingDecls(t *testing.T) {
+	f, errs := parseSrc(t, `module top;
+generate
+case (WIDTH)
+  8: begin
+       always_comb begin
+         case (sel) 1'b0: y = a; default: y = b; endcase
+       end
+     end
+  default: begin end
+endcase
+endgenerate
+endmodule
+
+module after;
+endmodule
+`)
+	if len(errs) != 0 {
+		t.Fatalf("unexpected errors: %+v", errs)
+	}
+	names := containerNames(f)
+	if len(names) != 2 || names[0] != "top" || names[1] != "after" {
+		t.Fatalf("expected modules top and after, got %v", names)
+	}
+}

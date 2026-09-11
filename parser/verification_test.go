@@ -112,3 +112,18 @@ func assertSurroundingVariables(t *testing.T, body []ast.Decl, names ...string) 
 		}
 	}
 }
+
+// An unterminated verification construct must stop at its container's end
+// keyword rather than running to EOF and taking every later declaration
+// with it.
+func TestUnterminatedCovergroupStopsAtEndmodule(t *testing.T) {
+	f, errs := parseSrc(t, "module a;\n  covergroup cg;\nendmodule\n\nmodule b;\nendmodule\n")
+
+	names := containerNames(f)
+	if len(names) != 2 || names[0] != "a" || names[1] != "b" {
+		t.Fatalf("expected modules a and b to survive, got %v", names)
+	}
+	if !hasErrorContaining(errs, `expected endgroup before "endmodule"`) {
+		t.Fatalf("expected a missing-endgroup error, got %+v", errs)
+	}
+}

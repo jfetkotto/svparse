@@ -1,6 +1,7 @@
 package parser
 
 import (
+	"strings"
 	"testing"
 
 	"github.com/jfetkotto/svparse/ast"
@@ -680,4 +681,57 @@ func findPrototypeSpan(decls []ast.Decl, want string) (line, char, endLine, endC
 		}
 	}
 	return 0, 0, 0, 0, false
+}
+
+// An unclosed "begin" used to pin the block depth above zero for the rest
+// of the file, so every stop condition (all of them gated on depth zero)
+// was unreachable and the skip ran to EOF, deleting every following
+// declaration from the parse result. A container end keyword is a hard
+// stop at any depth for exactly this reason.
+func TestProceduralConstructUnclosedBeginStopsAtEndmodule(t *testing.T) {
+	f, errs := parseSrc(t, "module a;\n  always_comb begin\n    x = 1;\nendmodule\n\nmodule b;\nendmodule\n")
+
+	names := containerNames(f)
+	if len(names) != 2 || names[0] != "a" || names[1] != "b" {
+		t.Fatalf("expected modules a and b to survive, got %v", names)
+	}
+	if !hasErrorContaining(errs, `expected "end" before "endmodule"`) {
+		t.Fatalf("expected an unclosed-begin error, got %+v", errs)
+	}
+}
+
+func TestFunctionBodyUnclosedBeginStopsAtEndfunction(t *testing.T) {
+	f, errs := parseSrc(t, "module a;\n  function void f;\n    begin\n      x = 1;\n  endfunction\nendmodule\n\nmodule b;\nendmodule\n")
+
+	names := containerNames(f)
+	if len(names) != 2 || names[0] != "a" || names[1] != "b" {
+		t.Fatalf("expected modules a and b to survive, got %v", names)
+	}
+	if !hasErrorContaining(errs, `expected "end" before "endfunction"`) {
+		t.Fatalf("expected an unclosed-begin error, got %+v", errs)
+	}
+}
+
+// A missing "endfunction" entirely: skipBody must stop at the enclosing
+// container's own end keyword and leave it unconsumed, so the module still
+// closes and the next one is still parsed.
+func TestFunctionBodyMissingEndfunctionStopsAtEndmodule(t *testing.T) {
+	f, errs := parseSrc(t, "module a;\n  function void f;\n    x = 1;\nendmodule\n\nmodule b;\nendmodule\n")
+
+	names := containerNames(f)
+	if len(names) != 2 || names[0] != "a" || names[1] != "b" {
+		t.Fatalf("expected modules a and b to survive, got %v", names)
+	}
+	if !hasErrorContaining(errs, `expected endfunction before "endmodule"`) {
+		t.Fatalf("expected a missing-endfunction error, got %+v", errs)
+	}
+}
+
+func hasErrorContaining(errs []Error, substr string) bool {
+	for _, e := range errs {
+		if strings.Contains(e.Message, substr) {
+			return true
+		}
+	}
+	return false
 }
