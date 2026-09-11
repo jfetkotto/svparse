@@ -187,6 +187,15 @@ func (p *preprocessor) expandMacro(def *macroDef, invocationTok Token, src *toke
 		if !(isEmptyParenGroups(groups) && len(def.params) == 0) {
 			argGroups = groups
 		}
+		if len(argGroups) > len(def.params) {
+			// The too-FEW direction is already reported, by argFor falling
+			// back to a parameter's default (or erroring when it has
+			// none); without this the surplus arguments were simply
+			// dropped, so "`define F(a) a" invoked as "`F(1,2)" expanded to
+			// "1" with nothing said about the 2.
+			p.errorf(invocationTok.File, invocationTok.Line, invocationTok.Character,
+				"macro %q invoked with %d arguments, expects %d", def.name, len(argGroups), len(def.params))
+		}
 	}
 
 	p.expanding[def.name] = true

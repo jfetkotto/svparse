@@ -14,6 +14,13 @@ type condFrame struct {
 	parentActive   bool
 	anyBranchTaken bool
 	active         bool
+
+	// Where the chain opened, so an unterminated one can be reported
+	// against its own directive rather than against end of file -- see
+	// reportUnterminatedConditionals.
+	file      string
+	line      int
+	character int
 }
 
 // active reports whether the preprocessor is currently in an emitting
@@ -33,7 +40,10 @@ func (p *preprocessor) handleIfdef(directiveTok Token, src *tokenSource, negate 
 		p.errorf(directiveTok.File, directiveTok.Line, directiveTok.Character, "`ifdef/`ifndef not followed by a macro name")
 		// Still push a frame -- an `endif later in the file must balance
 		// against SOMETHING, even for malformed input.
-		p.cond = append(p.cond, condFrame{parentActive: p.active(), active: false})
+		p.cond = append(p.cond, condFrame{
+			parentActive: p.active(), active: false,
+			file: directiveTok.File, line: directiveTok.Line, character: directiveTok.Character,
+		})
 		return
 	}
 
@@ -42,7 +52,26 @@ func (p *preprocessor) handleIfdef(directiveTok Token, src *tokenSource, negate 
 		defined = !defined
 	}
 	parentActive := p.active()
-	p.cond = append(p.cond, condFrame{parentActive: parentActive, anyBranchTaken: defined, active: parentActive && defined})
+	p.cond = append(p.cond, condFrame{
+		parentActive: parentActive, anyBranchTaken: defined, active: parentActive && defined,
+		file: directiveTok.File, line: directiveTok.Line, character: directiveTok.Character,
+	})
+}
+
+// reportUnterminatedConditionals records one error per conditional chain
+// still open when the run finishes.
+//
+// Without it an unterminated conditional is the quietest possible failure:
+// every token after the directive is skipped (active() stays false), so
+// the file arrives at the parser with its declarations simply gone, and
+// the error list is EMPTY -- nothing anywhere says why. The mirror case,
+// an extra endif, has always been reported (see handleEndif); this is the
+// missing direction, and the one an editor hits constantly while a
+// conditional is still being typed.
+func (p *preprocessor) reportUnterminatedConditionals() {
+	for _, frame := range p.cond {
+		p.errorf(frame.file, frame.line, frame.character, "unterminated `ifdef/`ifndef, expected `endif")
+	}
 }
 
 func (p *preprocessor) handleElsif(directiveTok Token, src *tokenSource) {

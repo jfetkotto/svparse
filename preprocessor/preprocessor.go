@@ -79,7 +79,27 @@ type preprocessor struct {
 
 	out  []Token
 	errs []Error
+
+	// steps counts main-loop iterations, i.e. tokens consumed from any
+	// source, and maxSteps bounds it -- see maxPreprocessSteps.
+	steps    int
+	maxSteps int
 }
+
+// maxPreprocessSteps bounds the total work one Preprocess call may do.
+//
+// The expanding/including guards stop a macro or include that references
+// ITSELF, but nothing stops non-recursive exponential growth: "`define A
+// `B `B", "`define B `C `C", thirty levels deep, expands to 2^30 tokens
+// with no cycle anywhere. This library promises never to panic or stop on
+// malformed source, and without a budget it keeps that promise the wrong
+// way -- it doesn't panic, it just never returns, and a language server
+// indexing a whole workspace loses a worker and its memory to one file.
+//
+// The limit is deliberately far above any real input: a 10k-line
+// SystemVerilog file is on the order of 100k tokens, so even a deep
+// include tree stays orders of magnitude under this.
+const maxPreprocessSteps = 20_000_000
 
 // Preprocess preprocesses text (path's contents, already read by the
 // caller -- e.g. an open editor buffer or a disk read, same "open buffer
@@ -107,17 +127,27 @@ type Options struct {
 // PreprocessWithOptions is Preprocess with additional configuration -- see
 // Options.
 func PreprocessWithOptions(path, text string, resolver IncludeResolver, opts Options) ([]Token, []Error) {
-	p := &preprocessor{
-		macros:    make(map[string]*macroDef),
-		expanding: make(map[string]bool),
-		including: make(map[string]bool),
-		resolver:  resolver,
-	}
+	p := newPreprocessor(resolver)
 	p.seedInitialMacros(opts.InitialMacros)
 	p.including[path] = true // seeds cycle detection for the root file too; never explicitly cleared, since nothing needs to re-include root after the run completes
 	p.pushFile(path, text)
 	p.run()
+	p.reportUnterminatedConditionals()
 	return p.out, p.errs
+}
+
+// newPreprocessor builds a preprocessor with the default step budget.
+// Separate from PreprocessWithOptions so a test can lower maxSteps
+// without having to drive a 20-million-token expansion to prove the
+// budget works.
+func newPreprocessor(resolver IncludeResolver) *preprocessor {
+	return &preprocessor{
+		macros:    make(map[string]*macroDef),
+		expanding: make(map[string]bool),
+		including: make(map[string]bool),
+		resolver:  resolver,
+		maxSteps:  maxPreprocessSteps,
+	}
 }
 
 // initialMacroFile tags the defFile/File of anything seeded via
@@ -176,6 +206,15 @@ func (p *preprocessor) run() {
 			}
 			continue
 		}
+		p.steps++
+		if p.steps > p.maxSteps {
+			tok := src.toks[src.pos]
+			p.errorf(tok.File, tok.Line, tok.Character,
+				"preprocessing exceeded %d tokens; giving up (runaway macro expansion?)", p.maxSteps)
+			p.stack = nil
+			return
+		}
+
 		tok := src.toks[src.pos]
 		src.pos++
 
