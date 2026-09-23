@@ -95,9 +95,16 @@ type EnumMember struct {
 	Value []preprocessor.Token // nil unless "= expr"
 }
 
-// Port is one ANSI port list entry (see the parser's design doc for why
-// only ANSI-style port lists are supported -- the same limitation
-// sigils's own scanPortList already has).
+// Port is one entry in a container's own header port list -- always
+// ANSI-style syntactically (see parsePortList's doc comment for why only
+// that header shape is supported, the same limitation sigils's own
+// scanPortList already has), but its Direction/Type/UnpackedDims may
+// arrive after the fact, from a non-ANSI body-level input/output/inout
+// declaration (LRM 23.2.2.3) naming this same port -- see PortDecl and
+// parseContainer's merge pass. A bare, not-yet-merged header entry has
+// Direction == DirUnspecified and a zero Type, identical to an ANSI
+// implicit-type port with no direction written; there is no way to tell
+// the two apart from this struct alone once parsing is done.
 type Port struct {
 	declBase
 	Direction    Direction
@@ -105,6 +112,27 @@ type Port struct {
 	Name         string
 	UnpackedDims []Dim
 	Default      []preprocessor.Token
+}
+
+// PortDecl is one non-ANSI port declaration (LRM 23.2.2.3): "direction
+// [net_type|var] data_type_or_implicit list_of_port_identifiers;",
+// naming a port the container's header list already declared bare and
+// supplying the direction/type that header entry is still missing. One
+// comma-separated name becomes one PortDecl, sharing the statement's
+// Direction/Type, mirroring how a multi-name variable declaration becomes
+// several Variable nodes.
+//
+// Deliberately not modeled as a Port itself: unlike Port (a name being
+// declared for the first time, in the header), a PortDecl references a
+// name declared elsewhere and is merged into that Port's own fields by
+// parseContainer once parsing finishes -- it never survives into
+// Container.Body as its own declaration.
+type PortDecl struct {
+	declBase
+	Direction    Direction
+	Type         Type
+	Name         string
+	UnpackedDims []Dim
 }
 
 // Modport is one interface modport declaration (LRM 25.5): "modport name

@@ -31,10 +31,6 @@ chapter-8/8.26.4--illegal_forward_def_implements.sv 3 # should_fail_because: ill
 chapter-8/8.26.6.2--parameter_type_conflict_unresolved.sv 2 # should_fail_because: unresolved parameter type conflict
 chapter-8/8.26.6.3--diamond_relationship_parametrized.sv 6 # should_fail_because: invalid parametrized diamond relationship
 
-# --- Out of scope: non-ANSI port declarations (ports declared by name in the header, direction given separately in the body) ---
-chapter-22/22.6--ifdef-behavioral.sv 2 # non-ANSI port declaration ("output"/"input" in the body)
-chapter-22/22.6--ifdef-nested.sv 1 # non-ANSI port declaration ("output out;" in the body)
-
 # --- Out of scope: preprocessor macro operators this preprocessor doesn't implement ---
 chapter-22/22.5.1--define-expansion_25.sv 1 # escaped-quote-within-stringify operator (`\`") not implemented -- the `" / `" stringize delimiters themselves are supported
 
