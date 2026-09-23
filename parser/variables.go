@@ -219,7 +219,9 @@ func (p *parser) parseVirtualInterfaceDecl() ([]ast.Decl, bool) {
 	}
 	if p.peek().Kind == token.KindDot && p.peekAt(1).Kind == token.KindIdent {
 		p.advance() // '.'
-		p.advance() // modport name -- not tracked on ast.Type, same "consumed, not tracked" treatment as other qualifiers this parser sees
+		modportTok := p.peek()
+		p.advance() // modport name
+		typ.Modport = modportTok.Text
 	}
 	typ.PackedDims = p.parseDims()
 

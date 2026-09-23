@@ -218,7 +218,7 @@ func TestPortsInterfaceWithModport(t *testing.T) {
 		t.Fatalf("expected 2 ports, got %+v", c.Ports)
 	}
 	sb := c.Ports[0]
-	if sb.Name != "sb" || sb.Type.Name != "simple_bus" {
+	if sb.Name != "sb" || sb.Type.Name != "simple_bus" || sb.Type.Modport != "slave" {
 		t.Fatalf("unexpected interface port: %+v", sb)
 	}
 	if c.Ports[1].Name != "clk" {
@@ -250,14 +250,14 @@ func TestPortsGenericInterfaceKeyword(t *testing.T) {
 
 func TestPortsGenericInterfaceKeywordWithModport(t *testing.T) {
 	c := moduleWithPorts(t, "module top(interface.mb b); endmodule")
-	if len(c.Ports) != 1 || c.Ports[0].Name != "b" || c.Ports[0].Type.Name != "interface" {
+	if len(c.Ports) != 1 || c.Ports[0].Name != "b" || c.Ports[0].Type.Name != "interface" || c.Ports[0].Type.Modport != "mb" {
 		t.Fatalf("unexpected port: %+v", c.Ports)
 	}
 }
 
 func TestPortsInterfaceWithModportAndUnpackedDim(t *testing.T) {
 	c := moduleWithPorts(t, "module top(simple_bus.slave sb [2]); endmodule")
-	if len(c.Ports) != 1 || c.Ports[0].Name != "sb" || c.Ports[0].Type.Name != "simple_bus" {
+	if len(c.Ports) != 1 || c.Ports[0].Name != "sb" || c.Ports[0].Type.Name != "simple_bus" || c.Ports[0].Type.Modport != "slave" {
 		t.Fatalf("unexpected port: %+v", c.Ports)
 	}
 	if len(c.Ports[0].UnpackedDims) != 1 {

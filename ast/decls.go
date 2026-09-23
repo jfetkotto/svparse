@@ -107,6 +107,30 @@ type Port struct {
 	Default      []preprocessor.Token
 }
 
+// Modport is one interface modport declaration (LRM 25.5): "modport name
+// (direction port [, ...]);" -- one comma-separated name in a possibly
+// multi-name modport statement becomes one Modport, mirroring how a
+// multi-name variable declaration becomes several Variable nodes. Only
+// the simple "direction port_identifier" port form is modeled; an
+// import/export task-based port, a clocking-block port, or a ".name(expr)"
+// connection is dropped from Ports without error -- see the parser's
+// parseModportPortList doc comment.
+type Modport struct {
+	declBase
+	Name  string
+	Ports []ModportPort
+}
+
+// ModportPort is one direction+identifier entry inside a modport's own
+// port list. Not a Decl itself -- Position alone (not declBase) is enough
+// for a consumer that wants its span, the same way Dim isn't a Decl
+// either.
+type ModportPort struct {
+	Position
+	Direction Direction
+	Name      string
+}
+
 // Arg is one function/task argument.
 type Arg struct {
 	declBase

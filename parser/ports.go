@@ -108,7 +108,9 @@ func (sub *parser) parseInterfacePortHeader() (ast.Type, preprocessor.Token, boo
 
 	if sub.peek().Kind == token.KindDot && sub.peekAt(1).Kind == token.KindIdent {
 		sub.advance() // '.'
-		sub.advance() // modport name -- not tracked on ast.Type, same "consumed, not tracked" treatment as other qualifiers this parser sees
+		modportTok := sub.peek()
+		sub.advance() // modport name
+		typ.Modport = modportTok.Text
 	}
 
 	// A plain Kind check, not expectIdent -- this is a shape probe that
