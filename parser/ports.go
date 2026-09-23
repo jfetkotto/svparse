@@ -147,6 +147,60 @@ func (p *parser) consumeDirection() ast.Direction {
 	return dir
 }
 
+// parsePortDecl parses a non-ANSI port declaration (LRM 23.2.2.3):
+// "input/output/inout [net_type|var] data_type_or_implicit
+// list_of_port_identifiers;", giving direction and (optionally) type to
+// one or more port names the container's header list already declared
+// bare. The cursor is expected to be at the direction keyword -- the
+// caller (parseDecl's "input"/"output"/"inout" dispatch) already
+// confirmed that.
+//
+// Structurally this is parseParameterDecl's "shared type resolved from
+// the first declarator, the rest are plain names" shape, not
+// parseVariableDeclQualified's: there's no leading type keyword to
+// dispatch on here, so parseTypeAndName's own implicit-vs-explicit-type
+// rewind is what correctly reads "input tdi_swj_s;" as an implicit-typed
+// bare name rather than misparsing "tdi_swj_s" as a type with no name.
+// The resulting PortDecls are merged into the header's own Port entries
+// by parseContainer, not modeled as ports themselves -- see PortDecl's
+// doc comment.
+func (p *parser) parsePortDecl() ([]ast.Decl, bool) {
+	dir := p.consumeDirection()
+
+	typ, nameTok, ok := p.parseTypeAndName()
+	if !ok {
+		return nil, false
+	}
+
+	makePort := func(nameTok preprocessor.Token) *ast.PortDecl {
+		pd := &ast.PortDecl{Direction: dir, Type: typ, Name: nameTok.Text}
+		pd.Position = namePosition(nameTok)
+		return pd
+	}
+
+	first := makePort(nameTok)
+	first.UnpackedDims = p.parseDims()
+	decls := []ast.Decl{first}
+
+	for p.peek().Kind == token.KindComma {
+		p.advance()
+		nt, ok := p.expectIdent()
+		if !ok {
+			break
+		}
+		next := makePort(nt)
+		next.UnpackedDims = p.parseDims()
+		decls = append(decls, next)
+	}
+
+	if p.peek().Kind == token.KindSemi {
+		p.advance()
+	} else {
+		p.errorf(p.peek(), "expected ';' after port declaration")
+	}
+	return decls, true
+}
+
 // parseParamPortList parses a container or class's "#( ... )" parameter
 // port list.
 func (p *parser) parseParamPortList() []ast.Parameter {

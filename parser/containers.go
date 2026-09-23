@@ -221,6 +221,16 @@ func (p *parser) parseDecl() ([]ast.Decl, bool) {
 		return oneDecl(p.parseTypedef())
 	case "parameter", "localparam":
 		return p.parseParameterDecl()
+	case "input", "output", "inout":
+		// A non-ANSI port declaration (LRM 23.2.2.3), giving direction/type
+		// to a name the container's header port list already declared bare
+		// -- see parsePortDecl and parseContainer's merge pass. "ref" is
+		// deliberately not included here: it's not a legal non-ANSI port
+		// direction (LRM 23.2.2.3 only lists input/output/inout), so a bare
+		// "ref" at this dispatch level isn't this construct; it falls
+		// through to the generic unrecognized-token recovery, same as
+		// before this case existed.
+		return p.parsePortDecl()
 	case "function":
 		return oneDecl(p.parseFunction(false))
 	case "task":
@@ -672,9 +682,46 @@ func (p *parser) parseContainer(kind ast.ContainerKind, endKeyword string) (ast.
 	p.skipHeaderToSemiStrict() // consumes the header's trailing ';' (and, defensively, anything unexpected still remaining before it)
 
 	body, end, _ := p.parseBody(endKeyword)
-	c.Body = append(headerImports, body...)
+	c.Body = p.mergeNonANSIPortDecls(c.Ports, append(headerImports, body...))
 	c.EndLine, c.EndCharacter = end.Line, end.Character
 	return c, true
+}
+
+// mergeNonANSIPortDecls attaches each non-ANSI input/output/inout body
+// declaration's direction and type onto the header's own Port entry of
+// the same name (LRM 23.2.2.3) -- ports is c.Ports, mutated in place --
+// and drops the merged *ast.PortDecl nodes from the returned body: they
+// don't introduce a declared name of their own, they only supply what the
+// header's bare-name entry was still missing, so nothing downstream
+// (sigils' addDecl included) should see them as a second, separate
+// declaration for the same port. A PortDecl naming something absent from
+// ports (a typo, or one written outside a module/interface/program
+// header's non-ANSI style entirely) is recorded as an error and dropped
+// the same way -- there is no declared port for it to attach to.
+func (p *parser) mergeNonANSIPortDecls(ports []ast.Port, body []ast.Decl) []ast.Decl {
+	kept := make([]ast.Decl, 0, len(body))
+	for _, d := range body {
+		pd, ok := d.(*ast.PortDecl)
+		if !ok {
+			kept = append(kept, d)
+			continue
+		}
+		matched := false
+		for i := range ports {
+			if ports[i].Name == pd.Name {
+				ports[i].Direction = pd.Direction
+				ports[i].Type = pd.Type
+				ports[i].UnpackedDims = pd.UnpackedDims
+				matched = true
+				break
+			}
+		}
+		if !matched {
+			p.errorf(preprocessor.Token{Token: token.Token{Line: pd.Line, Character: pd.Character}, File: pd.Position.File},
+				"%q is not a port declared in the header port list", pd.Name)
+		}
+	}
+	return kept
 }
 
 func (p *parser) parsePackage() (ast.Decl, bool) {
