@@ -389,16 +389,7 @@ func (p *parser) parseDecl() ([]ast.Decl, bool) {
 		p.skipHeaderToSemi()
 		return nil, true
 	case "modport":
-		// An interface's modport declaration (LRM 25.5): "modport name
-		// (direction port [, ...]) [, name (...)];" -- never parsed, out of
-		// declaration-grade scope (it names ports, not a new declaration of
-		// its own this package models), but skipped explicitly rather than
-		// falling through to the generic unrecognized-token recovery, since
-		// nearly every interface has at least one and recover() offers no
-		// special treatment for it.
-		p.advance()
-		p.skipHeaderToSemi()
-		return nil, true
+		return p.parseModportDecl()
 	case "bind":
 		// "bind target_scope [#(...)] bind_instantiation ...;" (LRM 23.11) --
 		// a hierarchical binding directive (commonly used to attach
@@ -706,12 +697,110 @@ func (p *parser) parsePackage() (ast.Decl, bool) {
 	return pkg, true
 }
 
+// parseModportDecl parses "modport name (direction port [, ...])
+// [, name (...)];" (LRM 25.5). A single statement can declare several
+// modports at once, each becoming its own *ast.Modport -- mirrors
+// parseParameterDecl's "one statement, N comma-separated results" shape,
+// though unlike a parameter's shared type, each modport name here carries
+// its own independent port list rather than sharing one.
+func (p *parser) parseModportDecl() ([]ast.Decl, bool) {
+	p.advance() // "modport"
+
+	var decls []ast.Decl
+	for {
+		nameTok, ok := p.expectIdent()
+		if !ok {
+			p.skipHeaderToSemi()
+			return decls, true
+		}
+		if p.peek().Kind != token.KindLParen {
+			p.errorf(p.peek(), "expected '(' after modport name %q", nameTok.Text)
+			p.skipHeaderToSemi()
+			return decls, true
+		}
+		p.advance() // '('
+		groups, newPos, closed := preprocessor.SplitBalancedArgs(p.toks, p.pos)
+		p.pos = newPos
+		if !closed {
+			p.errorf(p.peek(), "unterminated modport port list")
+		}
+
+		mp := &ast.Modport{Name: nameTok.Text}
+		mp.Position = namePosition(nameTok)
+		mp.Ports = p.parseModportPortList(groups)
+		decls = append(decls, mp)
+
+		if p.peek().Kind != token.KindComma {
+			break
+		}
+		p.advance() // ',' -- another "name (...)" follows
+	}
+
+	if p.peek().Kind == token.KindSemi {
+		p.advance()
+	} else {
+		p.errorf(p.peek(), "expected ';' after modport declaration")
+		p.skipHeaderToSemi()
+	}
+	return decls, true
+}
+
+// parseModportPortList parses the comma-isolated entries of one modport's
+// own "(...)" list. Only the simple "direction port_identifier" form
+// (LRM 25.5's modport_simple_ports_declaration) is modeled: an
+// import/export task-based port, a clocking-block port, or an explicit
+// ".name(expr)" connection is skipped without recording an error, so an
+// otherwise-valid modport statement using one of those forms still
+// produces zero diagnostics (pinned by sigils'
+// TestScanConstructsPreviouslyReportedSpuriousDiagnostics and this
+// package's own modport tests). A direction keyword, once seen, covers
+// every subsequent identifier until the next direction keyword appears
+// (LRM 25.5: "modport master (input req, ready, output gnt, data);" --
+// req/ready are both input).
+func (p *parser) parseModportPortList(groups [][]preprocessor.Token) []ast.ModportPort {
+	if isEmptyGroups(groups) {
+		return nil
+	}
+	var ports []ast.ModportPort
+	currentDir := ast.DirUnspecified
+	sawDir := false
+	for _, group := range groups {
+		sub := p.newSubParser(group)
+
+		if dir := sub.consumeDirection(); dir != ast.DirUnspecified {
+			currentDir = dir
+			sawDir = true
+		} else if !sawDir {
+			// No direction keyword yet at all -- an out-of-scope shape
+			// (import/export/clocking/".name(expr)"/etc.), not a bare
+			// identifier this modport-ports grammar allows on its own.
+			// Skip silently; do not merge sub's errors.
+			continue
+		}
+
+		nameTok := sub.peek()
+		if nameTok.Kind != token.KindIdent || sub.pos+1 != len(sub.toks) {
+			// Not a bare "[direction] identifier" entry -- skip silently,
+			// same reasoning as above.
+			continue
+		}
+		sub.advance()
+		ports = append(ports, ast.ModportPort{
+			Position:  namePosition(nameTok),
+			Direction: currentDir,
+			Name:      nameTok.Text,
+		})
+	}
+	return ports
+}
+
 // skipHeaderToSemi consumes tokens up to and including the next top-
 // level ';'. Shared by every header-only or single-statement construct
 // this parser recognizes but doesn't parse -- "default clocking"/
-// "disable iff", defparam, modport, bind, timeunit/timeprecision, export,
-// let, alias, and gate/switch primitive instantiations (see their own
-// cases in parseDecl's switch below) -- whose remaining content can
+// "disable iff", defparam, bind, timeunit/timeprecision, export, let,
+// alias, and gate/switch primitive instantiations (see their own cases in
+// parseDecl's switch below), plus a malformed modport declaration's
+// recovery path (parseModportDecl) -- whose remaining content can
 // legitimately itself start with what would otherwise look like a new
 // declaration: e.g. an "export \"DPI-C\" function name;" DPI re-export's
 // own required "function"/"task" keyword. This deliberately has no

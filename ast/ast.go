@@ -56,6 +56,7 @@ type Type struct {
 	Signed           bool
 	Unsigned         bool
 	PackageQualifier string // "" unless Pkg::Type
+	Modport          string // "" unless IfaceName.modport / interface.modport
 	Name             string
 	PackedDims       []Dim
 

@@ -135,14 +135,14 @@ func TestClassWithVirtualInterfaceKeywordMember(t *testing.T) {
 
 func TestClassWithVirtualInterfaceModportMember(t *testing.T) {
 	// "virtual my_if.tb vif;" -- a virtual interface handle restricted to
-	// one modport. The ".tb" isn't tracked on ast.Type (consumed, not
-	// separately recorded), but it must not corrupt the declarator name.
+	// one modport. The ".tb" must not corrupt the declarator name, and is
+	// itself captured on Type.Modport.
 	cls := classDecl(t, "class driver;\nvirtual my_if.tb vif;\nendclass")
 	if len(cls.Body) != 1 {
 		t.Fatalf("expected 1 member, got %+v", cls.Body)
 	}
 	v, ok := cls.Body[0].(*ast.Variable)
-	if !ok || v.Name != "vif" || v.Type.Name != "my_if" {
+	if !ok || v.Name != "vif" || v.Type.Name != "my_if" || v.Type.Modport != "tb" {
 		t.Fatalf("unexpected member: %+v", cls.Body[0])
 	}
 }
