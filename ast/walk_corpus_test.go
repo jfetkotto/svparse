@@ -119,6 +119,14 @@ func TestWalkReachesEveryNodeOnce(t *testing.T) {
 			t.Errorf("Dump hit its fallback:\n%s", out)
 		}
 	})
+	t.Run("nets", func(t *testing.T) {
+		toks, _ := preprocessor.Preprocess("n.sv", netSource, nil)
+		f, _ := parser.Parse("n.sv", toks)
+		checkWalkComplete(t, f, seenKinds)
+		if out := ast.Dump(f); strings.Contains(out, "UNHANDLED") {
+			t.Errorf("Dump hit its fallback:\n%s", out)
+		}
+	})
 	t.Run("all-expressions", func(t *testing.T) {
 		checkWalkComplete(t, fileHoldingAllExprs(), seenKinds)
 	})
@@ -132,6 +140,7 @@ func TestWalkReachesEveryNodeOnce(t *testing.T) {
 		"Parameter", "Typedef", "TypeAlias", "Struct", "Union", "Enum", "EnumMember",
 		"Port", "Modport", "ModportPort", "Arg", "Function", "Task", "Type",
 		"Instantiation", "ParamOverride", "Instance", "PortConnection",
+		"Nettype",
 	} {
 		if !seenKinds[kind] {
 			t.Errorf("no %s node appeared anywhere in the corpus", kind)
@@ -202,6 +211,18 @@ interface class ic extends ia #(T), ib #(T); endclass
 module m (input cls #(8) p);
   cls #(8)::inner_t a, b;
   function cls #(4) f(cls #(9)::U u); endfunction
+endmodule`
+
+// netSource uses every net-declaration decoration (delay, strength, qualifier),
+// user-defined net types, specparams and the type reference operator, with
+// two declarators sharing a delay and a type reference.
+const netSource = `module m;
+  nettype real real_net with real_sum;
+  interconnect [3:0] bus;
+  specparam delay = 50;
+  tri1 scalared [15:0] a = 0;
+  wire (strong0, pull1) logic [7:0] #(1, 2:3:4) d1, d2;
+  var type(a + 1) c, d;
 endmodule`
 
 // goldenSource touches most declaration kinds, including ones the vendored

@@ -34,6 +34,17 @@ type Variable struct {
 	IsRand       bool
 	IsRandC      bool
 	IsStatic     bool
+
+	// The following apply to a net declaration (LRM 6.7, 6.9.2) and are zero
+	// for everything else.
+	//
+	// NetQualifier is "vectored" or "scalared" when written. DriveStrength is
+	// the parenthesised strength pair, e.g. ["strong0", "pull1"], or a single
+	// charge strength, e.g. ["small"]. Delay holds the one to three delay
+	// values of "#10" or "#(1, 2, 3)".
+	NetQualifier  string
+	DriveStrength []string
+	Delay         []Expr
 }
 
 // Parameter is a parameter or localparam declaration. UnpackedDims covers
@@ -43,11 +54,26 @@ type Variable struct {
 type Parameter struct {
 	declBase
 	IsLocal      bool
+	IsSpecparam  bool // "specparam", a specify-block parameter (LRM 6.20.5)
 	Type         Type // zero value if untyped ("parameter WIDTH = 8" -- Type.Name is "")
 	Name         string
 	UnpackedDims []Dim
 	Default      []preprocessor.Token
 	DefaultExpr  Expr // parsed Default; for a "parameter type", a type (*TypeExpr or *TypeOrExpr)
+}
+
+// Nettype is a user-defined net type declaration (LRM 6.6.7): "nettype
+// data_type name [with resolve_function];". The alias form "nettype
+// other_nettype name;" has the same shape, with Type naming the existing net
+// type; telling the two apart takes name resolution.
+type Nettype struct {
+	declBase
+	Name string
+	Type Type
+
+	// ResolveFunc is the name after "with", possibly package-qualified
+	// ("pkg::resolve"), or "" if there is no resolution function.
+	ResolveFunc string
 }
 
 // Typedef is a typedef. Underlying is nil for a forward declaration
