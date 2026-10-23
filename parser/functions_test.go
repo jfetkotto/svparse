@@ -814,3 +814,53 @@ function int free(); return 2; endfunction`)
 		}
 	}
 }
+
+// A procedural continuous assignment (LRM 10.6.1) inside an if/else is part of
+// the always block, not the start of the next module item.
+func TestProceduralAssignInsideIfElseStaysInTheBlock(t *testing.T) {
+	f, errs := parseSrc(t, `module top;
+logic q, clr, set;
+always @(clr or set)
+	if (clr)
+		assign q = 0;
+	else if (set)
+		assign q = 1;
+	else
+		deassign q;
+logic done;
+endmodule`)
+	if len(errs) != 0 {
+		t.Fatalf("errors: %+v", errs)
+	}
+	var kinds []string
+	for _, d := range f.Decls[0].(*ast.Container).Body {
+		switch d.(type) {
+		case *ast.Always:
+			kinds = append(kinds, "always")
+		case *ast.ContinuousAssign:
+			kinds = append(kinds, "assign")
+		case *ast.Variable:
+			kinds = append(kinds, "var")
+		}
+	}
+	if got := strings.Join(kinds, ","); got != "var,var,var,always,var" {
+		t.Fatalf("module items = %s, want the always block as one item", got)
+	}
+}
+
+// ... while after a missing ';' an assign is still the next item.
+func TestAssignAfterMissingSemicolonStillStartsAnItem(t *testing.T) {
+	f, errs := parseSrc(t, "module top;\nlogic a, b;\nassign a = (b)\nassign b = 1;\nendmodule")
+	if len(errs) == 0 {
+		t.Fatal("expected an error for the missing ';'")
+	}
+	n := 0
+	for _, d := range f.Decls[0].(*ast.Container).Body {
+		if _, ok := d.(*ast.ContinuousAssign); ok {
+			n++
+		}
+	}
+	if n != 2 {
+		t.Fatalf("want two continuous assignments, got %d", n)
+	}
+}
