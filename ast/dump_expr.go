@@ -30,7 +30,11 @@ func exprText(e Expr) string {
 	case *ScopedName:
 		return sexpr("::", exprText(e.Scope), e.Name)
 	case *ParameterizedName:
-		parts := []string{e.Name}
+		name := e.Name
+		if e.Scope != nil {
+			name = exprText(e.Scope) + "::" + name
+		}
+		parts := []string{name}
 		for i := range e.Overrides {
 			parts = append(parts, overrideText(e.Overrides[i]))
 		}
@@ -150,6 +154,9 @@ func exprText(e Expr) string {
 	}
 	return fmt.Sprintf("(UNHANDLED %T)", e)
 }
+
+// describeType names e's dynamic type for the fallback markers.
+func describeType(e Expr) string { return fmt.Sprintf("%T", e) }
 
 func distItemText(d *DistItem) string {
 	if d.Weight == nil {

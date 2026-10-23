@@ -66,6 +66,18 @@ func TestLexXnorBothSpellings(t *testing.T) {
 	assertOneToken(t, "^~", token.KindXnorAlt, "^~")
 }
 
+func TestLexLogicalEquivalence(t *testing.T) {
+	assertOneToken(t, "<->", token.KindEquiv, "<->")
+	// Maximal munch must not swallow a less-than followed by an arrow
+	// that was written with a gap, nor "<-" on its own.
+	toks, _ := Lex("a < -1")
+	assertKinds(t, toks, token.KindIdent, token.KindLt, token.KindSub, token.KindIntLiteral, token.KindEOF)
+	toks, _ = Lex("a<-1")
+	assertKinds(t, toks, token.KindIdent, token.KindLt, token.KindSub, token.KindIntLiteral, token.KindEOF)
+	toks, _ = Lex("a <-> b")
+	assertKinds(t, toks, token.KindIdent, token.KindEquiv, token.KindIdent, token.KindEOF)
+}
+
 func TestLexRealisticExpressionSequence(t *testing.T) {
 	// "a <= b + 1 ? c : d" -- exercises several operators back to back
 	// with no whitespace-driven separation ambiguity ("<=" not "<" "=").

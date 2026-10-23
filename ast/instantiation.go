@@ -27,7 +27,8 @@ type Instantiation struct {
 //
 // ValueExpr is the parsed form of Value (a *TypeExpr, *TypeOrExpr or other
 // expression, since an override may be a type); nil until the parser fills
-// it, and Value stays populated alongside it.
+// it, and Value stays populated alongside it. Because a named override is
+// positioned on its name alone, ValueExpr lies outside Position there.
 type ParamOverride struct {
 	Position
 	Name      string

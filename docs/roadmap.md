@@ -37,8 +37,26 @@ partway through an item, leave a short "Status:" note under it.
       `TestEveryExprTypeIsExercised` fails if a new node lacks a test case.
       Note for the parser: operators are source text (`Op string`); `|->`,
       `|=>` and `->>` already lex.
-- [ ] `feature/expr-parser`: error-tolerant Pratt parser (`parser/expr.go`)
-- [ ] `feature/expr-fields`: populate `*Expr` siblings of every raw span
+- [x] `feature/expr-parser`: error-tolerant Pratt parser (`parser/expr.go`).
+      `parser.ParseExpr(toks)` never returns nil; bad input becomes `BadExpr`.
+      Also added: `ast.ExprString` (source printer), `token.Token.End()` (exact
+      token end, replaces `Character+UTF16Len(Text)`), `<->` and the `8'(x)`
+      size-cast tick in the lexer. Fuzzing found six real bugs (span nesting,
+      CR width, raw dims, escaped identifiers, ...); the fuzz inputs live in
+      `parser/testdata/fuzz` as regression seeds. Not parsed yet: `dist`
+      (with `feature/constraints`), `randomize() with {...}`, `matches`/`&&&`
+      (statements), SVA operators. Known limit: a chain of a million binary
+      operators builds a left-nested tree that deep, so tree walks recurse
+      that deeply; fine for real code.
+- [ ] `bugfix/lexer-spaced-based-literals` (prerequisite for expr-fields): LRM
+      5.7.1 allows white space between a literal's size, base and digits
+      (`32 'd 1`, `'b 0`); the lexer splits them into separate tokens. Join them
+      into one `IntLiteral`; 11 entries in `knownRejectedSpans`
+      (`parser/expr_corpus_test.go`) disappear.
+- [ ] `feature/expr-fields`: populate `*Expr` siblings of every raw span.
+      Dimension parsing must special-case the wildcard `[*]` (4 corpus spans),
+      and a `parameter type` default is a data type, not an expression (M2).
+      `TestParseExprOnCorpusSpans` already pins which real spans are rejected.
 
 ## M2: Types and declarations (Annex A.2)
 
@@ -105,3 +123,4 @@ partway through an item, leave a short "Status:" note under it.
 | conformance-harness (parse stage; 1014 files) | 201 (59 undetected negatives, 53 parser gaps, 89 need UVM) |
 | ast-walk-dump (no pipeline change) | 201 |
 | expr-ast (no pipeline change) | 201 |
+| expr-parser (parser not wired in yet) | 201 |

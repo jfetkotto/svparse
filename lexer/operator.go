@@ -27,6 +27,7 @@ var multiCharOperators = []struct {
 	{"<<<", token.KindAShl}, {">>>", token.KindAShr},
 	{"->>", token.KindNonblockTrigger},
 	{"|->", token.KindImplies}, {"|=>", token.KindImpliesNext},
+	{"<->", token.KindEquiv},
 
 	{"==", token.KindEq}, {"!=", token.KindNe}, {"<=", token.KindLe}, {">=", token.KindGe},
 	{"&&", token.KindAndAnd}, {"||", token.KindOrOr}, {"**", token.KindStarStar},

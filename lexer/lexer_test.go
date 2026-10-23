@@ -240,3 +240,29 @@ func BenchmarkLexRTL(b *testing.B) {
 		}
 	}
 }
+
+// TestTokenEndAgreesWithLexerColumns pins token.Token.End against the lexer's
+// own column tracking: in source with no whitespace between tokens, each
+// token must end exactly where the next one starts, including for tokens
+// containing a zero-width carriage return or a line continuation.
+func TestTokenEndAgreesWithLexerColumns(t *testing.T) {
+	sources := []string{
+		"a+b*c",
+		"\"0\r\r\"%",
+		"\"ab\\\ncd\"+x",
+		"\"ab\\\r\ncd\"+x",
+		"8'hFF+'h1<<<2",
+		"\"\U0001F600\"+a",
+		"$display(\"x\")",
+	}
+	for _, src := range sources {
+		toks, _ := Lex(src)
+		for i := 0; i+1 < len(toks) && toks[i+1].Kind != token.KindEOF; i++ {
+			line, char := toks[i].End()
+			if line != toks[i+1].Line || char != toks[i+1].Character {
+				t.Errorf("%q: token %d %q ends at %d:%d but token %d starts at %d:%d",
+					src, i, toks[i].Text, line, char, i+1, toks[i+1].Line, toks[i+1].Character)
+			}
+		}
+	}
+}

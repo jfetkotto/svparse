@@ -72,7 +72,8 @@ func (p *preprocessor) handleDefine(directiveTok Token, src *tokenSource) {
 // no gap -- derivable purely from position data, without the lexer
 // needing to preserve whitespace as tokens.
 func isAdjacent(a, b Token) bool {
-	return a.Line == b.Line && b.Character == a.Character+token.UTF16Len(a.Text)
+	endLine, endChar := a.End()
+	return b.Line == endLine && b.Character == endChar
 }
 
 // parseMacroParams parses a define's parameter list, the caller having

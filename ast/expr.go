@@ -29,6 +29,10 @@ func (exprBase) exprNode() {}
 
 func (b exprBase) Pos() Position { return b.Position }
 
+// SetPos sets the node's span. It is exported only because the parser lives
+// in another package and exprBase is unexported; nothing else needs it.
+func (b *exprBase) SetPos(pos Position) { b.Position = pos }
+
 // Expr is implemented by every expression node, including the helper nodes
 // that only occur inside one (NamedArg, PatternItem, ValueRange, DistItem).
 type Expr interface {
@@ -58,9 +62,12 @@ type ScopedName struct {
 
 // ParameterizedName is a class name with a parameter value list, "C#(8)" or
 // "C#(.W(8))", used as the scope of a ScopedName or as a type. It reuses
-// ParamOverride, the same node an instantiation's "#( ... )" produces.
+// ParamOverride, the same node an instantiation's "#( ... )" produces. Scope
+// is the package (or enclosing scope) of a qualified class, as in
+// "pkg::C#(8)"; nil for a bare "C#(8)".
 type ParameterizedName struct {
 	exprBase
+	Scope     Expr // nil unless "pkg::C#(...)"
 	Name      string
 	Overrides []ParamOverride
 }
