@@ -85,7 +85,6 @@ generic/typedef/typedef_test_28__bad.sv pass # undetected: missing forward typed
 generic/typedef/typedef_test_8__bad.sv pass # undetected: defining a type using an undefined type
 
 # --- Parser gaps: valid code the declaration-grade parser rejects (statements, expressions, assertions, constraints, ...) (9) ---
-chapter-10/10.6.1--assign-deassign.sv fail # parse error: expected ';' before "assign"
 chapter-18/18.5.1--implicit-external-constraint_0.sv fail # parse error: expected '{' to start block
 chapter-18/18.5.1--implicit-external-constraint_1.sv fail # parse error: expected '{' to start block
 chapter-18/18.5.14.1--soft-constraint-priorities_2.sv fail # parse error: expected '{' to start block

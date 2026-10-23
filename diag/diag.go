@@ -97,6 +97,18 @@ const (
 	CodeConstantLimit        = "constant-limit"
 	CodeCircularParameter    = "circular-parameter"
 	CodeDivideByZero         = "divide-by-zero"
+
+	CodeInvalidLValue           = "invalid-lvalue"
+	CodeAssignToInput           = "assign-to-input"
+	CodeAssignToConstant        = "assign-to-constant"
+	CodeProceduralNet           = "procedural-assign-to-net"
+	CodeMultipleDrivers         = "multiple-drivers"
+	CodeBreakOutsideLoop        = "break-outside-loop"
+	CodeContinueOutsideLoop     = "continue-outside-loop"
+	CodeReturnValueInVoid       = "return-value-in-void"
+	CodeMissingReturnValue      = "missing-return-value"
+	CodeReturnOutsideSubroutine = "return-outside-subroutine"
+	CodeTimingInFunction        = "timing-in-function"
 )
 
 // Known maps every registered code to a one-line description. A code must be
@@ -116,6 +128,18 @@ var Known = map[string]string{
 	CodeConstantLimit:        "constant evaluation exceeded its step or depth limit",
 	CodeCircularParameter:    "a parameter's value depends on itself",
 	CodeDivideByZero:         "a constant expression divides by zero",
+
+	CodeInvalidLValue:           "the target of an assignment is not something that can be assigned",
+	CodeAssignToInput:           "an input port is assigned from inside its module",
+	CodeAssignToConstant:        "a parameter, enum constant or genvar is assigned",
+	CodeProceduralNet:           "a net is assigned in a procedural statement",
+	CodeMultipleDrivers:         "a variable has drivers the language does not allow together",
+	CodeBreakOutsideLoop:        "break is used outside a loop",
+	CodeContinueOutsideLoop:     "continue is used outside a loop",
+	CodeReturnValueInVoid:       "return gives a value in a void function, a task or a constructor",
+	CodeMissingReturnValue:      "return gives no value in a function that returns one",
+	CodeReturnOutsideSubroutine: "return is used outside a function or task",
+	CodeTimingInFunction:        "a function contains a delay, event control or wait",
 }
 
 // ValidCode reports whether code is well-formed: lower-case words joined by

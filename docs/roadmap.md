@@ -300,7 +300,19 @@ partway through an item, leave a short "Status:" note under it.
       Still to do: constant functions (LRM 13.4.3) with the statement
       interpreter, and per-instance types (dimensions follow default
       parameter values until elaboration).
-- [ ] `sema/stmt.go`
+- [x] `sema/stmt.go`: `Model.CheckStatements` applies the LRM statement rules
+      to every process, subroutine and continuous assignment: assignable
+      targets (`invalid-lvalue`, `assign-to-input`, `assign-to-constant`,
+      `procedural-assign-to-net`), `break`/`continue` outside loops, `return`
+      with or without a value (`return-value-in-void`, `missing-return-value`,
+      `return-outside-subroutine`), `timing-in-function`, and variable drivers
+      (`multiple-drivers`: a whole variable driven by a continuous assignment
+      or always_comb/latch/ff has no other driver; an initial block may still
+      set an always_* variable). On the corpus it flags exactly the five
+      deliberately illegal files (6.5 x2, 10.3, 13.4.1, 14.3) and nothing
+      else; wiring these into the conformance harness comes with M7.
+      Also fixed a parser extent bug it exposed: a procedural `assign` inside
+      an if/else was split off the always block (conformance 164 to 163).
 
 ## M7: Elaboration
 
@@ -349,3 +361,4 @@ partway through an item, leave a short "Status:" note under it.
 | sva (concurrent assertions as nodes) | 164 |
 | constraints | 164 |
 | covergroups (none in corpus) | 164 |
+| sema-stmt (procedural assign extent fix) | 163 |
