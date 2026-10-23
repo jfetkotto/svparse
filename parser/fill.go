@@ -202,13 +202,7 @@ func parseArgSpan(toks []preprocessor.Token) []ast.Expr {
 
 // badSpan is a BadExpr covering every token of toks.
 func badSpan(toks []preprocessor.Token) ast.Expr {
-	first := toks[0]
-	pos := ast.Position{File: first.File, Line: first.Line, Character: first.Character}
-	pos.EndLine, pos.EndCharacter = toks[len(toks)-1].End()
-	if pos.EndLine < pos.Line || (pos.EndLine == pos.Line && pos.EndCharacter < pos.Character) {
-		pos.EndLine, pos.EndCharacter = pos.Line, pos.Character
-	}
 	b := &ast.BadExpr{Tokens: toks}
-	b.SetPos(pos)
+	b.SetPos(tokensSpan(toks))
 	return b
 }
