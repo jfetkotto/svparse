@@ -200,6 +200,16 @@ var (
 // IsInvalid reports whether t is Invalid (or nil).
 func IsInvalid(t Type) bool { return t == nil || t == Invalid }
 
+// TypeParam is a type parameter ("parameter type T = int"): a type that is
+// not known until the design is elaborated. It matches only itself.
+type TypeParam struct {
+	Name    string
+	Default Type // nil if none
+}
+
+func (t *TypeParam) isType()        {}
+func (t *TypeParam) String() string { return t.Name }
+
 // Alias is a typedef: a name for another type that matches it (LRM 6.18).
 type Alias struct {
 	Name   string

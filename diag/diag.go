@@ -89,6 +89,14 @@ const (
 
 	CodeDuplicateDefinition  = "duplicate-definition"
 	CodeDuplicateDeclaration = "duplicate-declaration"
+	CodeUndeclared           = "undeclared-identifier"
+	CodeNotConstant          = "not-constant"
+	CodeIncompatibleTypes    = "incompatible-types"
+	CodeCastRequired         = "cast-required"
+	CodeInvalidType          = "invalid-type"
+	CodeConstantLimit        = "constant-limit"
+	CodeCircularParameter    = "circular-parameter"
+	CodeDivideByZero         = "divide-by-zero"
 )
 
 // Known maps every registered code to a one-line description. A code must be
@@ -99,7 +107,15 @@ var Known = map[string]string{
 	CodePreprocessorError:    "a compiler directive is malformed or unbalanced",
 	CodeInternalError:        "a stage failed unexpectedly; this is a bug in svparse",
 	CodeDuplicateDefinition:  "a module, interface, program, primitive, package or configuration name is defined twice",
-	CodeDuplicateDeclaration: "a name is declared twice in the same compilation unit scope",
+	CodeDuplicateDeclaration: "a name is declared twice in the same scope",
+	CodeUndeclared:           "an identifier is not declared in any enclosing scope",
+	CodeNotConstant:          "an expression required to be constant is not",
+	CodeIncompatibleTypes:    "a value cannot be converted to the type required",
+	CodeCastRequired:         "a conversion is legal only with an explicit cast",
+	CodeInvalidType:          "a data type could not be resolved",
+	CodeConstantLimit:        "constant evaluation exceeded its step or depth limit",
+	CodeCircularParameter:    "a parameter's value depends on itself",
+	CodeDivideByZero:         "a constant expression divides by zero",
 }
 
 // ValidCode reports whether code is well-formed: lower-case words joined by

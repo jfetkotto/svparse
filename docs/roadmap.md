@@ -281,8 +281,25 @@ partway through an item, leave a short "Status:" note under it.
       instances, blocks, `$root`) and `ClassifyName` (the TypeOrExpr
       ambiguity). Not yet: position-to-scope (`ScopeAt`), type parameters of
       parameterized classes, interface ports and modport members.
-- [ ] `sema/bind.go` (LRM 11.6/11.8 width and sign propagation)
-- [ ] `sema/consteval.go`
+- [x] `sema/bind.go` (LRM 11.6/11.8 width and sign propagation): `Model.Bind`
+      and `BindAssign` produce a typed `BoundExpr` tree (`bound.go`, `WalkBound`);
+      `resolve.go` turns `ast.Type` into `sema.Type` (typedefs, enums with
+      values, structs, unions, classes with base, arrays, type parameters,
+      interface ports, built-in std classes) and gives `TypeOf` for every value
+      symbol. Operators size their operands per LRM 11.8 (arithmetic, bitwise,
+      ?:, shifts, relational pairs), assignment context widens them, real
+      promotes, calls resolve to user functions, class methods or built-in
+      methods and system functions; diagnostics `undeclared-identifier`,
+      `incompatible-types`, `cast-required`, `invalid-type`.
+- [~] `sema/consteval.go`: `Eval`, `EvalAssign`, `ParamValue`, `Env` (parameter
+      overrides, step budget, circular-parameter detection) evaluate bound
+      expressions with `svint`: literals, parameters, enum constants, all
+      operators, selects, casts, inside, and the system functions ($clog2,
+      $bits, $size/$left/..., math, $signed, $countones, ...). Corpus: 90% of
+      declarations typed, 89% of parameters evaluate (the rest need UVM).
+      Still to do: constant functions (LRM 13.4.3) with the statement
+      interpreter, and per-instance types (dimensions follow default
+      parameter values until elaboration).
 - [ ] `sema/stmt.go`
 
 ## M7: Elaboration
