@@ -273,11 +273,17 @@ func TestParseExprSpans(t *testing.T) {
 	}
 }
 
-// nameOnlyPosition reports whether n's Position covers only its name token,
-// so its children may lie outside it.
+// nameOnlyPosition reports whether n's Position covers only its name token, so
+// its children may lie outside it. That is true of every declaration (a
+// Variable, an Instantiation, a Function: positioned on the name for hover and
+// go-to-definition) and of the Type, ParamOverride, PortConnection and Instance sub-nodes that
+// follow the same convention.
 func nameOnlyPosition(n ast.Node) bool {
+	if _, ok := n.(ast.Decl); ok {
+		return true
+	}
 	switch n.(type) {
-	case *ast.ParamOverride, *ast.Type:
+	case *ast.ParamOverride, *ast.PortConnection, *ast.Type, *ast.Instance:
 		return true
 	}
 	return false
@@ -295,7 +301,7 @@ func within(inner, outer ast.Position) bool {
 // by convention those nodes are positioned on their name token alone (see
 // ast.ParamOverride and ast.Type), so a value expression or a dimension bound
 // lies outside them.
-func checkSpans(t *testing.T, src string, e ast.Expr) {
+func checkSpans(t *testing.T, src string, e ast.Node) {
 	t.Helper()
 	var stack []ast.Node
 	ast.Inspect(e, func(n ast.Node) bool {

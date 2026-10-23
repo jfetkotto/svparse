@@ -394,7 +394,7 @@ func (t *Type) isZero() bool {
 	return t.Position == (Position{}) && !t.Signed && !t.Unsigned &&
 		t.PackageQualifier == "" && t.Modport == "" && t.Name == "" &&
 		len(t.PackedDims) == 0 && len(t.ParamOverrides) == 0 &&
-		len(t.QualifierOverrides) == 0 && t.Inline == nil && t.TypeRef == nil
+		len(t.QualifierOverrides) == 0 && t.Inline == nil && t.TypeRef == nil && !t.Virtual
 }
 
 type inspector func(Node) bool

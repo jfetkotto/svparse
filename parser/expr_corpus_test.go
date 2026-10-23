@@ -22,15 +22,11 @@ import (
 // Every entry is accounted for; none is a defect in the expression grammar:
 //   - wildcard dimension "[*]" of an associative array: not an expression;
 //     dimension parsing (feature/expr-fields) handles it.
-//   - "virtual x_if" as a "parameter type" default: a data type, handled by
-//     the type grammar work (M2).
 //   - a macro that was never defined (it needs the file's :defines: metadata).
 var knownRejectedSpans = []string{
 	"chapter-5/5.6.4--compiler-directives-preprocessor-macro_1.sv [var-init] VAR_1 + VAR_2",
 	"chapter-7/arrays/associative/other.sv [dim] *",
 	"chapter-7/arrays/associative/wildcard.sv [dim] *",
-	"generic/class/class_test_17.sv [param-default] virtual x_if",
-	"generic/class/class_test_18.sv [param-default] virtual interface x_if",
 	"generic/class/class_test_55.sv [dim] *",
 	"generic/class/class_test_55.sv [dim] *",
 	"generic/class/class_test_55.sv [dim] *",

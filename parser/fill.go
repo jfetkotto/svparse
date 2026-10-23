@@ -22,10 +22,10 @@ import (
 // deep copy, which keeps the original's Position. Two declarators therefore
 // have equal-looking but distinct aggregates, and "same Position" is how to
 // tell they were written as one type.
-func ownTypes(f *ast.File) {
+func ownTypes(root ast.Node) {
 	claimed := make(map[ast.Decl]bool)
 	claimedRefs := make(map[*ast.TypeRef]bool)
-	ast.Inspect(f, func(n ast.Node) bool {
+	ast.Inspect(root, func(n ast.Node) bool {
 		t, ok := n.(*ast.Type)
 		if !ok {
 			return true
@@ -110,11 +110,15 @@ func cloneType(t ast.Type) ast.Type {
 // update. A span that does not parse completely and cleanly becomes a
 // *ast.BadExpr over the whole span, so no tokens are silently dropped from the
 // tree and a consumer can still tell the span was there.
-func fillExprs(f *ast.File) {
-	ast.Inspect(f, func(n ast.Node) bool {
+func fillExprs(root ast.Node) {
+	ast.Inspect(root, func(n ast.Node) bool {
 		switch n := n.(type) {
 		case *ast.Variable:
-			n.InitialExpr = parseSpan(n.Initial, false)
+			// A statement parser may have set the initializer directly (a for
+			// loop's declarations); keep it.
+			if n.InitialExpr == nil {
+				n.InitialExpr = parseSpan(n.Initial, false)
+			}
 			n.UnpackedDims = filledDims(n.UnpackedDims)
 		case *ast.Parameter:
 			// A "parameter type T = ..." default is a data type, so a bare

@@ -241,6 +241,19 @@ func TestExprStringHandlesEveryNode(t *testing.T) {
 	}
 }
 
+func TestTokenSourceKeepsTokensApart(t *testing.T) {
+	// Touching tokens may be written without a space only if they still lex as
+	// two tokens. "matches" followed by "0" would merge into one identifier, and
+	// a carriage return between them is zero-width so they look touching.
+	toks := adjacentToks("matches", "0")
+	if got := ast.ExprString(&ast.BadExpr{Tokens: toks}); got != "matches 0" {
+		t.Errorf("got %q, want a space kept between tokens that would merge", got)
+	}
+	if got := ast.ExprString(&ast.BadExpr{Tokens: adjacentToks("a", "+", "b")}); got != "a+b" {
+		t.Errorf("got %q, want touching tokens that lex apart left touching", got)
+	}
+}
+
 func TestExprStringExamples(t *testing.T) {
 	cases := []struct {
 		expr ast.Expr

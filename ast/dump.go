@@ -290,6 +290,9 @@ func typeString(t Type) string {
 	if len(t.PackedDims) > 0 {
 		parts = append(parts, strings.TrimPrefix(dims(t.PackedDims), " "))
 	}
+	if t.Virtual {
+		parts = append([]string{"virtual"}, parts...)
+	}
 	return strings.Join(parts, " ")
 }
 

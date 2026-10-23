@@ -141,7 +141,25 @@ partway through an item, leave a short "Status:" note under it.
       `TestEveryStmtTypeIsExercised` guard are in. Block-local declarations and
       statements are kept in two lists (the LRM orders them), so a block that
       mixes them loses their relative order.
-- [ ] `feature/stmt-parser`
+- [x] `feature/stmt-parser`: `parser.ParseStmt` (`parser/stmt.go`) and
+      `ast.StmtString`. Not wired into function/task bodies or procedural blocks
+      yet (the next two items); those still skip. A simple statement reads its
+      left side at primary level, so `a <= b;` is a nonblocking assign, not a
+      comparison. Block, if (else-if chains are iterative, not recursive), case,
+      for (header parsed by a bounded sub-parser), foreach, loops, timing and
+      event controls, wait, triggers, jumps, procedural assigns, immediate
+      assertions, randcase, and block-local declarations all parse. `matches`
+      patterns, `randsequence`, `expect` and concurrent assertions stay
+      `RawStmt` (via the old skip helpers, errors discarded). Corpus check:
+      708 of 715 `initial`/`always`/`final` blocks parse; the other 7 are four
+      deliberate negative tests and three missing macros
+      (`knownRejectedBlocks`). Also fixed along the way: `@(*)` lexed as an
+      attribute opener; `q.find_first with (...)` without call parentheses;
+      `virtual iface` as a type in an expression (new `Type.Virtual`, also set by
+      the declaration parser); a pasted-macro span caveat is documented in the
+      corpus test. Fuzzing found a panic at the depth limit, two printer
+      disagreements, and a token-adjacency bug in `tokenSource`; all fixed with
+      regression seeds.
 - [ ] `feature/function-task-bodies`
 - [ ] `feature/procedural-blocks`
 
@@ -206,3 +224,4 @@ partway through an item, leave a short "Status:" note under it.
 | nettype-interconnect-specparam | 165 (67 undetected negatives, 9 parser gaps, 89 need UVM) |
 | lexer-trivia (no pipeline change) | 165 |
 | stmt-ast (no pipeline change) | 165 |
+| stmt-parser (not wired into declarations yet) | 165 |

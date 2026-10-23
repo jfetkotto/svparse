@@ -9,8 +9,10 @@ import (
 	"testing"
 
 	"github.com/jfetkotto/svparse/ast"
+	"github.com/jfetkotto/svparse/lexer"
 	"github.com/jfetkotto/svparse/parser"
 	"github.com/jfetkotto/svparse/preprocessor"
+	"github.com/jfetkotto/svparse/token"
 )
 
 const corpusDir = "../testdata/sv-tests"
@@ -127,6 +129,19 @@ func TestWalkReachesEveryNodeOnce(t *testing.T) {
 			t.Errorf("Dump hit its fallback:\n%s", out)
 		}
 	})
+	t.Run("statements", func(t *testing.T) {
+		// Block-local declarations of one statement share a Type, and a for loop
+		// reads its declarators one by one; every node must still be visited once.
+		stmt, errs := parser.ParseStmt(lexStmt(stmtSource))
+		if len(errs) != 0 {
+			t.Fatalf("stmtSource has errors: %v", errs)
+		}
+		f := &ast.File{Path: "s.sv", Decls: []ast.Decl{&ast.Initial{Body: stmt}}}
+		checkWalkComplete(t, f, seenKinds)
+		if out := ast.Dump(f); strings.Contains(out, "UNHANDLED") {
+			t.Errorf("Dump hit its fallback:\n%s", out)
+		}
+	})
 	t.Run("all-expressions", func(t *testing.T) {
 		checkWalkComplete(t, fileHoldingAllExprs(), seenKinds)
 	})
@@ -224,6 +239,36 @@ const netSource = `module m;
   wire (strong0, pull1) logic [7:0] #(1, 2:3:4) d1, d2;
   var type(a + 1) c, d;
 endmodule`
+
+// stmtSource uses nearly every statement form, with block-local declarations
+// that share a type and a for loop with several declarators.
+const stmtSource = `begin : main
+  int a, b = 2;
+  cls #(4) h, k;
+  for (int i = 0, j = 9; i < j; i++, j--) a += i;
+  foreach (arr[i, j]) a = arr[i][j];
+  unique case (a) inside 1, [2:3]: b = 1; default: b = 0; endcase
+  if (a) b <= #1 c; else if (b) @(posedge clk) b = 1; else begin end
+  fork wait (r) ->> ev; join_any
+  assert (a) else $error("x");
+  randcase 1: a = 1; endcase
+  do a++; while (a < 3);
+  repeat (2) @* disable fork;
+  force a = 1; release a;
+  forever #5 clk = ~clk;
+  if (v matches .x) y = 1;
+end : main`
+
+func lexStmt(src string) []preprocessor.Token {
+	raw, _ := lexer.Lex(src)
+	var toks []preprocessor.Token
+	for _, t := range raw {
+		if t.Kind != token.KindEOF {
+			toks = append(toks, preprocessor.Token{Token: t, File: "s.sv"})
+		}
+	}
+	return toks
+}
 
 // goldenSource touches most declaration kinds, including ones the vendored
 // corpus never produces (modports).

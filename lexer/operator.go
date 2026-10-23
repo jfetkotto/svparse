@@ -97,6 +97,19 @@ func isOperatorStart(r rune) bool {
 func (l *lexer) scanOperator() {
 	startLine, startChar := l.line, l.char
 
+	// "(*)" is the all-signals event control "@(*)" (LRM 9.4.2.2), not the
+	// start of an attribute: an attribute needs content, and reading it as
+	// "(*" ")" would make every "always @(*)" malformed. Emitted as three tokens.
+	if l.matchesAt("(*)") {
+		l.advance()
+		l.emit(token.KindLParen, "(", startLine, startChar)
+		l.advance()
+		l.emit(token.KindMul, "*", startLine, startChar+1)
+		l.advance()
+		l.emit(token.KindRParen, ")", startLine, startChar+2)
+		return
+	}
+
 	for _, op := range multiCharByFirstRune[l.runes[l.i]] {
 		if l.matchesAt(op.text) {
 			l.advanceN(len(op.text))

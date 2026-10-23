@@ -3,6 +3,7 @@ package ast
 import (
 	"strings"
 
+	"github.com/jfetkotto/svparse/lexer"
 	"github.com/jfetkotto/svparse/preprocessor"
 )
 
@@ -209,6 +210,9 @@ func typeSource(t Type) string {
 	if t.PackageQualifier != "" {
 		name = t.PackageQualifier + "::" + name
 	}
+	if t.Modport != "" {
+		name += "." + t.Modport
+	}
 	if name != "" {
 		parts = append(parts, name)
 	}
@@ -223,6 +227,9 @@ func typeSource(t Type) string {
 	}
 	if len(t.PackedDims) > 0 {
 		parts = append(parts, dimsSource(t.PackedDims))
+	}
+	if t.Virtual {
+		parts = append([]string{"virtual"}, parts...)
 	}
 	return strings.Join(parts, " ")
 }
@@ -243,26 +250,67 @@ func dimsSource(ds []Dim) string {
 	return b.String()
 }
 
-// tokenSource joins raw tokens back into source text, separating two tokens
-// with a space only where the original had a gap. Joining everything with
-// spaces would be harmless to read but can change what lexes: "'(" is a
-// cast tick, "' (" is a malformed literal.
+// tokenSource joins raw tokens back into source text. Joining everything with
+// spaces would be harmless to read but can change what lexes: "'(" is a cast
+// tick, "' (" is a malformed literal. So tokens that touched in the source
+// are written touching, and the result is checked by lexing it again.
+//
+// Positions alone mislead (a carriage return is zero-width, so tokens it
+// separates look touching), and whether two tokens may touch can depend on a
+// third ("0" and "'" do not lex apart alone, but "0'(" does), so the check is
+// on the whole run: wherever the lexed text first differs from the original
+// tokens, a space is added after the token that merged with its neighbour, and
+// the run is checked again.
 func tokenSource(toks []preprocessor.Token) string {
+	spaced := make([]bool, len(toks)) // spaced[i]: a space before toks[i]
+	for i := 1; i < len(toks); i++ {
+		prev, t := toks[i-1], toks[i]
+		line, char := prev.End()
+		spaced[i] = prev.File != t.File || line != t.Line || char != t.Character
+	}
+	for range toks {
+		text := joinTokens(toks, spaced)
+		bad := firstLexMismatch(toks, text)
+		if bad < 0 || bad+1 >= len(toks) {
+			return withTrailingSpace(toks, text)
+		}
+		spaced[bad+1] = true
+	}
+	return withTrailingSpace(toks, joinTokens(toks, spaced))
+}
+
+func joinTokens(toks []preprocessor.Token, spaced []bool) string {
 	var b strings.Builder
 	for i, t := range toks {
-		if i > 0 {
-			prev := toks[i-1]
-			line, char := prev.End()
-			if prev.File != t.File || line != t.Line || char != t.Character {
-				b.WriteByte(' ')
-			}
+		if spaced[i] {
+			b.WriteByte(' ')
 		}
 		b.WriteString(t.Text)
 	}
-	if n := len(toks); n > 0 && strings.HasPrefix(toks[n-1].Text, `\`) {
-		// An escaped identifier runs to the next whitespace, and whatever
-		// the caller prints after this span would otherwise join it.
-		b.WriteByte(' ')
-	}
 	return b.String()
+}
+
+// firstLexMismatch lexes text and returns the index of the first token that is
+// not toks[i], or -1 if it lexes to exactly toks.
+func firstLexMismatch(toks []preprocessor.Token, text string) int {
+	lexed, _ := lexer.Lex(text)
+	for i, t := range toks {
+		if i >= len(lexed) || lexed[i].Text != t.Text {
+			return i
+		}
+	}
+	if len(lexed) != len(toks)+1 { // the tokens and the EOF
+		return len(toks) - 1
+	}
+	return -1
+}
+
+// withTrailingSpace appends a space after a span ending in an escaped
+// identifier, which runs to the next whitespace and would swallow whatever the
+// caller prints after the span.
+func withTrailingSpace(toks []preprocessor.Token, text string) string {
+	if n := len(toks); n > 0 && strings.HasPrefix(toks[n-1].Text, `\`) {
+		return text + " "
+	}
+	return text
 }

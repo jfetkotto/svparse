@@ -85,6 +85,11 @@ type Type struct {
 	// type. Name is "struct", "union" or "enum" when it is set.
 	Inline Decl
 
+	// Virtual marks a virtual interface type, "virtual [interface] Name" or
+	// "virtual Name.modport" (LRM 25.9): Name is then the interface and Modport
+	// the modport, if written.
+	Virtual bool
+
 	// TypeRef is the operand of the type reference operator, "type(a + b)"
 	// (LRM 6.23), when the type is written that way; Name is "type" then.
 	// nil for every other type.
