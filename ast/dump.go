@@ -181,6 +181,9 @@ func describe(n Node) (head string, kids []Node) {
 		}
 		return "connection" + namedValue(n.Name, n.Expr), nil
 	}
+	if h, kids, ok := describeStmt(n); ok {
+		return h, kids
+	}
 	// Unreachable while every Node type has a case above; surfaces a missed
 	// one loudly in goldens instead of silently dropping it. The marker is
 	// capitalised so it can never collide with an operator head like "?:".

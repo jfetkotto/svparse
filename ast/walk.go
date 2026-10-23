@@ -229,6 +229,96 @@ func Walk(v Visitor, n Node) {
 		walkExpr(v, n.Weight)
 	case *Ident, *Literal, *Empty, *This, *Super, *BadExpr:
 		// Leaves.
+
+	// Statements.
+	case *Block:
+		walkList(v, n.Decls)
+		walkStmts(v, n.Stmts)
+	case *Labeled:
+		walkStmt(v, n.Body)
+	case *If:
+		walkExpr(v, n.Cond)
+		walkStmt(v, n.Then)
+		walkStmt(v, n.Else)
+	case *Case:
+		walkExpr(v, n.Subject)
+		walkValues(v, n.Items)
+	case *CaseItem:
+		walkExprs(v, n.Exprs)
+		walkStmt(v, n.Body)
+	case *For:
+		walkList(v, n.InitDecls)
+		walkStmts(v, n.Init)
+		walkExpr(v, n.Cond)
+		walkStmts(v, n.Step)
+		walkStmt(v, n.Body)
+	case *Foreach:
+		walkExpr(v, n.Array)
+		walkStmt(v, n.Body)
+	case *While:
+		walkExpr(v, n.Cond)
+		walkStmt(v, n.Body)
+	case *DoWhile:
+		walkStmt(v, n.Body)
+		walkExpr(v, n.Cond)
+	case *Repeat:
+		walkExpr(v, n.Count)
+		walkStmt(v, n.Body)
+	case *Forever:
+		walkStmt(v, n.Body)
+	case *TimingControl:
+		walkExpr(v, n.Repeat)
+		walkExpr(v, n.Delay)
+		walkValues(v, n.Events)
+	case *EventTerm:
+		walkExpr(v, n.X)
+		walkExpr(v, n.Iff)
+	case *TimedStmt:
+		walkControl(v, n.Control)
+		walkStmt(v, n.Body)
+	case *Wait:
+		walkExpr(v, n.Cond)
+		walkStmt(v, n.Body)
+	case *WaitOrder:
+		walkExprs(v, n.Events)
+		walkStmt(v, n.Then)
+		walkStmt(v, n.Else)
+	case *EventTrigger:
+		walkControl(v, n.Control)
+		walkExpr(v, n.Event)
+	case *Assign:
+		walkExpr(v, n.LHS)
+		walkControl(v, n.Control)
+		walkExpr(v, n.RHS)
+	case *ProcAssign:
+		walkExpr(v, n.LHS)
+		walkExpr(v, n.RHS)
+	case *ExprStmt:
+		walkExpr(v, n.X)
+	case *Return:
+		walkExpr(v, n.Value)
+	case *Disable:
+		walkExpr(v, n.Target)
+	case *ImmediateAssert:
+		walkExpr(v, n.Cond)
+		walkStmt(v, n.Then)
+		walkStmt(v, n.Else)
+	case *RandCase:
+		walkValues(v, n.Items)
+	case *RandCaseItem:
+		walkExpr(v, n.Weight)
+		walkStmt(v, n.Body)
+	case *Initial:
+		walkStmt(v, n.Body)
+	case *Final:
+		walkStmt(v, n.Body)
+	case *Always:
+		walkStmt(v, n.Body)
+	case *ContinuousAssign:
+		walkExprs(v, n.Delay)
+		walkValues(v, n.Assigns)
+	case *Null, *WaitFork, *Break, *Continue, *RawStmt, *BadStmt:
+		// Leaves.
 	}
 
 	v.Visit(nil)
@@ -245,6 +335,27 @@ func walkExpr(v Visitor, e Expr) {
 func walkExprs(v Visitor, list []Expr) {
 	for _, e := range list {
 		walkExpr(v, e)
+	}
+}
+
+// walkStmt walks an optional statement child; nil is skipped.
+func walkStmt(v Visitor, s Stmt) {
+	if s != nil {
+		Walk(v, s)
+	}
+}
+
+func walkStmts(v Visitor, list []Stmt) {
+	for _, s := range list {
+		walkStmt(v, s)
+	}
+}
+
+// walkControl walks an optional timing control. It takes the concrete pointer
+// so a nil *TimingControl is not mistaken for a non-nil interface.
+func walkControl(v Visitor, c *TimingControl) {
+	if c != nil {
+		Walk(v, c)
 	}
 }
 
