@@ -48,6 +48,10 @@ type parser struct {
 	// maxStmtDepth -- see stmt.go.
 	stmtDepth int
 
+	// genDepth is the current generate nesting depth, bounded by
+	// maxGenDepth -- see generate.go.
+	genDepth int
+
 	// suppressed holds errors found while parsing a construct for its
 	// structure only, which are deliberately not reported: the body of a
 	// function or task, whose extent the declaration parser has always

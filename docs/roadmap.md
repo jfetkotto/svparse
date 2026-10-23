@@ -183,7 +183,14 @@ partway through an item, leave a short "Status:" note under it.
 
 ## M4: Hierarchy-level constructs (LRM 23, 25, 27, 28, 29)
 
-- [ ] `feature/generate`
+- [x] `feature/generate`: `generate` regions, blocks, `if`/`else if`, `for` and
+      `case` are `GenerateRegion`, `GenerateBlock`, `GenerateIf`, `GenerateFor`,
+      `GenerateCase` nodes (`parser/generate.go`) instead of being flattened.
+      Conditions and headers are parsed with errors suppressed; an `else`
+      the skip swallowed after a bare `assign`/`always` is handed back
+      (`giveBackElse`). Nesting is capped at 256. Consumers must now descend
+      into these nodes: sigilsv2 branch `feature/generate-nodes` does, and
+      sigils pinned to v0.1.9 is unaffected until it bumps.
 - [ ] `feature/primitives`
 - [ ] `feature/misc-items` (bind, defparam, config, let, clocking, alias, ...)
 
@@ -245,3 +252,4 @@ partway through an item, leave a short "Status:" note under it.
 | stmt-parser (not wired into declarations yet) | 165 |
 | function-task-bodies (errors suppressed on purpose) | 165 |
 | procedural-blocks (errors suppressed on purpose) | 165 |
+| generate (structured nodes) | 165 |

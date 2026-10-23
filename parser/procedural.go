@@ -22,26 +22,36 @@ func (p *parser) parseProceduralItem() ast.Decl {
 	sub := p.newSubParser(p.toks[bodyStart:p.pos])
 
 	var d ast.Decl
+	var setPos func(ast.Position)
 	switch kw.Text {
 	case "initial":
 		n := &ast.Initial{Body: sub.parseItemBody()}
-		n.Position = p.spanFrom(start)
-		d = n
+		d, setPos = n, func(pos ast.Position) { n.Position = pos }
 	case "final":
 		n := &ast.Final{Body: sub.parseItemBody()}
-		n.Position = p.spanFrom(start)
-		d = n
+		d, setPos = n, func(pos ast.Position) { n.Position = pos }
 	case "assign":
 		n := sub.parseContinuousAssign()
-		n.Position = p.spanFrom(start)
-		d = n
+		d, setPos = n, func(pos ast.Position) { n.Position = pos }
 	default:
 		n := &ast.Always{Kind: kw.Text, Body: sub.parseItemBody()}
-		n.Position = p.spanFrom(start)
-		d = n
+		d, setPos = n, func(pos ast.Position) { n.Position = pos }
 	}
+	p.giveBackElse(sub, bodyStart)
+	setPos(p.spanFrom(start))
 	p.suppressed = append(p.suppressed, sub.errs...)
 	return d
+}
+
+// giveBackElse undoes the skip's habit of treating a following "else" as the
+// rest of this item: an else the item's own statement did not consume (the
+// statement is not an if, or is a continuous assignment) belongs to an
+// enclosing generate-if ("if (c) assign a = b; else assign a = d;"). The
+// cursor moves back to it. sub must be the sub-parser over p.toks[from:p.pos].
+func (p *parser) giveBackElse(sub *parser, from int) {
+	if tok := sub.peek(); tok.Kind == token.KindKeyword && tok.Text == "else" {
+		p.pos = from + sub.pos
+	}
 }
 
 // parseItemBody parses the single statement of a procedural block. Anything

@@ -324,6 +324,27 @@ func Walk(v Visitor, n Node) {
 	case *ContinuousAssign:
 		walkExprs(v, n.Delay)
 		walkValues(v, n.Assigns)
+	case *GenerateRegion:
+		walkList(v, n.Body)
+	case *GenerateBlock:
+		walkList(v, n.Body)
+	case *GenerateIf:
+		walkExpr(v, n.Cond)
+		Walk(v, n.Then)
+		if n.Else != nil {
+			Walk(v, n.Else)
+		}
+	case *GenerateFor:
+		walkExpr(v, n.Init)
+		walkExpr(v, n.Cond)
+		walkStmt(v, n.Step)
+		Walk(v, n.Body)
+	case *GenerateCase:
+		walkExpr(v, n.Expr)
+		walkValues(v, n.Items)
+	case *GenerateCaseItem:
+		walkExprs(v, n.Exprs)
+		Walk(v, n.Body)
 	case *Null, *WaitFork, *Break, *Continue, *RawStmt, *BadStmt:
 		// Leaves.
 	}

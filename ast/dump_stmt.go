@@ -136,6 +136,25 @@ func describeStmt(n Node) (head string, kids []Node, ok bool) {
 		return "final", stmts(n.Body), true
 	case *Always:
 		return n.Kind, stmts(n.Body), true
+	case *GenerateRegion:
+		return "generate", decls(n.Body), true
+	case *GenerateBlock:
+		return "gen-block" + prefixed(" ", n.Label) + flag(n.Bare, "bare"), decls(n.Body), true
+	case *GenerateIf:
+		kids := []Node{n.Then}
+		if n.Else != nil {
+			kids = append(kids, n.Else)
+		}
+		return "gen-if cond=" + exprText(n.Cond), kids, true
+	case *GenerateFor:
+		return "gen-for" + flag(n.Genvar, "genvar") + " " + n.Var + " init=" + exprText(n.Init) + " cond=" + exprText(n.Cond), concat(stmts(n.Step), []Node{n.Body}), true
+	case *GenerateCase:
+		return "gen-case " + exprText(n.Expr), values(n.Items), true
+	case *GenerateCaseItem:
+		if n.Default {
+			return "item default", []Node{n.Body}, true
+		}
+		return "item [" + strings.Join(exprTexts(n.Exprs), " ") + "]", []Node{n.Body}, true
 	case *ContinuousAssign:
 		h := "continuous-assign"
 		if len(n.DriveStrength) > 0 {
