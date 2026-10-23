@@ -234,6 +234,22 @@ func TestWalkReachesEveryNodeOnce(t *testing.T) {
 			}
 		}
 	})
+	t.Run("coverage", func(t *testing.T) {
+		toks, _ := preprocessor.Preprocess("cg.sv", coverageSource, nil)
+		f, errs := parser.Parse("cg.sv", toks)
+		if len(errs) != 0 {
+			t.Fatalf("coverageSource has errors: %v", errs)
+		}
+		checkWalkComplete(t, f, seenKinds)
+		if out := ast.Dump(f); strings.Contains(out, "UNHANDLED") {
+			t.Errorf("Dump hit its fallback:\n%s", out)
+		}
+		for _, kind := range []string{"Covergroup", "CoverOption", "CoverPoint", "CoverBin", "TransSet", "TransStep", "CoverCross"} {
+			if !seenKinds[kind] {
+				t.Errorf("no %s node in coverageSource", kind)
+			}
+		}
+	})
 	t.Run("all-expressions", func(t *testing.T) {
 		checkWalkComplete(t, fileHoldingAllExprs(), seenKinds)
 	})
@@ -496,6 +512,42 @@ const constraintSource = `class C;
     void'(randomize(x) with { x > 0; });
   endfunction
 endclass`
+
+// coverageSource has every covergroup construct.
+const coverageSource = `module m;
+  covergroup cg (int w, ref logic [3:0] r) with function sample (int a, bit b);
+    option.per_instance = 1;
+    type_option.comment = "hi";
+    cp_a : coverpoint a iff (b) {
+      option.auto_bin_max = 8;
+      bins low = {[0:3], 5};
+      bins arr[] = {[8:15]};
+      bins sized[4] = {[16:31]} with (item % 2 == 0);
+      wildcard bins w = {4'b1??0};
+      illegal_bins bad = {13};
+      ignore_bins ign = {[20:$]};
+      bins t1 = (1 => 2 => 3), (4, 5 => 6);
+      bins t2 = (1 [*3] => 2), (7 [->2]), (8 [= 1:3] => 9);
+      bins other = default;
+      bins seq = default sequence;
+      bins sel = cp_other with (item > 3);
+      bins st = '{1, 2, 3};
+    }
+    coverpoint r;
+    bit [3:0] cp_b : coverpoint b;
+    x : cross cp_a, cp_b iff (b) {
+      bins both = binsof(cp_a) intersect {[1:2]} && !binsof(cp_b.low);
+      illegal_bins no = binsof(cp_a.low) || (binsof(cp_b) with (item < 2));
+      ignore_bins ig = x_sel matches 3;
+      option.weight = 2;
+    }
+    cross cp_a, cp_b;
+  endgroup : cg
+  covergroup cg2 @(posedge clk); coverpoint a; endgroup
+  covergroup cg3 @@(begin f); endgroup
+  covergroup extends cg; endgroup
+endmodule
+`
 
 // goldenSource touches most declaration kinds, including ones the vendored
 // corpus never produces (modports).

@@ -267,6 +267,79 @@ func describe(n Node) (head string, kids []Node) {
 		return "config " + n.Name + " design=[" + strings.Join(n.Design, " ") + "]", concat(decls(n.Body), values(n.Rules))
 	case *ConfigRule:
 		return "rule " + n.Kind + " " + strconv.Quote(n.Text), nil
+	case *Covergroup:
+		h := "covergroup " + n.Name
+		if n.Extends != "" {
+			h += " extends=" + n.Extends
+		}
+		if n.Event != nil {
+			h += " event=" + timingText(n.Event)
+		}
+		h += flag(n.BlockEvent, "block-event") + flag(n.Sample, "sample")
+		return h, concat(values(n.Ports), values(n.SamplePorts), decls(n.Items))
+	case *CoverOption:
+		kw := "option"
+		if n.Type {
+			kw = "type_option"
+		}
+		return kw + "." + n.Name + " = " + exprText(n.Value), nil
+	case *CoverPoint:
+		h := "coverpoint"
+		if n.Name != "" {
+			h += " " + n.Name
+		}
+		h += typeAttr(n.Type) + " " + exprText(n.X)
+		if n.Iff != nil {
+			h += " iff=" + exprText(n.Iff)
+		}
+		return h, decls(n.Bins)
+	case *CoverBin:
+		h := n.Keyword + flag(n.Wildcard, "wildcard")
+		if n.Name != "" {
+			h += " " + n.Name
+		}
+		if n.Array {
+			h += "[" + optText(n.Size) + "]"
+		}
+		h += " " + n.Kind
+		switch n.Kind {
+		case "values":
+			h += " {" + strings.Join(exprTexts(n.Values), " ") + "}"
+		}
+		if n.Source != nil {
+			h += " " + exprText(n.Source)
+		}
+		if n.With != nil {
+			h += " with=" + exprText(n.With)
+		}
+		if n.Iff != nil {
+			h += " iff=" + exprText(n.Iff)
+		}
+		return h, values(n.Trans)
+	case *TransSet:
+		return "trans", values(n.Steps)
+	case *TransStep:
+		h := "step [" + strings.Join(exprTexts(n.Values), " ") + "]"
+		if n.RepKind != "" {
+			h += " repeat" + n.RepKind
+			if n.RepMin != nil {
+				h += " " + exprText(n.RepMin)
+				if n.RepMax != nil {
+					h += ":" + exprText(n.RepMax)
+				}
+			}
+		}
+		return h, nil
+	case *CoverCross:
+		h := "cross"
+		if n.Name != "" {
+			h += " " + n.Name
+		}
+		h += " [" + strings.Join(exprTexts(n.Items), " ") + "]"
+		if n.Iff != nil {
+			h += " iff=" + exprText(n.Iff)
+		}
+		return h, decls(n.Body)
 	case *PortConnection:
 		switch {
 		case n.Wildcard:
