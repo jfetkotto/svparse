@@ -39,6 +39,17 @@ type parser struct {
 
 	// fallback positions eofToken when toks is empty -- see newSubParser.
 	fallback preprocessor.Token
+
+	// exprDepth is the current expression-recursion depth, bounded by
+	// maxExprDepth -- see expr.go.
+	exprDepth int
+
+	// zeroWidth* remember the most recent zero-width expression node (a
+	// placeholder for something missing) so enclosing spans can widen to
+	// contain it -- see spanFrom.
+	zeroWidthSet                bool
+	zeroWidthAt                 int // token index it was created at
+	zeroWidthLine, zeroWidthCol int
 }
 
 // Parse parses toks. preprocessor.Token is the canonical input -- not
@@ -108,8 +119,9 @@ func (p *parser) eofToken() preprocessor.Token {
 		}
 	}
 	last := p.toks[len(p.toks)-1]
+	endLine, endChar := last.End()
 	return preprocessor.Token{
-		Token: token.Token{Kind: token.KindEOF, Line: last.Line, Character: last.Character + token.UTF16Len(last.Text)},
+		Token: token.Token{Kind: token.KindEOF, Line: endLine, Character: endChar},
 		File:  last.File,
 	}
 }

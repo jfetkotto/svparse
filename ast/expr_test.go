@@ -44,6 +44,8 @@ var exprCases = []struct {
 	{"parameterized name", &ast.ParameterizedName{Name: "C", Overrides: []ast.ParamOverride{
 		{ValueExpr: lit("8")}, {Name: "W", ValueExpr: lit("2")}, {Value: tk("4")}}},
 		"(param-name C 8 .W 2 \"4\")\n"},
+	{"package-qualified parameterized name", &ast.ParameterizedName{Scope: id("pkg"), Name: "C", Overrides: []ast.ParamOverride{{ValueExpr: lit("8")}}},
+		"(param-name pkg::C 8)\n"},
 	{"member select nests left", &ast.MemberSelect{X: &ast.MemberSelect{X: id("a"), Member: "b"}, Member: "c"}, "(. (. a b) c)\n"},
 	{"index", &ast.Index{X: id("a"), Index: id("i")}, "(index a i)\n"},
 	{"range colon", &ast.RangeSelect{X: id("a"), Kind: ast.RangeColon, Left: lit("7"), Right: lit("0")}, "(range: a 7 0)\n"},
@@ -229,4 +231,48 @@ func TestDumpNeverFallsBackForExprs(t *testing.T) {
 			t.Errorf("%s: dump hit the fallback: %s", c.name, got)
 		}
 	}
+}
+
+func TestExprStringHandlesEveryNode(t *testing.T) {
+	for _, c := range exprCases {
+		if got := ast.ExprString(c.expr); strings.Contains(got, "unhandled") {
+			t.Errorf("%s: ExprString hit its fallback: %s", c.name, got)
+		}
+	}
+}
+
+func TestExprStringExamples(t *testing.T) {
+	cases := []struct {
+		expr ast.Expr
+		want string
+	}{
+		{&ast.Binary{Op: "+", X: id("a"), Y: &ast.Binary{Op: "*", X: id("b"), Y: id("c")}}, "a + b * c"},
+		{&ast.Unary{Op: "-", X: &ast.Unary{Op: "-", X: id("a")}}, "- - a"},
+		{&ast.Cast{Type: lit("8"), X: id("x")}, "8'(x)"},
+		{&ast.Cast{Type: &ast.TypeOrExpr{X: id("T")}, X: id("x")}, "T'(x)"},
+		{&ast.Call{Func: id("f"), Args: []ast.Expr{id("a"), &ast.Empty{}, id("c")}}, "f(a, , c)"},
+		{&ast.RangeSelect{X: id("a"), Kind: ast.RangePlus, Left: id("i"), Right: lit("4")}, "a[i +: 4]"},
+		{&ast.Streaming{Op: ">>", Elems: []ast.Expr{id("a")}}, "{>> {a}}"},
+		{&ast.Ident{Name: `\a+b`}, `\a+b `},
+		{&ast.TypeExpr{Type: ast.Type{Name: "bit", PackedDims: []ast.Dim{{Left: adjacentToks("0", "'", "(", "0", ")")}}}}, "bit [0'(0)]"},
+		{&ast.BadExpr{Tokens: tk("a", "+")}, "a +"},
+		{&ast.TypeExpr{Type: ast.Type{Name: "bit", PackedDims: []ast.Dim{{Left: tk(`\esc`)}}}}, `bit [\esc ]`},
+	}
+	for _, c := range cases {
+		if got := ast.ExprString(c.expr); got != c.want {
+			t.Errorf("got %q, want %q", got, c.want)
+		}
+	}
+}
+
+// adjacentToks builds tokens laid out back to back on one line, as if they
+// had been written with no whitespace.
+func adjacentToks(texts ...string) []preprocessor.Token {
+	toks := make([]preprocessor.Token, len(texts))
+	col := 0
+	for i, s := range texts {
+		toks[i] = preprocessor.Token{Token: token.Token{Text: s, Character: col}}
+		col += len(s)
+	}
+	return toks
 }

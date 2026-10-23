@@ -114,6 +114,7 @@ func Walk(v Visitor, n Node) {
 	case *ScopedName:
 		walkExpr(v, n.Scope)
 	case *ParameterizedName:
+		walkExpr(v, n.Scope)
 		walkValues(v, n.Overrides)
 	case *MemberSelect:
 		walkExpr(v, n.X)
