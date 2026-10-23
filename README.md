@@ -52,6 +52,15 @@ file, parseErrs := parser.Parse(path, toks)
 - `parser.ParseTokens(path string, toks []token.Token) (*ast.File, []Error)`:
   parse raw lexer tokens directly, skipping preprocessing.
 
+- `lexer.LexWithComments(src)`: `Lex` that also returns the comments it skipped
+  (`token.Comment`: text, position, and whether it sits alone on its line).
+- `preprocessor.PreprocessDetailed(path, text, resolver, opts)`: like
+  `PreprocessWithOptions` but returns a `Result` that includes `Comments`
+  (set `Options.KeepComments`), with file attribution through `` `include``.
+  `preprocessor.NewCommentIndex(result.Comments)` answers "what doc comment is
+  above line N" (`Leading`) and "what trails line N" (`Trailing`); `DocText`
+  joins comment bodies. Keeping comments never changes the tokens.
+
 None of these functions ever panic; malformed input is recorded in the
 returned `[]Error` and parsing/lexing continues.
 

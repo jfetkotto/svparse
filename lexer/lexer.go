@@ -31,6 +31,15 @@ func Lex(src string) ([]token.Token, []Error) {
 	return l.toks, l.errs
 }
 
+// LexWithComments is Lex that also returns the comments it skipped, in source
+// order. The tokens and errors are exactly what Lex returns for the same
+// source: keeping comments never changes the token stream.
+func LexWithComments(src string) ([]token.Token, []token.Comment, []Error) {
+	l := &lexer{runes: []rune(src), keepComments: true}
+	l.run()
+	return l.toks, l.comments, l.errs
+}
+
 type lexer struct {
 	runes []rune
 	i     int
@@ -39,6 +48,11 @@ type lexer struct {
 
 	toks []token.Token
 	errs []Error
+
+	// keepComments makes skipLineComment and skipBlockComment record what they
+	// skip into comments; otherwise they only skip.
+	keepComments bool
+	comments     []token.Comment
 }
 
 func (l *lexer) run() {
@@ -113,24 +127,46 @@ func (l *lexer) errorf(line, char int, format string, args ...any) {
 }
 
 func (l *lexer) skipLineComment() {
+	start, line, char := l.i, l.line, l.char
 	for l.i < len(l.runes) && l.runes[l.i] != '\n' {
 		l.advance()
 	}
+	l.recordComment(start, line, char)
+}
+
+// recordComment saves the comment that began at rune index start (line, char)
+// and ends at the cursor, if comments are being kept. OwnLine is whether the
+// last token ended on an earlier line, i.e. nothing but white space precedes
+// the comment on its line.
+func (l *lexer) recordComment(start, line, char int) {
+	if !l.keepComments {
+		return
+	}
+	own := true
+	if n := len(l.toks); n > 0 {
+		endLine, _ := l.toks[n-1].End()
+		own = endLine < line
+	}
+	l.comments = append(l.comments, token.Comment{
+		Text: string(l.runes[start:l.i]), Line: line, Character: char, OwnLine: own,
+	})
 }
 
 func (l *lexer) skipBlockComment() {
-	startLine, startChar := l.line, l.char
+	start, startLine, startChar := l.i, l.line, l.char
 	l.advance() // '/'
 	l.advance() // '*'
 	for l.i < len(l.runes) {
 		if l.runes[l.i] == '*' && l.peek(1) == '/' {
 			l.advance() // '*'
 			l.advance() // '/'
+			l.recordComment(start, startLine, startChar)
 			return
 		}
 		l.advance()
 	}
 	l.errorf(startLine, startChar, "unterminated block comment")
+	l.recordComment(start, startLine, startChar) // runs to the end of the file
 }
 
 // scanEscapedIdent scans a backslash-escaped identifier: '\' followed by

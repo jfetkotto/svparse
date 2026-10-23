@@ -117,7 +117,15 @@ partway through an item, leave a short "Status:" note under it.
       Conformance 171 -> 165 (8 fixed, 2 negatives now `undetected`).
       Not done: continuous-assignment delay/strength (`assign #5 ...`) is M3;
       sigils does not index `nettype` yet.
-- [ ] `feature/lexer-trivia` (comments retained for suppression and hover)
+- [x] `feature/lexer-trivia`: comments are kept on request. `token.Comment`
+      (text, position, `OwnLine`, `Body()`), `lexer.LexWithComments`,
+      `preprocessor.PreprocessDetailed` / `Options.KeepComments` / `Result`, and
+      `preprocessor.CommentIndex` (`Leading`, `Trailing`, `DocText`). A side
+      list rather than a field on every token: `Token` stays small and
+      untouched, and a fuzzer pins that keeping comments never changes tokens or
+      errors. `OwnLine` is what separates a doc comment from a trailing one.
+      Not done: parsing `// svparse: disable=<rule>` markers (that is the lint
+      framework, M8), and sigils showing docs on hover (M9).
 
 ## M3: Statements and procedural code (LRM 9, 10, 12, 13)
 
@@ -185,3 +193,4 @@ partway through an item, leave a short "Status:" note under it.
 | class-parameterization | 175 (65 undetected negatives, 21 parser gaps, 89 need UVM) |
 | aggregate-leftovers | 171 (65 undetected negatives, 17 parser gaps, 89 need UVM) |
 | nettype-interconnect-specparam | 165 (67 undetected negatives, 9 parser gaps, 89 need UVM) |
+| lexer-trivia (no pipeline change) | 165 |

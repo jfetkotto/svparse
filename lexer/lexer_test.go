@@ -268,3 +268,115 @@ func TestTokenEndAgreesWithLexerColumns(t *testing.T) {
 		}
 	}
 }
+
+func TestLexWithCommentsRecordsEachComment(t *testing.T) {
+	const src = "// leading\nmodule m; // trailing\n/* block\n   two lines */ logic a;\n  /* own */\nendmodule"
+	toks, comments, errs := LexWithComments(src)
+	if len(errs) != 0 {
+		t.Fatalf("errors: %+v", errs)
+	}
+	type want struct {
+		text       string
+		line, char int
+		own        bool
+		endL, endC int
+	}
+	wants := []want{
+		{"// leading", 0, 0, true, 0, 10},
+		{"// trailing", 1, 10, false, 1, 21},
+		{"/* block\n   two lines */", 2, 0, true, 3, 15},
+		{"/* own */", 4, 2, true, 4, 11},
+	}
+	if len(comments) != len(wants) {
+		t.Fatalf("got %d comments %+v, want %d", len(comments), comments, len(wants))
+	}
+	for i, w := range wants {
+		c := comments[i]
+		endL, endC := c.End()
+		if c.Text != w.text || c.Line != w.line || c.Character != w.char || c.OwnLine != w.own || endL != w.endL || endC != w.endC {
+			t.Errorf("comment %d = %+v ending %d:%d, want %+v", i, c, endL, endC, w)
+		}
+	}
+	// The tokens are exactly what plain Lex produces.
+	plain, _ := Lex(src)
+	if len(plain) != len(toks) {
+		t.Fatalf("token count differs: %d vs %d", len(plain), len(toks))
+	}
+	for i := range plain {
+		if plain[i] != toks[i] {
+			t.Errorf("token %d differs: %+v vs %+v", i, plain[i], toks[i])
+		}
+	}
+}
+
+func TestLexWithCommentsIgnoresCommentMarkersInStringsAndOperators(t *testing.T) {
+	_, comments, _ := LexWithComments(`x = "a // not a comment"; y = a / b; z = "/* nor this */";`)
+	if len(comments) != 0 {
+		t.Errorf("found comments %+v where there are none", comments)
+	}
+}
+
+func TestLexWithCommentsInDirectiveLines(t *testing.T) {
+	// A comment ending a `define line is still a comment, and still trailing.
+	_, comments, _ := LexWithComments("`define W 8 // width\n`define V 1 /* one */\n")
+	if len(comments) != 2 || comments[0].OwnLine || comments[1].OwnLine {
+		t.Errorf("comments = %+v, want two trailing comments", comments)
+	}
+}
+
+func TestLexWithCommentsUnterminatedBlockRunsToEOF(t *testing.T) {
+	_, comments, errs := LexWithComments("a /* never closed\nstill comment")
+	if len(errs) != 1 {
+		t.Errorf("expected the unterminated-comment error, got %+v", errs)
+	}
+	if len(comments) != 1 || comments[0].Text != "/* never closed\nstill comment" {
+		t.Errorf("comments = %+v", comments)
+	}
+}
+
+func TestLexWithCommentsCarriageReturnsAndUnicode(t *testing.T) {
+	// A CR is zero-width and a supplementary character is two units, as for tokens.
+	toks, comments, _ := LexWithComments("// café \U0001F600\r\nx")
+	if len(comments) != 1 {
+		t.Fatalf("comments = %+v", comments)
+	}
+	if endL, endC := comments[0].End(); endL != 0 || endC != 10 {
+		t.Errorf("comment ends at %d:%d, want 0:10", endL, endC)
+	}
+	if toks[0].Text != "x" || toks[0].Line != 1 {
+		t.Errorf("token after the comment: %+v", toks[0])
+	}
+}
+
+func FuzzLexWithCommentsMatchesLex(f *testing.F) {
+	for _, s := range []string{"a // c\n b", "/* x */ y", "\"//\" /*", "`define A 1 // c\n", "//", "/*", "a/b/*c*/d", "\r\n//\r\n"} {
+		f.Add(s)
+	}
+	f.Fuzz(func(t *testing.T, src string) {
+		plain, plainErrs := Lex(src)
+		toks, comments, errs := LexWithComments(src)
+		if len(plain) != len(toks) || len(plainErrs) != len(errs) {
+			t.Fatalf("keeping comments changed the result: %d/%d tokens, %d/%d errors", len(plain), len(toks), len(plainErrs), len(errs))
+		}
+		for i := range plain {
+			if plain[i] != toks[i] {
+				t.Fatalf("token %d differs", i)
+			}
+		}
+		for i, c := range comments {
+			if !c.Block() && c.Text[:2] != "//" {
+				t.Fatalf("comment %d has text %q", i, c.Text)
+			}
+			el, ec := c.End()
+			if el < c.Line || (el == c.Line && ec < c.Character) {
+				t.Fatalf("comment %d ends before it starts", i)
+			}
+			if i > 0 {
+				pl, pc := comments[i-1].End()
+				if c.Line < pl || (c.Line == pl && c.Character < pc) {
+					t.Fatalf("comment %d overlaps the previous one", i)
+				}
+			}
+		}
+	})
+}
