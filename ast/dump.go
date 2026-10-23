@@ -102,44 +102,44 @@ func describe(n Node) (head string, kids []Node) {
 	case *Variable:
 		h := "variable " + n.Name + typeAttr(n.Type) + dims(n.UnpackedDims) + valueAttr(n.InitialExpr, n.Initial)
 		h += flag(n.IsRand, "rand") + flag(n.IsRandC, "randc") + flag(n.IsStatic, "static")
-		return h, nil
+		return h, typeKids(n.Type)
 	case *Parameter:
 		kw := "parameter"
 		if n.IsLocal {
 			kw = "localparam"
 		}
-		return kw + " " + n.Name + typeAttr(n.Type) + dims(n.UnpackedDims) + valueAttr(n.DefaultExpr, n.Default), nil
+		return kw + " " + n.Name + typeAttr(n.Type) + dims(n.UnpackedDims) + valueAttr(n.DefaultExpr, n.Default), typeKids(n.Type)
 	case *Typedef:
 		if n.Underlying == nil {
 			return "typedef " + n.Name + " forward", nil
 		}
 		return "typedef " + n.Name, []Node{n.Underlying}
 	case *TypeAlias:
-		return "type-alias" + typeAttr(n.Type), nil
+		return "type-alias" + typeAttr(n.Type), typeKids(n.Type)
 	case *Struct:
 		return "struct" + flag(n.Packed, "packed"), values(n.Members)
 	case *Union:
-		return "union" + flag(n.Packed, "packed"), values(n.Members)
+		return "union" + flag(n.Tagged, "tagged") + flag(n.Packed, "packed"), values(n.Members)
 	case *Enum:
 		return "enum" + typeAttr(n.BaseType), values(n.Members)
 	case *EnumMember:
 		return "enum-member " + n.Name + valueAttr(n.ValueExpr, n.Value), nil
 	case *Port:
-		return "port" + direction(n.Direction) + " " + n.Name + typeAttr(n.Type) + dims(n.UnpackedDims) + valueAttr(n.DefaultExpr, n.Default), nil
+		return "port" + direction(n.Direction) + " " + n.Name + typeAttr(n.Type) + dims(n.UnpackedDims) + valueAttr(n.DefaultExpr, n.Default), typeKids(n.Type)
 	case *PortDecl:
-		return "port-decl" + direction(n.Direction) + " " + n.Name + typeAttr(n.Type) + dims(n.UnpackedDims), nil
+		return "port-decl" + direction(n.Direction) + " " + n.Name + typeAttr(n.Type) + dims(n.UnpackedDims), typeKids(n.Type)
 	case *Modport:
 		return "modport " + n.Name, values(n.Ports)
 	case *ModportPort:
 		return "modport-port" + direction(n.Direction) + " " + n.Name, nil
 	case *Arg:
-		return "arg" + direction(n.Direction) + " " + n.Name + typeAttr(n.Type) + dims(n.UnpackedDims) + valueAttr(n.DefaultExpr, n.Default), nil
+		return "arg" + direction(n.Direction) + " " + n.Name + typeAttr(n.Type) + dims(n.UnpackedDims) + valueAttr(n.DefaultExpr, n.Default), typeKids(n.Type)
 	case *Function:
-		return "function " + n.Name + flag(n.Prototype, "prototype") + typeAttr(n.ReturnType), values(n.Args)
+		return "function " + n.Name + flag(n.Prototype, "prototype") + typeAttr(n.ReturnType), concat(typeKids(n.ReturnType), values(n.Args))
 	case *Task:
 		return "task " + n.Name + flag(n.Prototype, "prototype"), values(n.Args)
 	case *Type:
-		return "type " + typeString(*n), nil
+		return "type " + typeString(*n), typeKids(*n)
 	case *Instantiation:
 		return "instantiation " + n.ModuleType, concat(values(n.ParamOverrides), values(n.Instances))
 	case *ParamOverride:
@@ -231,7 +231,7 @@ func typeAttr(t Type) string {
 // "iface.modport", "#(...)" overrides, sign, then packed dimensions.
 func typeString(t Type) string {
 	var parts []string
-	name := t.Name
+	name := t.Name + aggregateQualifiers(t.Inline)
 	if t.PackageQualifier != "" {
 		name = t.PackageQualifier + "::" + name
 	}
@@ -258,6 +258,28 @@ func typeString(t Type) string {
 		parts = append(parts, strings.TrimPrefix(dims(t.PackedDims), " "))
 	}
 	return strings.Join(parts, " ")
+}
+
+// typeKids is the anonymous aggregate a type is written as, which hangs as a
+// child of whatever declares the type (the type attribute itself can only
+// name it: "<struct packed>").
+func typeKids(t Type) []Node {
+	if t.Inline != nil {
+		return []Node{t.Inline}
+	}
+	return nil
+}
+
+// aggregateQualifiers is " tagged packed" and the like for an inline
+// aggregate, so the type attribute reads "struct packed" rather than "struct".
+func aggregateQualifiers(inline Decl) string {
+	switch d := inline.(type) {
+	case *Struct:
+		return flag(d.Packed, "packed")
+	case *Union:
+		return flag(d.Tagged, "tagged") + flag(d.Packed, "packed")
+	}
+	return ""
 }
 
 // dims is " [l:r] [l] [] [*]" for a dimension list, empty for none, using each

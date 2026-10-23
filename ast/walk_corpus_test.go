@@ -101,6 +101,16 @@ func TestWalkReachesEveryNodeOnce(t *testing.T) {
 		f, _ := parser.Parse("t.sv", toks)
 		checkWalkComplete(t, f, seenKinds)
 	})
+	t.Run("inline-aggregates", func(t *testing.T) {
+		// Declarators of one statement share a Type value; every node must
+		// still be visited exactly once.
+		toks, _ := preprocessor.Preprocess("a.sv", aggregateSource, nil)
+		f, _ := parser.Parse("a.sv", toks)
+		checkWalkComplete(t, f, seenKinds)
+		if out := ast.Dump(f); strings.Contains(out, "UNHANDLED") {
+			t.Errorf("Dump hit its fallback:\n%s", out)
+		}
+	})
 	t.Run("all-expressions", func(t *testing.T) {
 		checkWalkComplete(t, fileHoldingAllExprs(), seenKinds)
 	})
@@ -165,6 +175,16 @@ func TestDumpCoversEveryNodeInTheCorpus(t *testing.T) {
 		}
 	})
 }
+
+// aggregateSource uses anonymous struct, union and enum types in every type
+// position, with two declarators sharing one aggregate and one class type.
+const aggregateSource = `module m (input struct packed { logic a; } p);
+  struct { int x; struct { int y; } inner; } a, b;
+  enum logic [1:0] { P, Q = 2'd1 } e1, e2;
+  union tagged packed { bit [3:0] v; void none; } u;
+  cls #(8) c, d;
+  function struct packed { logic ok; } f(input enum { LO, HI } lvl); endfunction
+endmodule`
 
 // goldenSource touches most declaration kinds, including ones the vendored
 // corpus never produces (modports).

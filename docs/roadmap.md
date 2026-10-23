@@ -70,7 +70,23 @@ partway through an item, leave a short "Status:" note under it.
 
 ## M2: Types and declarations (Annex A.2)
 
-- [ ] `feature/inline-aggregate-types`
+- [x] `feature/inline-aggregate-types`: anonymous `struct`/`union`/`enum` as a
+      variable, port, argument, return, parameter or member type. `ast.Type`
+      gains `Inline` (Name is the keyword); `Union` gains `Tagged`. One shared
+      body parser serves typedefs and inline use (`parseInlineAggregate`);
+      `parseDataType` replaces the type+dims pairs. `ownTypes` gives each
+      declarator its own copy of the aggregate and of `ParamOverrides` (it also
+      fixed a latent double-visit for `cls #(8) c, d;`). Struct/enum bodies now
+      stop at a missing `}` instead of swallowing the rest of the file.
+      Conformance 201 -> 185: 20 fixed, 4 negatives that were only "detected"
+      by the old syntax error are now honestly `undetected`.
+      Known gaps: an enum member's repeat count (`C[3]`) is parsed and dropped;
+      an inline aggregate is not accepted inside an expression (`$bits(struct
+      ...)`); sigils hover prints only `struct name`.
+- [ ] `bugfix/subnode-spans`: `ParamOverride`, `PortConnection`, `Instance` and
+      `ModportPort` positions set only a start, so End is 0:0 (a backwards
+      range, protocol-invalid for LSP). Give them real spans and extend the
+      corpus span test (`TestSVTestsCorpusSpansAreWellFormed`) beyond declarations.
 - [ ] `feature/class-parameterization`
 - [ ] `feature/nettype-interconnect-specparam`
 - [ ] `feature/lexer-trivia` (comments retained for suppression and hover)
@@ -136,3 +152,4 @@ partway through an item, leave a short "Status:" note under it.
 | expr-parser (parser not wired in yet) | 201 |
 | lexer-spaced-based-literals | 201 |
 | expr-fields (errors suppressed on purpose) | 201 |
+| inline-aggregate-types | 185 (63 undetected negatives, 33 parser gaps, 89 need UVM) |

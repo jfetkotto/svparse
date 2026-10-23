@@ -61,6 +61,17 @@ type File struct {
 // Position covers the type's name token only, not its dimensions or
 // parameter overrides, so the bound expressions of PackedDims lie outside it
 // (the range a consumer wants for hover and go-to-definition on the name).
+//
+// An anonymous aggregate written in place, as in "struct packed {...} s;" or
+// "enum {A, B} state;", is a Type whose Name is the keyword ("struct",
+// "union" or "enum") and whose Inline holds the *Struct, *Union or *Enum with
+// its members. Position is then the keyword token. A typedef'd aggregate is
+// not Inline: the Typedef owns the body and the Type just names it.
+//
+// "struct {int x;} a, b;" declares one anonymous type for two variables, but
+// each Variable gets its own copy of the aggregate so the tree has no shared
+// nodes; the copies keep the same Position, which is how to tell they are one
+// type.
 type Type struct {
 	Position
 	Signed           bool
@@ -69,6 +80,10 @@ type Type struct {
 	Modport          string // "" unless IfaceName.modport / interface.modport
 	Name             string
 	PackedDims       []Dim
+
+	// Inline is the anonymous aggregate this type is, or nil for every other
+	// type. Name is "struct", "union" or "enum" when it is set.
+	Inline Decl
 
 	// ParamOverrides carries a parameterized type reference's "#( ... )"
 	// arguments -- the class-type half of the same syntax an Instantiation

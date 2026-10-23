@@ -69,7 +69,9 @@ type TypeAlias struct {
 
 // Struct and Union share the same shape: a packed/unpacked flag and a
 // member list (reusing Variable, which has the identical name+type+dims
-// shape a struct/union field needs).
+// shape a struct/union field needs). For a typedef'd aggregate Position is
+// the typedef's name; for an anonymous one written in place (Type.Inline) it
+// spans from the keyword through the closing brace.
 type Struct struct {
 	declBase
 	Packed  bool
@@ -79,6 +81,7 @@ type Struct struct {
 type Union struct {
 	declBase
 	Packed  bool
+	Tagged  bool // "union tagged", LRM 7.3.2
 	Members []Variable
 }
 

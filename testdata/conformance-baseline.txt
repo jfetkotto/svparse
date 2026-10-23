@@ -15,7 +15,7 @@
 # "undetected" entries only for files whose failure shows up in the newly
 # enabled stage; fix or explain each one.
 
-# --- Negative tests whose error is not a syntax error: nothing to detect until semantic checks exist (59) ---
+# --- Negative tests whose error is not a syntax error: nothing to detect until semantic checks exist (63) ---
 chapter-10/10.3--proc-assignment--bad.sv pass # undetected: Illegal to procedurally assign to wire, IEEE Table 10-1
 chapter-11/11.3.6--assign_in_expr_inv.sv pass # undetected: blocking assignments within expression must be enclosed in parentheses
 chapter-11/11.4.14.3--unpack_stream_inv.sv pass # undetected: stream is wider than assignment target
@@ -58,12 +58,16 @@ chapter-5/5.7.2-real-constants-illegal.sv pass # undetected: Real literal consta
 chapter-6/6.12--real_bit_select.sv pass # undetected: it is illegal to do bit select on real data type
 chapter-6/6.12--real_bit_select_idx.sv pass # undetected: it is illegal to do bit select on real data type
 chapter-6/6.12--real_edge.sv pass # undetected: it is illegal to use edge event controls on real type
+chapter-6/6.19--enum_value_inv.sv pass # undetected: If the integer value expression is a sized literal constant, it shall be an error if the size is different from the enum base type, even if the value is within the representable range.
+chapter-6/6.19--enum_xx_inv.sv pass # undetected: An enumerated name with x or z assignments assigned to an enum with no explicit data type or an explicit2-state declaration shall be a syntax error
+chapter-6/6.19--enum_xx_inv_order.sv pass # undetected: An unassigned enumerated name that follows an enum name with x or z assignments shall be a syntax error.
 chapter-6/6.19.3--enum_type_checking_inv.sv pass # undetected: enum enforces strict type checking rules
 chapter-6/6.19.4--enum_numerical_expr_no_cast.sv pass # undetected: enum numerical expression without casting
 chapter-6/6.5--variable_mixed_assignments.sv pass # undetected: mixing procedural and continuous assignments is illegal
 chapter-6/6.5--variable_multiple_assignments.sv pass # undetected: it shall be an error to have multiple continuous assignments
 chapter-6/6.5--variable_redeclare.sv pass # undetected: Variable redeclaration
 chapter-7/arrays/packed/variable-slice-zero.sv pass # undetected: slicing array with zero part width
+chapter-7/structures/packed/default-value.sv pass # undetected: members of packed structures shall not be assigned individual default member values.
 chapter-8/8.21--abstract_class_inst.sv pass # undetected: instantiating abstract class
 chapter-8/8.25.1--parametrized_class_invalid_scope_resolution.sv pass # undetected: parametrized class invalid scope resolution
 chapter-8/8.26.3--type_access_implements_invalid.sv pass # undetected: typedefs are not inherited by implements operator
@@ -76,44 +80,24 @@ generic/typedef/typedef_test_25__bad.sv pass # undetected: Using undefined param
 generic/typedef/typedef_test_28__bad.sv pass # undetected: missing forward typedef declaration, type_identifier does not resolve to a data type.
 generic/typedef/typedef_test_8__bad.sv pass # undetected: defining a type using an undefined type
 
-# --- Parser gaps: valid code the declaration-grade parser rejects (statements, expressions, assertions, constraints, ...) (53) ---
+# --- Parser gaps: valid code the declaration-grade parser rejects (statements, expressions, assertions, constraints, ...) (33) ---
 chapter-10/10.3.3--cont-assignment-net-delay.sv fail # parse error: expected an identifier, found "#"
 chapter-10/10.6.1--assign-deassign.sv fail # parse error: expected ';' before "assign"
-chapter-12/12.6.1--case_pattern.sv fail # parse error: expected an identifier, found "{"
-chapter-12/12.6.1--casex_pattern.sv fail # parse error: expected an identifier, found "{"
-chapter-12/12.6.1--casez_pattern.sv fail # parse error: expected an identifier, found "{"
-chapter-12/12.6.2--if_pattern.sv fail # parse error: expected an identifier, found "{"
-chapter-12/12.6.3--conditional_pattern.sv fail # parse error: expected an identifier, found "{"
 chapter-14/14.3--default-clocking-block.sv fail # parse error: unexpected token "default", skipping to the next declaration
 chapter-18/18.5.1--implicit-external-constraint_0.sv fail # parse error: expected '{' to start block
 chapter-18/18.5.1--implicit-external-constraint_1.sv fail # parse error: expected '{' to start block
 chapter-18/18.5.14.1--soft-constraint-priorities_2.sv fail # parse error: expected '{' to start block
 chapter-22/22.5.1--define-expansion_25.sv fail # preprocess error: '`' not followed by a directive name
 chapter-22/22.5.1--include-define-expansion.sv fail # preprocess error: `include requires a quoted path (the <path> form is not supported)
-chapter-5/5.10-structure-replication.sv fail # parse error: unexpected token "struct", skipping to the next declaration
 chapter-5/5.6.4--compiler-directives-begin-keywords.sv fail # parse error: unterminated variable declaration, expected ';'
 chapter-5/5.6.4--compiler-directives-include.sv fail # preprocess error: `include "/dev/null": open ../../testdata/sv-tests/chapter-5/dev/null: no such file or directory
-chapter-6/6.19--enum_anon.sv fail # parse error: unexpected token "enum", skipping to the next declaration
-chapter-6/6.19--enum_xx.sv fail # parse error: unexpected token "enum", skipping to the next declaration
-chapter-6/6.19.2--enum_sequence.sv fail # parse error: unexpected token "enum", skipping to the next declaration
-chapter-6/6.19.2--enum_sequence_range.sv fail # parse error: unexpected token "enum", skipping to the next declaration
 chapter-6/6.20.5--specparam.sv fail # parse error: unexpected token "specparam", skipping to the next declaration
 chapter-6/6.23--type_op.sv fail # parse error: expected an identifier, found "("
-chapter-6/6.24.3--bitstream_cast.sv fail # parse error: unexpected token "struct", skipping to the next declaration
 chapter-6/6.6.7--nettype.sv fail # parse error: unexpected token "nettype", skipping to the next declaration
 chapter-6/6.6.7--nettype_resolution_fn.sv fail # parse error: unexpected token "nettype", skipping to the next declaration
 chapter-6/6.6.8--interconnect.sv fail # parse error: unexpected token "interconnect", skipping to the next declaration
 chapter-6/6.9.2--vector_scalared.sv fail # parse error: expected an identifier, found "scalared"
 chapter-6/6.9.2--vector_vectored.sv fail # parse error: expected an identifier, found "vectored"
-chapter-7/structures/packed/basic.sv fail # parse error: unexpected token "struct", skipping to the next declaration
-chapter-7/structures/packed/signed.sv fail # parse error: unexpected token "struct", skipping to the next declaration
-chapter-7/structures/packed/unsigned.sv fail # parse error: unexpected token "struct", skipping to the next declaration
-chapter-7/structures/unpacked/basic.sv fail # parse error: unexpected token "struct", skipping to the next declaration
-chapter-7/structures/unpacked/default-value.sv fail # parse error: unexpected token "struct", skipping to the next declaration
-chapter-7/unions/packed/basic.sv fail # parse error: unexpected token "union", skipping to the next declaration
-chapter-7/unions/tagged/basic.sv fail # parse error: unexpected token "union", skipping to the next declaration
-chapter-7/unions/tagged/packed.sv fail # parse error: unexpected token "union", skipping to the next declaration
-chapter-7/unions/unpacked/basic.sv fail # parse error: unexpected token "union", skipping to the next declaration
 chapter-8/8.25--parametrized_class_extend.sv fail # parse error: expected ';' after class header
 chapter-8/8.26.6.2--parameter_type_conflict.sv fail # parse error: expected ';' after class header
 chapter-8/8.26.6.3--diamond_relationship.sv fail # parse error: expected ';' after class header
