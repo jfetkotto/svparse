@@ -7,8 +7,8 @@ package ast
 //
 // Like Decl it is sealed by an unexported method, so the set of node types
 // stays this package's to define. Dim is deliberately not a Node: it has no
-// position of its own and nothing hangs off it yet; once expression trees
-// exist (see the roadmap) Walk descends into them from the Dim's owner.
+// position of its own, so Walk reaches its parsed bound expressions
+// (LeftExpr, RightExpr) from the Dim's owner.
 type Node interface {
 	Pos() Position
 	node()
@@ -65,13 +65,18 @@ func Walk(v Visitor, n Node) {
 		walkList(v, n.Body)
 	case *Class:
 		walkValues(v, n.Params)
+		walkExprs(v, n.ExtendsArgExprs)
 		walkList(v, n.Body)
 	case *Package:
 		walkList(v, n.Body)
 	case *Variable:
 		walkType(v, &n.Type)
+		walkDims(v, n.UnpackedDims)
+		walkExpr(v, n.InitialExpr)
 	case *Parameter:
 		walkType(v, &n.Type)
+		walkDims(v, n.UnpackedDims)
+		walkExpr(v, n.DefaultExpr)
 	case *Typedef:
 		if n.Underlying != nil {
 			Walk(v, n.Underlying)
@@ -87,12 +92,17 @@ func Walk(v Visitor, n Node) {
 		walkValues(v, n.Members)
 	case *Port:
 		walkType(v, &n.Type)
+		walkDims(v, n.UnpackedDims)
+		walkExpr(v, n.DefaultExpr)
 	case *PortDecl:
 		walkType(v, &n.Type)
+		walkDims(v, n.UnpackedDims)
 	case *Modport:
 		walkValues(v, n.Ports)
 	case *Arg:
 		walkType(v, &n.Type)
+		walkDims(v, n.UnpackedDims)
+		walkExpr(v, n.DefaultExpr)
 	case *Function:
 		walkType(v, &n.ReturnType)
 		walkValues(v, n.Args)
@@ -100,15 +110,21 @@ func Walk(v Visitor, n Node) {
 		walkValues(v, n.Args)
 	case *Type:
 		walkValues(v, n.ParamOverrides)
+		walkDims(v, n.PackedDims)
 	case *Instantiation:
 		walkValues(v, n.ParamOverrides)
 		walkValues(v, n.Instances)
 	case *Instance:
+		walkDims(v, n.UnpackedDims)
 		walkValues(v, n.Connections)
 	case *ParamOverride:
 		walkExpr(v, n.ValueExpr)
-	case *EnumMember, *Constraint, *Import, *PortConnection, *ModportPort:
-		// Leaves (until their raw expression spans get parsed siblings).
+	case *EnumMember:
+		walkExpr(v, n.ValueExpr)
+	case *PortConnection:
+		walkExpr(v, n.ConnExpr)
+	case *Constraint, *Import, *ModportPort:
+		// Leaves.
 
 	// Expressions.
 	case *ScopedName:
@@ -217,6 +233,15 @@ func walkExpr(v Visitor, e Expr) {
 func walkExprs(v Visitor, list []Expr) {
 	for _, e := range list {
 		walkExpr(v, e)
+	}
+}
+
+// walkDims walks the parsed bound expressions of a dimension list. Dim is not
+// a Node, so its owner walks it.
+func walkDims(v Visitor, dims []Dim) {
+	for i := range dims {
+		walkExpr(v, dims[i].LeftExpr)
+		walkExpr(v, dims[i].RightExpr)
 	}
 }
 

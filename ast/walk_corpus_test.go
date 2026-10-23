@@ -203,36 +203,36 @@ func TestDumpGolden(t *testing.T) {
     (typedef st_t
       (enum <logic [1:0]>
         (enum-member IDLE)
-        (enum-member RUN = "2'd1"))))
+        (enum-member RUN = 2'd1))))
   (interface bus_if
-    (parameter W <int> = "8")
+    (parameter W <int> = 8)
     (port input clk <logic>)
-    (variable data <logic [W - 1:0]>)
+    (variable data <logic [(- W 1):0]>)
     (modport mp
       (modport-port input data)
       (modport-port input clk)))
   (module top
-    (parameter N = "4")
-    (localparam M = "N * 2")
+    (parameter N = 4)
+    (localparam M = (* N 2))
     (port input clk <logic>)
     (port output out <pkg::s_t> [3:0])
     (import pkg::*)
     (instantiation bus_if
-      (param-override .W "16")
+      (param-override .W 16)
       (instance u_bus
-        (connection .clk "clk")))
+        (connection .clk clk)))
     (instantiation leaf
-      (param-override "8")
+      (param-override 8)
       (instance u0
         (connection .*))
       (instance u1
         (connection .a implicit)
-        (connection .b "x + 1")))
+        (connection .b (+ x 1))))
     (function f <int>
       (arg input x <int>)
-      (arg y = "3")))
+      (arg y = 3)))
   (class base extends=root implements=ifc
-    (parameter T <type> = "int")
+    (parameter T <type> = <int>)
     (variable v <int unsigned> rand)
     (variable name <string> static)
     (constraint c prototype)))

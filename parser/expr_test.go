@@ -134,8 +134,8 @@ var exprGolden = []struct{ src, want string }{
 	{"tagged Valid 5 + 1", "(+ (tagged Valid 5) 1)"}, // the operand is a primary
 	{"type(x)", "(typeof (type-or-expr x))"},
 	{"type(logic [3:0])", "(typeof <logic [3:0]>)"},
-	{"$bits(int [N-1:0])", "(call $bits <int [N - 1:0]>)"},
-	{"$bits(bit [$clog2(N)-1:0][3:0])", "(call $bits <bit [$clog2 ( N ) - 1:0] [3:0]>)"},
+	{"$bits(int [N-1:0])", "(call $bits <int [(- N 1):0]>)"},
+	{"$bits(bit [$clog2(N)-1:0][3:0])", "(call $bits <bit [(- (call $clog2 N) 1):0] [3:0]>)"},
 	{"$bits(string [])", "(call $bits <string []>)"},
 	{"null", "null"},
 	{"$", "$"},
@@ -205,7 +205,7 @@ func TestParseExprErrors(t *testing.T) {
 		{"'{a: }", "expected an expression, found \"}\"", `(pattern (item a (bad "")))`},
 		{"signed T", "signed/unsigned cannot qualify the user-defined type \"T\"", "<T signed>"},
 		{"$bits(logic [7:0)", "expected ']'", "(call $bits <logic [7:0]>)"},
-		{"$bits(logic ['()", "expected an expression", `(call $bits <logic [']>)`},
+		{"$bits(logic ['()", "expected an expression", `(call $bits <logic [(bad "'")]>)`},
 	}
 	for _, c := range cases {
 		e, errs := parseExprSrc(c.src)
@@ -273,6 +273,16 @@ func TestParseExprSpans(t *testing.T) {
 	}
 }
 
+// nameOnlyPosition reports whether n's Position covers only its name token,
+// so its children may lie outside it.
+func nameOnlyPosition(n ast.Node) bool {
+	switch n.(type) {
+	case *ast.ParamOverride, *ast.Type:
+		return true
+	}
+	return false
+}
+
 // within reports whether inner lies inside outer (inclusive).
 func within(inner, outer ast.Position) bool {
 	before := func(l1, c1, l2, c2 int) bool { return l1 < l2 || (l1 == l2 && c1 <= c2) }
@@ -281,9 +291,10 @@ func within(inner, outer ast.Position) bool {
 }
 
 // checkSpans asserts every node's span is well formed and nested inside its
-// parent's. The one exception is a ParamOverride's children: by convention a
-// named override is positioned on its name token alone (see ast.ParamOverride),
-// so its value expression lies outside it.
+// parent's. The exceptions are the children of a ParamOverride and of a Type:
+// by convention those nodes are positioned on their name token alone (see
+// ast.ParamOverride and ast.Type), so a value expression or a dimension bound
+// lies outside them.
 func checkSpans(t *testing.T, src string, e ast.Expr) {
 	t.Helper()
 	var stack []ast.Node
@@ -298,7 +309,7 @@ func checkSpans(t *testing.T, src string, e ast.Expr) {
 		}
 		if len(stack) > 0 {
 			parent := stack[len(stack)-1]
-			if _, isOverride := parent.(*ast.ParamOverride); !isOverride && !within(p, parent.Pos()) {
+			if !nameOnlyPosition(parent) && !within(p, parent.Pos()) {
 				t.Errorf("%q: %T %+v escapes its parent %T %+v", src, n, p, parent, parent.Pos())
 			}
 		}

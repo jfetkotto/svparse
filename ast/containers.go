@@ -39,6 +39,7 @@ type Class struct {
 	Params           []Parameter
 	Extends          string
 	ExtendsArgs      []preprocessor.Token
+	ExtendsArgExprs  []Expr // parsed ExtendsArgs, one per argument (as in a Call's Args)
 	Implements       []string
 	Body             []Decl
 }

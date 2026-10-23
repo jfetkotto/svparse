@@ -70,6 +70,7 @@ func Parse(path string, toks []preprocessor.Token) (*ast.File, []Error) {
 	p := &parser{toks: toks}
 	f := &ast.File{Path: path}
 	f.Decls, _, _ = p.parseBody("")
+	fillExprs(f)
 	return f, p.errs
 }
 

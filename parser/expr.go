@@ -437,8 +437,8 @@ func (p *parser) parseTypeOperand() ast.Expr {
 
 // parseTypeDims parses zero or more "[expr]", "[expr:expr]" or "[]"
 // dimensions. Each bound is parsed as an expression, so it is validated and
-// any error reported, and its raw tokens are kept on the ast.Dim as the
-// declaration parser does.
+// any error reported; the tree is stored in LeftExpr/RightExpr and the raw
+// tokens are kept on the ast.Dim as the declaration parser does.
 func (p *parser) parseTypeDims() []ast.Dim {
 	var dims []ast.Dim
 	for p.peek().Kind == token.KindLBrack {
@@ -446,13 +446,15 @@ func (p *parser) parseTypeDims() []ast.Dim {
 		var d ast.Dim
 		if p.peek().Kind != token.KindRBrack {
 			from := p.pos
-			p.parseExpr()
+			d.LeftExpr = p.parseExpr()
 			d.Left = p.toks[from:p.pos]
 			if p.peek().Kind == token.KindColon {
 				p.advance()
 				from = p.pos
-				p.parseExpr()
+				d.RightExpr = p.parseExpr()
 				d.Right = p.toks[from:p.pos]
+			} else {
+				d.LeftExpr = markTypeOrExpr(d.LeftExpr) // a lone name: size or index type
 			}
 		}
 		p.expectKind(token.KindRBrack, "']'")
