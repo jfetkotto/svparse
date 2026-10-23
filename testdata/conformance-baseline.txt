@@ -15,7 +15,7 @@
 # "undetected" entries only for files whose failure shows up in the newly
 # enabled stage; fix or explain each one.
 
-# --- Negative tests whose error is not a syntax error: nothing to detect until semantic checks exist (63) ---
+# --- Negative tests whose error is not a syntax error: nothing to detect until semantic checks exist (65) ---
 chapter-10/10.3--proc-assignment--bad.sv pass # undetected: Illegal to procedurally assign to wire, IEEE Table 10-1
 chapter-11/11.3.6--assign_in_expr_inv.sv pass # undetected: blocking assignments within expression must be enclosed in parentheses
 chapter-11/11.4.14.3--unpack_stream_inv.sv pass # undetected: stream is wider than assignment target
@@ -74,13 +74,15 @@ chapter-8/8.26.3--type_access_implements_invalid.sv pass # undetected: typedefs 
 chapter-8/8.26.4--illegal_implements_parameter.sv pass # undetected: implementing parameter that resolves to an interface class is not allowed
 chapter-8/8.26.5--invalid_interface_instantiation.sv pass # undetected: instantiating an interface class
 chapter-8/8.26.6.1--name_conflict_unresolved.sv pass # undetected: unresolved interface class method name conflict
+chapter-8/8.26.6.2--parameter_type_conflict_unresolved.sv pass # undetected: superclass type declaration conflicts must be resolved in subclass
+chapter-8/8.26.6.3--diamond_relationship_parametrized.sv pass # undetected: different specializations of an interface class are treated as unique interface class types
 chapter-9/9.3.3--fork_return.sv pass # undetected: illegal return from fork
 generic/member/class_member_test_5.sv pass # undetected: pure virtual methods can only be declared in virtual classes
 generic/typedef/typedef_test_25__bad.sv pass # undetected: Using undefined parameters
 generic/typedef/typedef_test_28__bad.sv pass # undetected: missing forward typedef declaration, type_identifier does not resolve to a data type.
 generic/typedef/typedef_test_8__bad.sv pass # undetected: defining a type using an undefined type
 
-# --- Parser gaps: valid code the declaration-grade parser rejects (statements, expressions, assertions, constraints, ...) (33) ---
+# --- Parser gaps: valid code the declaration-grade parser rejects (statements, expressions, assertions, constraints, ...) (21) ---
 chapter-10/10.3.3--cont-assignment-net-delay.sv fail # parse error: expected an identifier, found "#"
 chapter-10/10.6.1--assign-deassign.sv fail # parse error: expected ';' before "assign"
 chapter-14/14.3--default-clocking-block.sv fail # parse error: unexpected token "default", skipping to the next declaration
@@ -98,18 +100,6 @@ chapter-6/6.6.7--nettype_resolution_fn.sv fail # parse error: unexpected token "
 chapter-6/6.6.8--interconnect.sv fail # parse error: unexpected token "interconnect", skipping to the next declaration
 chapter-6/6.9.2--vector_scalared.sv fail # parse error: expected an identifier, found "scalared"
 chapter-6/6.9.2--vector_vectored.sv fail # parse error: expected an identifier, found "vectored"
-chapter-8/8.25--parametrized_class_extend.sv fail # parse error: expected ';' after class header
-chapter-8/8.26.6.2--parameter_type_conflict.sv fail # parse error: expected ';' after class header
-chapter-8/8.26.6.3--diamond_relationship.sv fail # parse error: expected ';' after class header
-generic/class/class_test_12.sv fail # parse error: expected ';' after class header
-generic/class/class_test_13.sv fail # parse error: expected ';' after class header
-generic/class/class_test_19.sv fail # parse error: expected ';' after class header
-generic/class/class_test_21.sv fail # parse error: expected ';' after class header
-generic/class/class_test_25.sv fail # parse error: expected ';' after class header
-generic/class/class_test_26.sv fail # parse error: expected ';' after class header
-generic/class/class_test_27.sv fail # parse error: expected ';' after class header
-generic/class/class_test_29.sv fail # parse error: expected ';' after class header
-generic/class/class_test_8.sv fail # parse error: expected ';' after class header
 generic/struct/struct_test_0.sv fail # parse error: expected '{' to start struct/union body
 generic/typedef/typedef_test_18.sv fail # parse error: unterminated struct/union member, expected ';'
 generic/typedef/typedef_test_22.sv fail # parse error: expected '{' to start enum body

@@ -111,6 +111,14 @@ func TestWalkReachesEveryNodeOnce(t *testing.T) {
 			t.Errorf("Dump hit its fallback:\n%s", out)
 		}
 	})
+	t.Run("parameterized-classes", func(t *testing.T) {
+		toks, _ := preprocessor.Preprocess("c.sv", classSource, nil)
+		f, _ := parser.Parse("c.sv", toks)
+		checkWalkComplete(t, f, seenKinds)
+		if out := ast.Dump(f); strings.Contains(out, "UNHANDLED") {
+			t.Errorf("Dump hit its fallback:\n%s", out)
+		}
+	})
 	t.Run("all-expressions", func(t *testing.T) {
 		checkWalkComplete(t, fileHoldingAllExprs(), seenKinds)
 	})
@@ -184,6 +192,16 @@ const aggregateSource = `module m (input struct packed { logic a; } p);
   union tagged packed { bit [3:0] v; void none; } u;
   cls #(8) c, d;
   function struct packed { logic ok; } f(input enum { LO, HI } lvl); endfunction
+endmodule`
+
+// classSource uses parameterized class references in extends and implements
+// clauses and as types, including as the scope of a nested type, with two
+// declarators sharing one scoped type.
+const classSource = `class ext #(int e = 1) extends pkg::base #(5, .W(2)) (1, x) implements pkg::I, J #(3); endclass
+interface class ic extends ia #(T), ib #(T); endclass
+module m (input cls #(8) p);
+  cls #(8)::inner_t a, b;
+  function cls #(4) f(cls #(9)::U u); endfunction
 endmodule`
 
 // goldenSource touches most declaration kinds, including ones the vendored

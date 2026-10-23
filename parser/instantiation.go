@@ -29,6 +29,13 @@ func (p *parser) parseVariableOrInstantiation() ([]ast.Decl, bool) {
 	hasParamOverrides := p.peek().Kind == token.KindHash
 	if hasParamOverrides {
 		paramOverrides = p.parseParamOverrideList()
+		if p.absorbClassScope(&typ, paramOverrides) {
+			// "cls #(8)::inner_t v;" -- a type inside a parameterized class,
+			// so a variable declaration, never an instantiation.
+			paramOverrides = nil
+			hasParamOverrides = false
+			typ.PackedDims = p.parseDims()
+		}
 	} else {
 		// Packed dims only apply to a variable's type -- an instantiation
 		// has no such position for them, and a '[' right after a
@@ -117,7 +124,10 @@ func (p *parser) parseParamOverrideList() []ast.ParamOverride {
 	}
 	p.advance() // '('
 
-	groups, newPos, closed := preprocessor.SplitBalancedArgs(p.toks, p.pos)
+	// Bounded at the closing ')' or, if it is missing, the statement's ';' --
+	// see parenGroupEnd. (The splitter itself cannot make that call: in a macro
+	// argument a ';' is ordinary text.)
+	groups, newPos, closed := preprocessor.SplitBalancedArgs(p.toks[:p.parenGroupLimit()], p.pos)
 	p.pos = newPos
 	if !closed {
 		p.errorf(p.peek(), "unterminated parameter override list")

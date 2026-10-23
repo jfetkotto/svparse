@@ -177,6 +177,48 @@ func namePosition(nameTok preprocessor.Token) ast.Position {
 	}
 }
 
+// parenGroupEnd returns the index of the ')' that closes the parenthesized
+// group the cursor is inside (the cursor is just past its '('), or, if that
+// ')' is missing, the index of the first ';' or the end of input.
+//
+// In a declaration-level list (a parameter value list, a constructor argument
+// list) a ';' can never appear inside the parentheses, so meeting one means the
+// ')' is missing, and the list must stop there instead of running on through
+// the declarations that follow. The scan only bounds; it consumes nothing.
+func (p *parser) parenGroupEnd() int {
+	depth := 0
+	for i := p.pos; i < len(p.toks); i++ {
+		switch p.toks[i].Kind {
+		case token.KindLParen, token.KindLBrack, token.KindLBrace, token.KindTickLBrace:
+			depth++
+		case token.KindRBrack, token.KindRBrace:
+			if depth > 0 {
+				depth--
+			}
+		case token.KindRParen:
+			if depth == 0 {
+				return i
+			}
+			depth--
+		case token.KindSemi:
+			return i
+		}
+	}
+	return len(p.toks)
+}
+
+// parenGroupLimit is the exclusive upper bound of the tokens a parenthesized
+// list may use: through its closing ')', or up to but NOT including the ';' or
+// end of input that stands in for a missing one, so the terminator is left
+// for the enclosing construct to consume.
+func (p *parser) parenGroupLimit() int {
+	end := p.parenGroupEnd()
+	if end < len(p.toks) && p.toks[end].Kind == token.KindRParen {
+		return end + 1
+	}
+	return end
+}
+
 // tokensSpan is the span from the start of toks[0] through the end of the last
 // token, for a node that covers a run of tokens rather than a single name (a
 // positional override or connection, a wildcard). End is clamped so it never

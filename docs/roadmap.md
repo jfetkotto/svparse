@@ -88,7 +88,19 @@ partway through an item, leave a short "Status:" note under it.
       real spans via `tokensSpan`. `TestEveryNodeSpanIsWellFormedAcrossTheCorpus`
       checks every node Walk reaches, not just declarations, which is how this
       escaped. Named forms stay positioned on the name alone (sigils relies on it).
-- [ ] `feature/class-parameterization`
+- [x] `feature/class-parameterization`: `extends Base #(...)`, `extends
+      pkg::Base #(...)`, `implements Pkg::I #(...)`, and an interface class's
+      `extends a#(T), b#(T)` list, as `Class.ExtendsTypes`/`ImplementsTypes`
+      (`[]Type`; the bare-name `Extends`/`Implements` stay for sigils). A
+      parameterized class is also accepted as a port, argument, return and
+      struct-member type (`parseClassTypeSuffix`), and `cls #(8)::inner_t` puts
+      the class in `Type.PackageQualifier` with its overrides in the new
+      `Type.QualifierOverrides`. Keyword types never take a list, so `wire
+      #(5) w` is not mistaken for one. Unclosed `#(`/constructor-argument lists
+      now stop at the statement's `;` (`parenGroupEnd`) instead of running on.
+      Conformance 185 -> 175 (12 fixed, 2 negatives now honestly `undetected`).
+      Not done: `type` parameters already worked; a chained `C#(1)::D#(2)::T`
+      and an out-of-block method of a parameterized class are not handled.
 - [ ] `feature/nettype-interconnect-specparam`
 - [ ] `feature/lexer-trivia` (comments retained for suppression and hover)
 
@@ -155,3 +167,4 @@ partway through an item, leave a short "Status:" note under it.
 | expr-fields (errors suppressed on purpose) | 201 |
 | inline-aggregate-types | 185 (63 undetected negatives, 33 parser gaps, 89 need UVM) |
 | subnode-spans (no pipeline change) | 185 |
+| class-parameterization | 175 (65 undetected negatives, 21 parser gaps, 89 need UVM) |

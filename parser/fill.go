@@ -31,6 +31,9 @@ func ownTypes(f *ast.File) {
 		if len(t.ParamOverrides) > 0 {
 			t.ParamOverrides = slices.Clone(t.ParamOverrides)
 		}
+		if len(t.QualifierOverrides) > 0 {
+			t.QualifierOverrides = slices.Clone(t.QualifierOverrides)
+		}
 		if t.Inline != nil {
 			if claimed[t.Inline] {
 				t.Inline = cloneAggregate(t.Inline)
@@ -73,6 +76,7 @@ func cloneMembers(ms []ast.Variable) []ast.Variable {
 
 func cloneType(t ast.Type) ast.Type {
 	t.ParamOverrides = slices.Clone(t.ParamOverrides)
+	t.QualifierOverrides = slices.Clone(t.QualifierOverrides)
 	if t.Inline != nil {
 		t.Inline = cloneAggregate(t.Inline)
 	}

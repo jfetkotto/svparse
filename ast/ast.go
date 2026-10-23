@@ -76,7 +76,7 @@ type Type struct {
 	Position
 	Signed           bool
 	Unsigned         bool
-	PackageQualifier string // "" unless Pkg::Type
+	PackageQualifier string // "" unless Pkg::Type or Class#(...)::Type; "a::b" when nested
 	Modport          string // "" unless IfaceName.modport / interface.modport
 	Name             string
 	PackedDims       []Dim
@@ -90,6 +90,13 @@ type Type struct {
 	// uses, e.g. the "#(8)" in "my_class #(8) obj;". nil for the ordinary
 	// unparameterized case.
 	ParamOverrides []ParamOverride
+
+	// QualifierOverrides carries the "#( ... )" of a parameterized class used
+	// as the scope of the type, as in "my_class #(8)::inner_t": there
+	// PackageQualifier is "my_class", Name is "inner_t", and these are the
+	// overrides of the qualifier (ParamOverrides stays nil, since inner_t is
+	// not itself parameterized).
+	QualifierOverrides []ParamOverride
 }
 
 // Dim is one array/bit-range dimension: [Left:Right] (a range) or
