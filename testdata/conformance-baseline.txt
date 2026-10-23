@@ -1,0 +1,223 @@
+# Baseline for internal/conformance's TestCorpusMatchesBaseline.
+#
+# One "path outcome # reason" line per vendored sv-tests file whose observed
+# outcome differs from what its own metadata expects: a file with
+# :should_fail_because: must produce a diagnostic, any other must not.
+# "outcome" is what the pipeline does TODAY (pass = no diagnostics, fail =
+# at least one), so the expectation is always the opposite. Any file not
+# listed here is expected to match its metadata, and a listed file that now
+# matches fails the test as stale.
+#
+# Updating this file is a deliberate act: a new entry needs a real reason, and
+# a removed entry means a genuine fix landed (with its own tests). Never
+# regenerate it wholesale. The stages run are capped by
+# conformance.MaxImplemented, so raising that cap legitimately adds
+# "undetected" entries only for files whose failure shows up in the newly
+# enabled stage; fix or explain each one.
+
+# --- Negative tests whose error is not a syntax error: nothing to detect until semantic checks exist (59) ---
+chapter-10/10.3--proc-assignment--bad.sv pass # undetected: Illegal to procedurally assign to wire, IEEE Table 10-1
+chapter-11/11.3.6--assign_in_expr_inv.sv pass # undetected: blocking assignments within expression must be enclosed in parentheses
+chapter-11/11.4.14.3--unpack_stream_inv.sv pass # undetected: stream is wider than assignment target
+chapter-11/11.9--tagged_union_member_access_inv.sv pass # undetected: accessing wrong member should result in run-time error
+chapter-13/13.4.1--function-void-return.sv pass # undetected: void function returns value
+chapter-13/13.4.4--fork-invalid.sv pass # undetected: only fork-join_none is permitted inside a function
+chapter-14/14.3--clocking-block-signals-error.sv pass # undetected: assigning to net from procedural context
+chapter-16/16.10--property-local-var-fail.sv pass # undetected: pipeline increments value by 4 but property expects incrementation by 3
+chapter-16/16.10--sequence-local-var-fail.sv pass # undetected: pipeline increments value by 4 but sequence expects incrementation by 3
+chapter-16/16.15--property-disable-iff-fail.sv pass # undetected: disable iff uses wrong reset polarity
+chapter-18/18.17.2--if-else-production-statements_0_fail.sv pass # undetected: switch variable not declared
+chapter-18/18.17.2--if-else-production-statements_2_fail.sv pass # undetected: switch variable not declared
+chapter-18/18.17.3--case-production-statements_0_fail.sv pass # undetected: switch variable not declared
+chapter-18/18.17.6--aborting-productions-break-and-return_2_fail.sv pass # undetected: typo in production name
+chapter-18/18.5.1--explicit-external-constraint_1.sv pass # undetected: explicit contraint needs to be defined
+chapter-18/18.5.10--variable-ordering_1.sv pass # undetected: randc vars are not allowed, they are always solved before any other
+chapter-18/18.5.14--soft-constraints_2.sv pass # undetected: Soft constraints can only be specified on random variables; they may not be specified for randc variables.
+chapter-18/18.5.2--pure-constraint_2.sv pass # undetected: pure constraint must be implemented by non-virtual class
+chapter-18/18.5.4--distribution_2.sv pass # undetected: distribution shall not be applied to randc variables
+chapter-18/18.6.3--behavior-of-randomization-methods_4.sv pass # undetected: The randomize() method is built-in and cannot be overridden.
+chapter-18/18.8--disabling-random-variables-with-rand_mode_4.sv pass # undetected: The rand_mode() method is built-in and cannot be overridden.
+chapter-18/18.9--controlling-constraints-with-constraint_mode_1.sv pass # undetected: The constraint_mode() method is built-in and cannot be overridden.
+chapter-22/22.11--pragma-invalid.sv pass # undetected: The pragma specification is identified by the pragma_name, which follows the `pragma directive.
+chapter-22/22.12--line-illegal-1.sv pass # undetected: The level parameter shall be 0, 1, or 2
+chapter-22/22.12--line-illegal-2.sv pass # undetected: The filename parameter shall be a string literal
+chapter-22/22.12--line-illegal-3.sv pass # undetected: The number parameter shall be a positive integer that specifies the new line number
+chapter-22/22.12--line-illegal-4.sv pass # undetected: The level parameter shall be 0, 1, or 2
+chapter-22/22.12--line-illegal-5.sv pass # undetected: Missing filename
+chapter-22/22.3--resetall_illegal.sv pass # undetected: It shall be illegal for the `resetall directive to be specified within a design element.
+chapter-22/22.5.1--define-expansion_23.sv pass # undetected: All compiler directives shall be considered predefined macro names; it shall be illegal to redefine a compiler directive as a macro name.
+chapter-22/22.7--timescale-basic-3.sv pass # undetected: The integers in `timescale arguments specify an order of magnitude for the size of the value; the valid integers are 1, 10, and 100
+chapter-22/22.7--timescale-basic-4.sv pass # undetected: The time_precision argument shall be at least as precise as the time_unit argument; it cannot specify a longerunit of time than time_unit.
+chapter-22/22.9--unconnected_drive-invalid-1.sv pass # undetected: The directive `unconnected_drive takes one of two arguments - pull1 or pull0.
+chapter-22/22.9--unconnected_drive-invalid-2.sv pass # undetected: The directive `unconnected_drive takes one of two arguments - pull1 or pull0
+chapter-22/22.9--unconnected_drive-invalid-3.sv pass # undetected: use a strength keyword with `nounconnected_drive macro
+chapter-5/5.10-structure-arrays-illegal.sv pass # undetected: C-like assignment is illegal
+chapter-5/5.7.1--integers-signed-illegal.sv pass # undetected: illegal negative decimal syntax, proper one is -8'd6
+chapter-5/5.7.1--integers-unsized-illegal.sv pass # undetected: hexadecimal format requires 'h
+chapter-5/5.7.2-real-constants-illegal.sv pass # undetected: Real literal constants must have at least one digit on each side of the decimal point
+chapter-6/6.12--real_bit_select.sv pass # undetected: it is illegal to do bit select on real data type
+chapter-6/6.12--real_bit_select_idx.sv pass # undetected: it is illegal to do bit select on real data type
+chapter-6/6.12--real_edge.sv pass # undetected: it is illegal to use edge event controls on real type
+chapter-6/6.19.3--enum_type_checking_inv.sv pass # undetected: enum enforces strict type checking rules
+chapter-6/6.19.4--enum_numerical_expr_no_cast.sv pass # undetected: enum numerical expression without casting
+chapter-6/6.5--variable_mixed_assignments.sv pass # undetected: mixing procedural and continuous assignments is illegal
+chapter-6/6.5--variable_multiple_assignments.sv pass # undetected: it shall be an error to have multiple continuous assignments
+chapter-6/6.5--variable_redeclare.sv pass # undetected: Variable redeclaration
+chapter-7/arrays/packed/variable-slice-zero.sv pass # undetected: slicing array with zero part width
+chapter-8/8.21--abstract_class_inst.sv pass # undetected: instantiating abstract class
+chapter-8/8.25.1--parametrized_class_invalid_scope_resolution.sv pass # undetected: parametrized class invalid scope resolution
+chapter-8/8.26.3--type_access_implements_invalid.sv pass # undetected: typedefs are not inherited by implements operator
+chapter-8/8.26.4--illegal_implements_parameter.sv pass # undetected: implementing parameter that resolves to an interface class is not allowed
+chapter-8/8.26.5--invalid_interface_instantiation.sv pass # undetected: instantiating an interface class
+chapter-8/8.26.6.1--name_conflict_unresolved.sv pass # undetected: unresolved interface class method name conflict
+chapter-9/9.3.3--fork_return.sv pass # undetected: illegal return from fork
+generic/member/class_member_test_5.sv pass # undetected: pure virtual methods can only be declared in virtual classes
+generic/typedef/typedef_test_25__bad.sv pass # undetected: Using undefined parameters
+generic/typedef/typedef_test_28__bad.sv pass # undetected: missing forward typedef declaration, type_identifier does not resolve to a data type.
+generic/typedef/typedef_test_8__bad.sv pass # undetected: defining a type using an undefined type
+
+# --- Parser gaps: valid code the declaration-grade parser rejects (statements, expressions, assertions, constraints, ...) (53) ---
+chapter-10/10.3.3--cont-assignment-net-delay.sv fail # parse error: expected an identifier, found "#"
+chapter-10/10.6.1--assign-deassign.sv fail # parse error: expected ';' before "assign"
+chapter-12/12.6.1--case_pattern.sv fail # parse error: expected an identifier, found "{"
+chapter-12/12.6.1--casex_pattern.sv fail # parse error: expected an identifier, found "{"
+chapter-12/12.6.1--casez_pattern.sv fail # parse error: expected an identifier, found "{"
+chapter-12/12.6.2--if_pattern.sv fail # parse error: expected an identifier, found "{"
+chapter-12/12.6.3--conditional_pattern.sv fail # parse error: expected an identifier, found "{"
+chapter-14/14.3--default-clocking-block.sv fail # parse error: unexpected token "default", skipping to the next declaration
+chapter-18/18.5.1--implicit-external-constraint_0.sv fail # parse error: expected '{' to start block
+chapter-18/18.5.1--implicit-external-constraint_1.sv fail # parse error: expected '{' to start block
+chapter-18/18.5.14.1--soft-constraint-priorities_2.sv fail # parse error: expected '{' to start block
+chapter-22/22.5.1--define-expansion_25.sv fail # preprocess error: '`' not followed by a directive name
+chapter-22/22.5.1--include-define-expansion.sv fail # preprocess error: `include requires a quoted path (the <path> form is not supported)
+chapter-5/5.10-structure-replication.sv fail # parse error: unexpected token "struct", skipping to the next declaration
+chapter-5/5.6.4--compiler-directives-begin-keywords.sv fail # parse error: unterminated variable declaration, expected ';'
+chapter-5/5.6.4--compiler-directives-include.sv fail # preprocess error: `include "/dev/null": open ../../testdata/sv-tests/chapter-5/dev/null: no such file or directory
+chapter-6/6.19--enum_anon.sv fail # parse error: unexpected token "enum", skipping to the next declaration
+chapter-6/6.19--enum_xx.sv fail # parse error: unexpected token "enum", skipping to the next declaration
+chapter-6/6.19.2--enum_sequence.sv fail # parse error: unexpected token "enum", skipping to the next declaration
+chapter-6/6.19.2--enum_sequence_range.sv fail # parse error: unexpected token "enum", skipping to the next declaration
+chapter-6/6.20.5--specparam.sv fail # parse error: unexpected token "specparam", skipping to the next declaration
+chapter-6/6.23--type_op.sv fail # parse error: expected an identifier, found "("
+chapter-6/6.24.3--bitstream_cast.sv fail # parse error: unexpected token "struct", skipping to the next declaration
+chapter-6/6.6.7--nettype.sv fail # parse error: unexpected token "nettype", skipping to the next declaration
+chapter-6/6.6.7--nettype_resolution_fn.sv fail # parse error: unexpected token "nettype", skipping to the next declaration
+chapter-6/6.6.8--interconnect.sv fail # parse error: unexpected token "interconnect", skipping to the next declaration
+chapter-6/6.9.2--vector_scalared.sv fail # parse error: expected an identifier, found "scalared"
+chapter-6/6.9.2--vector_vectored.sv fail # parse error: expected an identifier, found "vectored"
+chapter-7/structures/packed/basic.sv fail # parse error: unexpected token "struct", skipping to the next declaration
+chapter-7/structures/packed/signed.sv fail # parse error: unexpected token "struct", skipping to the next declaration
+chapter-7/structures/packed/unsigned.sv fail # parse error: unexpected token "struct", skipping to the next declaration
+chapter-7/structures/unpacked/basic.sv fail # parse error: unexpected token "struct", skipping to the next declaration
+chapter-7/structures/unpacked/default-value.sv fail # parse error: unexpected token "struct", skipping to the next declaration
+chapter-7/unions/packed/basic.sv fail # parse error: unexpected token "union", skipping to the next declaration
+chapter-7/unions/tagged/basic.sv fail # parse error: unexpected token "union", skipping to the next declaration
+chapter-7/unions/tagged/packed.sv fail # parse error: unexpected token "union", skipping to the next declaration
+chapter-7/unions/unpacked/basic.sv fail # parse error: unexpected token "union", skipping to the next declaration
+chapter-8/8.25--parametrized_class_extend.sv fail # parse error: expected ';' after class header
+chapter-8/8.26.6.2--parameter_type_conflict.sv fail # parse error: expected ';' after class header
+chapter-8/8.26.6.3--diamond_relationship.sv fail # parse error: expected ';' after class header
+generic/class/class_test_12.sv fail # parse error: expected ';' after class header
+generic/class/class_test_13.sv fail # parse error: expected ';' after class header
+generic/class/class_test_19.sv fail # parse error: expected ';' after class header
+generic/class/class_test_21.sv fail # parse error: expected ';' after class header
+generic/class/class_test_25.sv fail # parse error: expected ';' after class header
+generic/class/class_test_26.sv fail # parse error: expected ';' after class header
+generic/class/class_test_27.sv fail # parse error: expected ';' after class header
+generic/class/class_test_29.sv fail # parse error: expected ';' after class header
+generic/class/class_test_8.sv fail # parse error: expected ';' after class header
+generic/struct/struct_test_0.sv fail # parse error: expected '{' to start struct/union body
+generic/typedef/typedef_test_18.sv fail # parse error: unterminated struct/union member, expected ';'
+generic/typedef/typedef_test_22.sv fail # parse error: expected '{' to start enum body
+generic/union/union_test_0.sv fail # parse error: expected '{' to start struct/union body
+
+# --- Needs the UVM library, which is not vendored (89) ---
+chapter-16/16.10--property-local-var-uvm.sv fail # needs the UVM library (tag uvm; a git submodule upstream, not vendored): `include "uvm_macros.svh" unresolved
+chapter-16/16.10--sequence-local-var-uvm.sv fail # needs the UVM library (tag uvm; a git submodule upstream, not vendored): `include "uvm_macros.svh" unresolved
+chapter-16/16.11--sequence-subroutine-uvm.sv fail # needs the UVM library (tag uvm; a git submodule upstream, not vendored): `include "uvm_macros.svh" unresolved
+chapter-16/16.12--property-interface-prec-uvm.sv fail # needs the UVM library (tag uvm; a git submodule upstream, not vendored): `include "uvm_macros.svh" unresolved
+chapter-16/16.12--property-interface-uvm.sv fail # needs the UVM library (tag uvm; a git submodule upstream, not vendored): `include "uvm_macros.svh" unresolved
+chapter-16/16.12--property-prec-uvm.sv fail # needs the UVM library (tag uvm; a git submodule upstream, not vendored): `include "uvm_macros.svh" unresolved
+chapter-16/16.12--property-uvm.sv fail # needs the UVM library (tag uvm; a git submodule upstream, not vendored): `include "uvm_macros.svh" unresolved
+chapter-16/16.13--sequence-multiclock-uvm.sv fail # needs the UVM library (tag uvm; a git submodule upstream, not vendored): `include "uvm_macros.svh" unresolved
+chapter-16/16.14--assume-property-uvm.sv fail # needs the UVM library (tag uvm; a git submodule upstream, not vendored): `include "uvm_macros.svh" unresolved
+chapter-16/16.15--property-iff-uvm.sv fail # needs the UVM library (tag uvm; a git submodule upstream, not vendored): `include "uvm_macros.svh" unresolved
+chapter-16/16.17--expect-uvm.sv fail # needs the UVM library (tag uvm; a git submodule upstream, not vendored): `include "uvm_macros.svh" unresolved
+chapter-16/16.2--assert-final-uvm.sv fail # needs the UVM library (tag uvm; a git submodule upstream, not vendored): `include "uvm_macros.svh" unresolved
+chapter-16/16.2--assert-uvm.sv fail # needs the UVM library (tag uvm; a git submodule upstream, not vendored): `include "uvm_macros.svh" unresolved
+chapter-16/16.2--assert0-uvm.sv fail # needs the UVM library (tag uvm; a git submodule upstream, not vendored): `include "uvm_macros.svh" unresolved
+chapter-16/16.2--assume-uvm.sv fail # needs the UVM library (tag uvm; a git submodule upstream, not vendored): `include "uvm_macros.svh" unresolved
+chapter-16/16.7--sequence-and-range-uvm.sv fail # needs the UVM library (tag uvm; a git submodule upstream, not vendored): `include "uvm_macros.svh" unresolved
+chapter-16/16.7--sequence-and-uvm.sv fail # needs the UVM library (tag uvm; a git submodule upstream, not vendored): `include "uvm_macros.svh" unresolved
+chapter-16/16.7--sequence-intersect-uvm.sv fail # needs the UVM library (tag uvm; a git submodule upstream, not vendored): `include "uvm_macros.svh" unresolved
+chapter-16/16.7--sequence-or-uvm.sv fail # needs the UVM library (tag uvm; a git submodule upstream, not vendored): `include "uvm_macros.svh" unresolved
+chapter-16/16.7--sequence-throughout-uvm.sv fail # needs the UVM library (tag uvm; a git submodule upstream, not vendored): `include "uvm_macros.svh" unresolved
+chapter-16/16.7--sequence-uvm.sv fail # needs the UVM library (tag uvm; a git submodule upstream, not vendored): `include "uvm_macros.svh" unresolved
+chapter-16/16.9--sequence-changed-uvm.sv fail # needs the UVM library (tag uvm; a git submodule upstream, not vendored): `include "uvm_macros.svh" unresolved
+chapter-16/16.9--sequence-fell-uvm.sv fail # needs the UVM library (tag uvm; a git submodule upstream, not vendored): `include "uvm_macros.svh" unresolved
+chapter-16/16.9--sequence-past-uvm.sv fail # needs the UVM library (tag uvm; a git submodule upstream, not vendored): `include "uvm_macros.svh" unresolved
+chapter-16/16.9--sequence-rose-uvm.sv fail # needs the UVM library (tag uvm; a git submodule upstream, not vendored): `include "uvm_macros.svh" unresolved
+chapter-16/16.9--sequence-stable-uvm.sv fail # needs the UVM library (tag uvm; a git submodule upstream, not vendored): `include "uvm_macros.svh" unresolved
+chapter-18/18.10--dynamic-constraint-modification_0.sv fail # needs the UVM library (tag uvm; a git submodule upstream, not vendored): `include "uvm_macros.svh" unresolved
+chapter-18/18.11--in-line-random-variable-control_0.sv fail # needs the UVM library (tag uvm; a git submodule upstream, not vendored): `include "uvm_macros.svh" unresolved
+chapter-18/18.11--in-line-random-variable-control_1.sv fail # needs the UVM library (tag uvm; a git submodule upstream, not vendored): `include "uvm_macros.svh" unresolved
+chapter-18/18.11.1--in-line-constraint-checker_0.sv fail # needs the UVM library (tag uvm; a git submodule upstream, not vendored): `include "uvm_macros.svh" unresolved
+chapter-18/18.11.1--in-line-constraint-checker_1.sv fail # needs the UVM library (tag uvm; a git submodule upstream, not vendored): `include "uvm_macros.svh" unresolved
+chapter-18/18.12--randomization-of-scope-variables_1.sv fail # needs the UVM library (tag uvm; a git submodule upstream, not vendored): `include "uvm_macros.svh" unresolved
+chapter-18/18.12.1--adding-constraints-to-scope-variables_1.sv fail # needs the UVM library (tag uvm; a git submodule upstream, not vendored): `include "uvm_macros.svh" unresolved
+chapter-18/18.13.1--urandom_1.sv fail # needs the UVM library (tag uvm; a git submodule upstream, not vendored): `include "uvm_macros.svh" unresolved
+chapter-18/18.13.1--urandom_3.sv fail # needs the UVM library (tag uvm; a git submodule upstream, not vendored): `include "uvm_macros.svh" unresolved
+chapter-18/18.13.2--urandom_range_1.sv fail # needs the UVM library (tag uvm; a git submodule upstream, not vendored): `include "uvm_macros.svh" unresolved
+chapter-18/18.13.2--urandom_range_2.sv fail # needs the UVM library (tag uvm; a git submodule upstream, not vendored): `include "uvm_macros.svh" unresolved
+chapter-18/18.13.2--urandom_range_3.sv fail # needs the UVM library (tag uvm; a git submodule upstream, not vendored): `include "uvm_macros.svh" unresolved
+chapter-18/18.13.3--srandom_0.sv fail # needs the UVM library (tag uvm; a git submodule upstream, not vendored): `include "uvm_macros.svh" unresolved
+chapter-18/18.13.4--get_randstate_0.sv fail # needs the UVM library (tag uvm; a git submodule upstream, not vendored): `include "uvm_macros.svh" unresolved
+chapter-18/18.13.5--set_randstate_0.sv fail # needs the UVM library (tag uvm; a git submodule upstream, not vendored): `include "uvm_macros.svh" unresolved
+chapter-18/18.14--random-stability_0.sv fail # needs the UVM library (tag uvm; a git submodule upstream, not vendored): `include "uvm_macros.svh" unresolved
+chapter-18/18.14--random-stability_1.sv fail # needs the UVM library (tag uvm; a git submodule upstream, not vendored): `include "uvm_macros.svh" unresolved
+chapter-18/18.14--random-stability_2.sv fail # needs the UVM library (tag uvm; a git submodule upstream, not vendored): `include "uvm_macros.svh" unresolved
+chapter-18/18.14--random-stability_3.sv fail # needs the UVM library (tag uvm; a git submodule upstream, not vendored): `include "uvm_macros.svh" unresolved
+chapter-18/18.14.2--thread-stability_0.sv fail # needs the UVM library (tag uvm; a git submodule upstream, not vendored): `include "uvm_macros.svh" unresolved
+chapter-18/18.14.2--thread-stability_1.sv fail # needs the UVM library (tag uvm; a git submodule upstream, not vendored): `include "uvm_macros.svh" unresolved
+chapter-18/18.14.3--object-stability_0.sv fail # needs the UVM library (tag uvm; a git submodule upstream, not vendored): `include "uvm_macros.svh" unresolved
+chapter-18/18.14.3--object-stability_1.sv fail # needs the UVM library (tag uvm; a git submodule upstream, not vendored): `include "uvm_macros.svh" unresolved
+chapter-18/18.15--manually-seeding-randomize_1.sv fail # needs the UVM library (tag uvm; a git submodule upstream, not vendored): `include "uvm_macros.svh" unresolved
+chapter-18/18.5--constraint-blocks_1.sv fail # needs the UVM library (tag uvm; a git submodule upstream, not vendored): `include "uvm_macros.svh" unresolved
+chapter-18/18.5.1--explicit-external-constraint_2.sv fail # needs the UVM library (tag uvm; a git submodule upstream, not vendored): `include "uvm_macros.svh" unresolved
+chapter-18/18.5.1--implicit-external-constraint_2.sv fail # needs the UVM library (tag uvm; a git submodule upstream, not vendored): `include "uvm_macros.svh" unresolved
+chapter-18/18.5.11--static-constraint-blocks_1.sv fail # needs the UVM library (tag uvm; a git submodule upstream, not vendored): `include "uvm_macros.svh" unresolved
+chapter-18/18.5.12--functions-in-constraint_1.sv fail # needs the UVM library (tag uvm; a git submodule upstream, not vendored): `include "uvm_macros.svh" unresolved
+chapter-18/18.5.13--constraint-guards_1.sv fail # needs the UVM library (tag uvm; a git submodule upstream, not vendored): `include "uvm_macros.svh" unresolved
+chapter-18/18.5.14--soft-constraints_1.sv fail # needs the UVM library (tag uvm; a git submodule upstream, not vendored): `include "uvm_macros.svh" unresolved
+chapter-18/18.5.14.1--soft-constraint-priorities_1.sv fail # needs the UVM library (tag uvm; a git submodule upstream, not vendored): `include "uvm_macros.svh" unresolved
+chapter-18/18.5.14.1--soft-constraint-priorities_3.sv fail # needs the UVM library (tag uvm; a git submodule upstream, not vendored): `include "uvm_macros.svh" unresolved
+chapter-18/18.5.14.1--soft-constraint-priorities_4.sv fail # needs the UVM library (tag uvm; a git submodule upstream, not vendored): `include "uvm_macros.svh" unresolved
+chapter-18/18.5.14.2--discarding-soft-constraints_1.sv fail # needs the UVM library (tag uvm; a git submodule upstream, not vendored): `include "uvm_macros.svh" unresolved
+chapter-18/18.5.14.2--discarding-soft-constraints_3.sv fail # needs the UVM library (tag uvm; a git submodule upstream, not vendored): `include "uvm_macros.svh" unresolved
+chapter-18/18.5.14.2--discarding-soft-constraints_5.sv fail # needs the UVM library (tag uvm; a git submodule upstream, not vendored): `include "uvm_macros.svh" unresolved
+chapter-18/18.5.2--constraint-inheritance_1.sv fail # needs the UVM library (tag uvm; a git submodule upstream, not vendored): `include "uvm_macros.svh" unresolved
+chapter-18/18.5.2--pure-constraint_1.sv fail # needs the UVM library (tag uvm; a git submodule upstream, not vendored): `include "uvm_macros.svh" unresolved
+chapter-18/18.5.3--set-membership_1.sv fail # needs the UVM library (tag uvm; a git submodule upstream, not vendored): `include "uvm_macros.svh" unresolved
+chapter-18/18.5.4--distribution_1.sv fail # needs the UVM library (tag uvm; a git submodule upstream, not vendored): `include "uvm_macros.svh" unresolved
+chapter-18/18.5.5--uniqueness-constraints_1.sv fail # needs the UVM library (tag uvm; a git submodule upstream, not vendored): `include "uvm_macros.svh" unresolved
+chapter-18/18.5.6--implication_1.sv fail # needs the UVM library (tag uvm; a git submodule upstream, not vendored): `include "uvm_macros.svh" unresolved
+chapter-18/18.5.7--if-else-constraints_4.sv fail # needs the UVM library (tag uvm; a git submodule upstream, not vendored): `include "uvm_macros.svh" unresolved
+chapter-18/18.5.8.1--foreach-iterative-constraints_1.sv fail # needs the UVM library (tag uvm; a git submodule upstream, not vendored): `include "uvm_macros.svh" unresolved
+chapter-18/18.5.8.2--array-reduction-iterative-constraints_1.sv fail # needs the UVM library (tag uvm; a git submodule upstream, not vendored): `include "uvm_macros.svh" unresolved
+chapter-18/18.5.9--global-constraints_1.sv fail # needs the UVM library (tag uvm; a git submodule upstream, not vendored): `include "uvm_macros.svh" unresolved
+chapter-18/18.6.1--randomize-method_0.sv fail # needs the UVM library (tag uvm; a git submodule upstream, not vendored): `include "uvm_macros.svh" unresolved
+chapter-18/18.6.2--post-randomize_method_1.sv fail # needs the UVM library (tag uvm; a git submodule upstream, not vendored): `include "uvm_macros.svh" unresolved
+chapter-18/18.6.2--pre-randomize-method_1.sv fail # needs the UVM library (tag uvm; a git submodule upstream, not vendored): `include "uvm_macros.svh" unresolved
+chapter-18/18.6.3--behavior-of-randomization-methods_1.sv fail # needs the UVM library (tag uvm; a git submodule upstream, not vendored): `include "uvm_macros.svh" unresolved
+chapter-18/18.6.3--behavior-of-randomization-methods_2.sv fail # needs the UVM library (tag uvm; a git submodule upstream, not vendored): `include "uvm_macros.svh" unresolved
+chapter-18/18.6.3--behavior-of-randomization-methods_3.sv fail # needs the UVM library (tag uvm; a git submodule upstream, not vendored): `include "uvm_macros.svh" unresolved
+chapter-18/18.7--in-line-constraints--randomize_0.sv fail # needs the UVM library (tag uvm; a git submodule upstream, not vendored): `include "uvm_macros.svh" unresolved
+chapter-18/18.7--in-line-constraints--randomize_2.sv fail # needs the UVM library (tag uvm; a git submodule upstream, not vendored): `include "uvm_macros.svh" unresolved
+chapter-18/18.7--in-line-constraints--randomize_4.sv fail # needs the UVM library (tag uvm; a git submodule upstream, not vendored): `include "uvm_macros.svh" unresolved
+chapter-18/18.7--in-line-constraints--randomize_6.sv fail # needs the UVM library (tag uvm; a git submodule upstream, not vendored): `include "uvm_macros.svh" unresolved
+chapter-18/18.7.1--local-scope-resolution_1.sv fail # needs the UVM library (tag uvm; a git submodule upstream, not vendored): `include "uvm_macros.svh" unresolved
+chapter-18/18.8--disabling-random-variables-with-rand_mode_0.sv fail # needs the UVM library (tag uvm; a git submodule upstream, not vendored): `include "uvm_macros.svh" unresolved
+chapter-18/18.8--disabling-random-variables-with-rand_mode_1.sv fail # needs the UVM library (tag uvm; a git submodule upstream, not vendored): `include "uvm_macros.svh" unresolved
+chapter-18/18.8--disabling-random-variables-with-rand_mode_2.sv fail # needs the UVM library (tag uvm; a git submodule upstream, not vendored): `include "uvm_macros.svh" unresolved
+chapter-18/18.8--disabling-random-variables-with-rand_mode_3.sv fail # needs the UVM library (tag uvm; a git submodule upstream, not vendored): `include "uvm_macros.svh" unresolved
+chapter-18/18.9--controlling-constraints-with-constraint_mode_0.sv fail # needs the UVM library (tag uvm; a git submodule upstream, not vendored): `include "uvm_macros.svh" unresolved
