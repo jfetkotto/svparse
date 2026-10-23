@@ -306,6 +306,8 @@ func (p *parser) parseDecl() ([]ast.Decl, bool) {
 		p.advance()
 		p.skipProceduralConstruct()
 		return nil, true
+	case "primitive":
+		return oneDecl(p.parseUDP())
 	case "constraint":
 		return oneDecl(p.parseConstraint())
 	case "covergroup":
@@ -485,9 +487,7 @@ func (p *parser) parseDecl() ([]ast.Decl, bool) {
 		return p.parseGenerateCase()
 	}
 	if gatePrimitiveKeywords[tok.Text] {
-		p.advance()
-		p.skipHeaderToSemi()
-		return nil, true
+		return p.parseGateInstantiation()
 	}
 	if isVariableStartKeyword(tok.Text) {
 		return p.parseVariableDecl()

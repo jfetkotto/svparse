@@ -137,6 +137,8 @@ func fillExprs(root ast.Node) {
 			n.UnpackedDims = filledDims(n.UnpackedDims)
 		case *ast.Instance:
 			n.UnpackedDims = filledDims(n.UnpackedDims)
+		case *ast.GateInstance:
+			n.UnpackedDims = filledDims(n.UnpackedDims)
 		case *ast.Type:
 			n.PackedDims = filledDims(n.PackedDims)
 		case *ast.ParamOverride:

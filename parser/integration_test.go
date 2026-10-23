@@ -257,6 +257,10 @@ func FuzzParseNeverPanics(f *testing.F) {
 		"case (W) 1, 2: begin end default: ; endcase",
 		"if (a) assign x = 1; else if (",
 		"for (genvar i = 0;",
+		"primitive p (o, i); output o; input i; table (01) : 1; endtable endprimitive",
+		"primitive p (o); table 0 :",
+		"and #(1,2) (strong0, weak1) g1 (o, a), (o2, a2);",
+		"nand (",
 	}
 	for _, s := range seeds {
 		f.Add(s)

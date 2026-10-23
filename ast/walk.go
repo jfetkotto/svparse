@@ -22,6 +22,10 @@ func (ParamOverride) node()            {}
 func (o ParamOverride) Pos() Position  { return o.Position }
 func (Instance) node()                 {}
 func (i Instance) Pos() Position       { return i.Position }
+func (GateInstance) node()             {}
+func (g GateInstance) Pos() Position   { return g.Position }
+func (UDPRow) node()                   {}
+func (r UDPRow) Pos() Position         { return r.Position }
 func (PortConnection) node()           {}
 func (c PortConnection) Pos() Position { return c.Position }
 func (ModportPort) node()              {}
@@ -133,6 +137,18 @@ func Walk(v Visitor, n Node) {
 	case *Instance:
 		walkDims(v, n.UnpackedDims)
 		walkValues(v, n.Connections)
+	case *GateInstantiation:
+		walkExprs(v, n.Delay)
+		walkValues(v, n.Instances)
+	case *GateInstance:
+		walkDims(v, n.UnpackedDims)
+		walkExprs(v, n.Terminals)
+	case *UDP:
+		walkValues(v, n.Ports)
+		walkList(v, n.Body)
+		walkValues(v, n.Rows)
+	case *UDPRow:
+		// Leaf: symbols only.
 	case *ParamOverride:
 		walkExpr(v, n.ValueExpr)
 	case *EnumMember:
