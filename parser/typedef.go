@@ -16,11 +16,23 @@ import (
 func (p *parser) parseTypedef() (ast.Decl, bool) {
 	p.advance() // "typedef"
 
+	forwardKind := ""
 	if p.peek().Text == "class" {
 		p.advance() // optional in a forward declaration: "typedef class Foo;"
+		forwardKind = "class"
 	}
 
 	if p.atAggregate() {
+		// "typedef struct Foo;" is a forward declaration (LRM 6.18): the
+		// keyword, a name, and a ';' with no body.
+		if p.peekAt(1).Kind == token.KindIdent && p.peekAt(2).Kind == token.KindSemi {
+			kw := p.advance()
+			nameTok := p.advance()
+			td := &ast.Typedef{Name: nameTok.Text, ForwardKind: kw.Text}
+			td.Position = namePosition(nameTok)
+			p.skipHeaderToSemiStrict()
+			return td, true
+		}
 		return p.parseTypedefAggregate()
 	}
 
@@ -38,6 +50,8 @@ func (p *parser) parseTypedef() (ast.Decl, bool) {
 		alias := &ast.TypeAlias{Type: typ}
 		alias.Position = td.Position
 		td.Underlying = alias
+	} else {
+		td.ForwardKind = forwardKind
 	}
 	p.skipHeaderToSemiStrict()
 	return td, true
@@ -186,6 +200,16 @@ func (p *parser) parseStructUnionBody() ([]ast.Variable, bool) {
 			p.errorf(tok, "unterminated struct/union body, expected '}'")
 			return members, false
 		}
+		// An optional random qualifier (LRM 7.2): "rand bit i;".
+		isRand, isRandC := false, false
+		switch p.peek().Text {
+		case "rand":
+			p.advance()
+			isRand = true
+		case "randc":
+			p.advance()
+			isRandC = true
+		}
 		typ := p.parseDataType() // a member may itself be an anonymous struct/union/enum
 		groups, closed := p.splitDeclaratorsToSemi()
 		if !closed {
@@ -194,6 +218,7 @@ func (p *parser) parseStructUnionBody() ([]ast.Variable, bool) {
 		}
 		for _, group := range groups {
 			if v, ok := p.parseVariableDeclarator(group, typ); ok {
+				v.IsRand, v.IsRandC = isRand, isRandC
 				members = append(members, *v)
 			}
 		}

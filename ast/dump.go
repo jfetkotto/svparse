@@ -115,7 +115,7 @@ func describe(n Node) (head string, kids []Node) {
 		return kw + " " + n.Name + typeAttr(n.Type) + dims(n.UnpackedDims) + valueAttr(n.DefaultExpr, n.Default), typeKids(n.Type)
 	case *Typedef:
 		if n.Underlying == nil {
-			return "typedef " + n.Name + " forward", nil
+			return "typedef " + n.Name + " forward" + forwardSuffix(n.ForwardKind), nil
 		}
 		return "typedef " + n.Name, []Node{n.Underlying}
 	case *TypeAlias:
@@ -166,6 +166,14 @@ func describe(n Node) (head string, kids []Node) {
 	// one loudly in goldens instead of silently dropping it. The marker is
 	// capitalised so it can never collide with an operator head like "?:".
 	return fmt.Sprintf("UNHANDLED %T", n), nil
+}
+
+// forwardSuffix is "=struct" for a typed forward declaration, "" for a bare one.
+func forwardSuffix(kind string) string {
+	if kind == "" {
+		return ""
+	}
+	return "=" + kind
 }
 
 func containerKindName(k ContainerKind) string {

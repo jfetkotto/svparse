@@ -22,8 +22,8 @@ const (
 // becomes three Variable nodes sharing an equal Type, one per name,
 // mirroring how sigils's own lexical scanner already treats multi-name
 // declarations. Also doubles as a struct/union member, which has the
-// identical shape (IsRand/IsRandC are always false there -- SV's rand/
-// randc qualifiers only apply to class properties).
+// identical shape (IsRand/IsRandC are set there too: a member may be
+// qualified "rand" or "randc", LRM 7.2).
 type Variable struct {
 	declBase
 	Type         Type
@@ -51,13 +51,18 @@ type Parameter struct {
 }
 
 // Typedef is a typedef. Underlying is nil for a forward declaration
-// ("typedef class Foo;" or a bare "typedef Foo;"); otherwise it's a
-// *Struct, *Union, *Enum, or *TypeAlias, whose own Name is empty -- it's
-// anonymous, reachable only via this Typedef's Name.
+// ("typedef class Foo;", "typedef struct Foo;", or a bare "typedef Foo;");
+// otherwise it's a *Struct, *Union, *Enum, or *TypeAlias, whose own Name is
+// empty -- it's anonymous, reachable only via this Typedef's Name.
 type Typedef struct {
 	declBase
 	Name       string
 	Underlying Decl
+
+	// ForwardKind is the keyword of a forward declaration, "class", "struct",
+	// "union" or "enum" (LRM 6.18), or "" for a bare "typedef Foo;" and for
+	// every typedef that is not a forward declaration.
+	ForwardKind string
 }
 
 // TypeAlias is a typedef's underlying type when it's a plain alias
