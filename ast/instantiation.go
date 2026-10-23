@@ -24,10 +24,15 @@ type Instantiation struct {
 // override list. Name is "" for a positional (ordered) override.
 // Position is the override's own name token for a named override (not
 // the preceding "."), matching PortConnection's own convention.
+//
+// ValueExpr is the parsed form of Value (a *TypeExpr, *TypeOrExpr or other
+// expression, since an override may be a type); nil until the parser fills
+// it, and Value stays populated alongside it.
 type ParamOverride struct {
 	Position
-	Name  string
-	Value []preprocessor.Token
+	Name      string
+	Value     []preprocessor.Token
+	ValueExpr Expr
 }
 
 // Instance is one instance name within an Instantiation, e.g. the u0 in

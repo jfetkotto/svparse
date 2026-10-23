@@ -43,6 +43,15 @@ type dumper struct {
 // node writes n and its subtree, starting at the current column (the caller
 // has already written any indentation) and nested depth levels deep.
 func (d *dumper) node(n Node, depth int) {
+	if e, ok := n.(Expr); ok {
+		// Expressions print inline, see exprText.
+		d.b.WriteString(exprText(e))
+		if d.positions {
+			p := e.Pos()
+			fmt.Fprintf(d.b, " @%d:%d-%d:%d", p.Line, p.Character, p.EndLine, p.EndCharacter)
+		}
+		return
+	}
 	head, kids := describe(n)
 	d.b.WriteByte('(')
 	d.b.WriteString(head)
@@ -62,7 +71,7 @@ func (d *dumper) node(n Node, depth int) {
 // parenthesis) and the children printed beneath it. Kept as an explicit
 // switch rather than reflection so the output format is a deliberate,
 // reviewable choice per node; the corpus test in walk_corpus_test.go fails
-// if a node type is added without a case here (it would print "?T").
+// if a node type is added without a case here (it would print "(UNHANDLED T)").
 func describe(n Node) (head string, kids []Node) {
 	switch n := n.(type) {
 	case *File:
@@ -132,7 +141,7 @@ func describe(n Node) (head string, kids []Node) {
 	case *Instantiation:
 		return "instantiation " + n.ModuleType, concat(values(n.ParamOverrides), values(n.Instances))
 	case *ParamOverride:
-		return "param-override" + namedValue(n.Name, n.Value), nil
+		return strings.TrimSpace("param-override " + overrideText(*n)), nil
 	case *Instance:
 		return "instance " + n.Name + dims(n.UnpackedDims), values(n.Connections)
 	case *PortConnection:
@@ -145,8 +154,9 @@ func describe(n Node) (head string, kids []Node) {
 		return "connection" + namedValue(n.Name, n.Expr), nil
 	}
 	// Unreachable while every Node type has a case above; surfaces a missed
-	// one loudly in goldens instead of silently dropping it.
-	return fmt.Sprintf("?%T", n), nil
+	// one loudly in goldens instead of silently dropping it. The marker is
+	// capitalised so it can never collide with an operator head like "?:".
+	return fmt.Sprintf("UNHANDLED %T", n), nil
 }
 
 func containerKindName(k ContainerKind) string {
@@ -229,7 +239,7 @@ func typeString(t Type) string {
 	if len(t.ParamOverrides) > 0 {
 		var os []string
 		for _, o := range t.ParamOverrides {
-			os = append(os, strings.TrimSpace(namedValue(o.Name, o.Value)))
+			os = append(os, overrideText(o))
 		}
 		parts = append(parts, "#("+strings.Join(os, ", ")+")")
 	}
