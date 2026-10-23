@@ -36,9 +36,22 @@ func (corpusIncludeResolver) Resolve(includedPath, fromFile string) (text, resol
 	return string(data), resolvedPath, nil
 }
 
-// walkCorpus calls fn, as its own subtest, once per vendored .sv file --
-// relPath (relative to corpusDir, for readable subtest names/failure
-// messages) and the file's contents.
+// declarationGradeChapters are the vendored chapters this package's
+// count-based baseline covers: the original declaration-grade selection (see
+// testdata/sv-tests/NOTICE.md). The remaining chapters (procedural code,
+// expressions, assertions, ...) were vendored later for the full-front-end
+// conformance harness, which tracks them with its own baseline; running them
+// through this stricter exact-error-count guard would only record every
+// not-yet-implemented construct as a mismatch.
+var declarationGradeChapters = map[string]bool{
+	"chapter-5": true, "chapter-6": true, "chapter-7": true, "chapter-8": true,
+	"chapter-13": true, "chapter-22": true, "chapter-23": true, "chapter-24": true,
+	"chapter-25": true, "chapter-26": true,
+}
+
+// walkCorpus calls fn, as its own subtest, once per vendored .sv file in a
+// declarationGradeChapters chapter -- relPath (relative to corpusDir, for
+// readable subtest names/failure messages) and the file's contents.
 func walkCorpus(t *testing.T, fn func(t *testing.T, relPath, text string)) {
 	t.Helper()
 	err := filepath.WalkDir(corpusDir, func(path string, d fs.DirEntry, err error) error {
@@ -48,11 +61,14 @@ func walkCorpus(t *testing.T, fn func(t *testing.T, relPath, text string)) {
 		if d.IsDir() || filepath.Ext(path) != ".sv" {
 			return nil
 		}
-		data, err := os.ReadFile(path)
+		rel, err := filepath.Rel(corpusDir, path)
 		if err != nil {
 			return err
 		}
-		rel, err := filepath.Rel(corpusDir, path)
+		if !declarationGradeChapters[strings.SplitN(filepath.ToSlash(rel), "/", 2)[0]] {
+			return nil
+		}
+		data, err := os.ReadFile(path)
 		if err != nil {
 			return err
 		}

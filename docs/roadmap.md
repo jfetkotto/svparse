@@ -11,8 +11,11 @@ partway through an item, leave a short "Status:" note under it.
 - [x] sigilsv2 checkout at `~/proj/sigilsv2` building against this tree via a
       local, uncommitted `go.work`
 - [x] `AGENTS.md`, `CLAUDE.md`, this roadmap
-- [ ] `chore/vendor-full-sv-tests`: vendor remaining sv-tests chapters (9-12,
-      14-21, 27-35, `generic`) at the NOTICE.md commit; update NOTICE.md
+- [x] `chore/vendor-full-sv-tests`: vendor remaining sv-tests chapters at the
+      NOTICE.md commit; update NOTICE.md. Only chapters 9-12, 14-16, 18, 20,
+      21 and `generic` exist upstream at that commit (627 files, 1014 total).
+      `parser/corpus_test.go` stays scoped to the original 387 via
+      `declarationGradeChapters`.
 - [ ] `feature/conformance-harness`: `internal/conformance` honouring sv-tests
       metadata (`:type:`, `:should_fail_because:`, `:top_module:`,
       `:defines:`, `:incdirs:`), with `testdata/conformance-baseline.txt`
