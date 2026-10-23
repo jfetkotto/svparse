@@ -295,18 +295,7 @@ func (p *parser) parseDecl() ([]ast.Decl, bool) {
 	case "constraint":
 		return oneDecl(p.parseConstraint())
 	case "covergroup":
-		// A covergroup declaration (LRM 19.3): "covergroup name [(...)]
-		// [@(...) | @@(...)]; coverpoint/cross/option items... endgroup [:
-		// name]" -- never parsed, out of declaration-grade scope
-		// (coverpoint/bins expression grammar is entirely out of scope,
-		// same reasoning as a constraint block's body). Skipped wholesale,
-		// header included, rather than trying to parse just the header the
-		// way a container does, since the header's own "(...)"/"@(...)"
-		// hold expression content this parser doesn't model either.
-		p.advance()
-		p.skipToKeyword("endgroup", nil)
-		p.skipEndLabel()
-		return nil, true
+		return oneDecl(p.parseCovergroup())
 	case "property":
 		return oneDecl(p.parsePropertyDecl())
 	case "sequence":

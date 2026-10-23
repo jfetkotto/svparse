@@ -34,6 +34,10 @@ func (ConfigRule) node()               {}
 func (c ConfigRule) Pos() Position     { return c.Position }
 func (PropCaseItem) node()             {}
 func (c PropCaseItem) Pos() Position   { return c.Position }
+func (TransSet) node()                 {}
+func (t TransSet) Pos() Position       { return t.Position }
+func (TransStep) node()                {}
+func (t TransStep) Pos() Position      { return t.Position }
 func (PortConnection) node()           {}
 func (c PortConnection) Pos() Position { return c.Position }
 func (ModportPort) node()              {}
@@ -231,6 +235,35 @@ func Walk(v Visitor, n Node) {
 		walkStmt(v, n.Else)
 	case *AssertionItem:
 		walkStmt(v, n.Body)
+	case *Covergroup:
+		walkValues(v, n.Ports)
+		walkControl(v, n.Event)
+		walkValues(v, n.SamplePorts)
+		walkList(v, n.Items)
+	case *CoverOption:
+		walkExpr(v, n.Value)
+	case *CoverPoint:
+		walkType(v, &n.Type)
+		walkExpr(v, n.X)
+		walkExpr(v, n.Iff)
+		walkList(v, n.Bins)
+	case *CoverBin:
+		walkExpr(v, n.Size)
+		walkExprs(v, n.Values)
+		walkExpr(v, n.Source)
+		walkExpr(v, n.With)
+		walkValues(v, n.Trans)
+		walkExpr(v, n.Iff)
+	case *TransSet:
+		walkValues(v, n.Steps)
+	case *TransStep:
+		walkExprs(v, n.Values)
+		walkExpr(v, n.RepMin)
+		walkExpr(v, n.RepMax)
+	case *CoverCross:
+		walkExprs(v, n.Items)
+		walkExpr(v, n.Iff)
+		walkList(v, n.Body)
 	case *ParamOverride:
 		walkExpr(v, n.ValueExpr)
 	case *EnumMember:

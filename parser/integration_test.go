@@ -277,6 +277,10 @@ func FuzzParseNeverPanics(f *testing.F) {
 		"class C; rand int x; constraint c { x dist {1 := 2, [3:4] :/ 5}; a -> { b; } solve x before y; }; endclass",
 		"class C; constraint c { foreach (a[i, ]) { if (x) y; else z; } unique {a, b}; disable soft q; } endclass",
 		"class C; constraint c { x > ",
+		"covergroup cg (int a) with function sample (int b); cp: coverpoint b iff (a) { bins x[] = {[1:2]} with (item > 1); bins t = (1 => 2 [*3]); } endgroup",
+		"covergroup cg @@(begin f); x: cross a, b { bins s = binsof(a) intersect {1} && !binsof(b); } endgroup",
+		"covergroup cg; coverpoint",
+		"covergroup extends cg;",
 		"assert property (case (x) 1: a; endcase)",
 	}
 	for _, s := range seeds {

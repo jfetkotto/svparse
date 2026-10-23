@@ -230,7 +230,15 @@ partway through an item, leave a short "Status:" note under it.
       `skipBracedBlock`. Corpus: 125 constraints, 13 inline blocks, 5 dist,
       no BadExpr or ConstraintRaw. Fuzzing found a panic on a constraint at
       the end of input (seed `constraint A`), fixed with a regression seed.
-- [ ] `feature/covergroups`
+- [x] `feature/covergroups`: `Covergroup` (ports, sampling event, `with function
+      sample`, `extends`), `CoverOption`, `CoverPoint` (label, type, `iff`),
+      `CoverBin` (values, `with`, set, transitions, default, default sequence,
+      wildcard, arrays, cross selections), `TransSet`/`TransStep`, `CoverCross`
+      in `parser/coverage.go`. Cross select expressions reuse `Binary`
+      (`intersect`, `with`, `matches`), `Unary` and a `binsof` `Call`.
+      Extents still come from `skipToKeyword("endgroup")`; errors are
+      suppressed. `@@(begin f)` is flagged but its contents are not modeled.
+      The vendored sv-tests has no covergroup file, so tests are hand-written.
 
 ## M6: Semantic model
 
@@ -289,3 +297,4 @@ partway through an item, leave a short "Status:" note under it.
 | misc-items (default clocking test fixed) | 164 |
 | sva (concurrent assertions as nodes) | 164 |
 | constraints | 164 |
+| covergroups (none in corpus) | 164 |
