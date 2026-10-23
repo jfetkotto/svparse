@@ -246,7 +246,13 @@ partway through an item, leave a short "Status:" note under it.
       `Related`, the `Known` code registry (kebab-case enforced), `Sort`, a
       deduplicating `Set`, and `FromParser`/`FromPreprocessor` adapters. sigils
       can adopt it in M9 in place of its own conversion.
-- [ ] `svint/` 4-state arbitrary-width values
+- [x] `svint/` 4-state arbitrary-width values: `Value` (two bit planes, width up
+      to `MaxWidth`, invalid zero value that propagates), `ParseLiteral` (LRM
+      5.7.1 incl. x/z/? digits, extension rules, unbased unsized via `Fill`),
+      all LRM 11.4 operators (bitwise, reduction, logical, arithmetic with
+      big.Int, `**` rules, shifts, relational, `==`/`===`/`==?`, `?:` merge),
+      concat/replicate/slice/index, `$clog2`, real and string conversion.
+      Tested against uint64/int64/big.Int references and 4-state truth tables.
 - [ ] `sema/types.go`
 - [ ] `sema/compilation.go`
 - [ ] `sema/scope.go`, `lookup.go`
