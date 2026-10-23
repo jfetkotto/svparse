@@ -111,8 +111,12 @@ func Walk(v Visitor, n Node) {
 	case *Function:
 		walkType(v, &n.ReturnType)
 		walkValues(v, n.Args)
+		walkList(v, n.Decls)
+		walkStmts(v, n.Stmts)
 	case *Task:
 		walkValues(v, n.Args)
+		walkList(v, n.Decls)
+		walkStmts(v, n.Stmts)
 	case *Type:
 		if n.Inline != nil {
 			Walk(v, n.Inline)
@@ -188,6 +192,9 @@ func Walk(v Visitor, n Node) {
 		walkExpr(v, n.Func)
 		walkExprs(v, n.Args)
 		walkExpr(v, n.With)
+		if n.Constraints != nil {
+			Walk(v, n.Constraints)
+		}
 	case *NamedArg:
 		walkExpr(v, n.Value)
 	case *New:
@@ -227,7 +234,7 @@ func Walk(v Visitor, n Node) {
 	case *DistItem:
 		walkExpr(v, n.Value)
 		walkExpr(v, n.Weight)
-	case *Ident, *Literal, *Empty, *This, *Super, *BadExpr:
+	case *Ident, *Literal, *Empty, *This, *Super, *BadExpr, *ConstraintBlock:
 		// Leaves.
 
 	// Statements.

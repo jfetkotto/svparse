@@ -39,6 +39,9 @@ var notDeclarationSpans = map[string]bool{
 	"BadExpr.Tokens": true, // the tokens a BadExpr stands for
 	"RawStmt.Tokens": true, // the tokens a recognised-but-unmodeled statement stands for
 	"BadStmt.Tokens": true, // the tokens a BadStmt stands for
+	// The body of an inline constraint block, kept unparsed until the
+	// constraint grammar lands (feature/constraints), when this node is replaced.
+	"ConstraintBlock.Tokens": true,
 }
 
 func TestEveryRawSpanFieldHasASibling(t *testing.T) {

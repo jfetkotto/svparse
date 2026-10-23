@@ -211,14 +211,21 @@ type Arg struct {
 
 // Function and Task are near-identical: a name, an argument list, and
 // whether this is a prototype (extern/pure virtual/DPI import -- no
-// body). Function additionally has a return type. Neither node's body
-// is parsed -- see the parser's skipBody design.
+// body). Function additionally has a return type.
+//
+// A body, when there is one, is split as in a Block: Decls are the local
+// declarations (variables, typedefs, parameters) and Stmts the statements, in
+// source order within each list. Args holds the arguments written in the
+// header and, for the older style "function f; input int a; ...", the ones
+// declared in the body, after the header's.
 type Function struct {
 	declBase
 	Name       string
 	ReturnType Type
 	Args       []Arg
 	Prototype  bool
+	Decls      []Decl
+	Stmts      []Stmt
 }
 
 type Task struct {
@@ -226,4 +233,6 @@ type Task struct {
 	Name      string
 	Args      []Arg
 	Prototype bool
+	Decls     []Decl // local declarations of the body
+	Stmts     []Stmt // the body's statements
 }

@@ -142,6 +142,14 @@ func TestWalkReachesEveryNodeOnce(t *testing.T) {
 			t.Errorf("Dump hit its fallback:\n%s", out)
 		}
 	})
+	t.Run("subroutine-bodies", func(t *testing.T) {
+		toks, _ := preprocessor.Preprocess("b.sv", subroutineSource, nil)
+		f, _ := parser.Parse("b.sv", toks)
+		checkWalkComplete(t, f, seenKinds)
+		if out := ast.Dump(f); strings.Contains(out, "UNHANDLED") {
+			t.Errorf("Dump hit its fallback:\n%s", out)
+		}
+	})
 	t.Run("all-expressions", func(t *testing.T) {
 		checkWalkComplete(t, fileHoldingAllExprs(), seenKinds)
 	})
@@ -155,7 +163,7 @@ func TestWalkReachesEveryNodeOnce(t *testing.T) {
 		"Parameter", "Typedef", "TypeAlias", "Struct", "Union", "Enum", "EnumMember",
 		"Port", "Modport", "ModportPort", "Arg", "Function", "Task", "Type",
 		"Instantiation", "ParamOverride", "Instance", "PortConnection",
-		"Nettype",
+		"Nettype", "Block", "Assign", "ConstraintBlock",
 	} {
 		if !seenKinds[kind] {
 			t.Errorf("no %s node appeared anywhere in the corpus", kind)
@@ -270,6 +278,25 @@ func lexStmt(src string) []preprocessor.Token {
 	return toks
 }
 
+// subroutineSource has function and task bodies with locals that share a type,
+// arguments declared in the body, a constraint block, and a multi-type for loop.
+const subroutineSource = `module m;
+  function int f(input int x);
+    cls #(4) a, b;
+    for (int i = 0, bit c = 1; i < 3; i++) x += i;
+    if (!obj.randomize() with (v) { v > 0; }) return 0;
+    return x;
+  endfunction
+  function int old_style;
+    input int p, q;
+    old_style = p + q;
+  endfunction
+  task t(input int n);
+    repeat (n) @(posedge clk);
+    q.find_first with (item > 1);
+  endtask
+endmodule`
+
 // goldenSource touches most declaration kinds, including ones the vendored
 // corpus never produces (modports).
 const goldenSource = `package pkg;
@@ -334,7 +361,8 @@ func TestDumpGolden(t *testing.T) {
         (connection .b (+ x 1))))
     (function f <int>
       (arg input x <int>)
-      (arg y = 3)))
+      (arg y = 3)
+      (return x)))
   (class base extends=root implements=ifc
     (parameter T <type> = <int>)
     (variable v <int unsigned> rand)

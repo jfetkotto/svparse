@@ -80,7 +80,12 @@ func exprText(e Expr) string {
 		if e.With != nil {
 			parts = append(parts, "with", exprText(e.With))
 		}
+		if e.Constraints != nil {
+			parts = append(parts, exprText(e.Constraints))
+		}
 		return sexpr("call", parts...)
+	case *ConstraintBlock:
+		return sexpr("constraints", strconv.Quote(tokenText(e.Tokens)))
 	case *NamedArg:
 		if e.Value == nil {
 			return "." + e.Name + "()"

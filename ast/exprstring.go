@@ -80,7 +80,15 @@ func exprSource(e Expr) string {
 		if e.With != nil {
 			s += " with " + exprSource(e.With)
 		}
+		if e.Constraints != nil {
+			if e.With == nil {
+				s += " with"
+			}
+			s += " " + exprSource(e.Constraints)
+		}
 		return s
+	case *ConstraintBlock:
+		return "{ " + tokenSource(e.Tokens) + " }"
 	case *NamedArg:
 		return "." + identSource(e.Name) + "(" + ExprString(e.Value) + ")"
 	case *Empty:

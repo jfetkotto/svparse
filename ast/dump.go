@@ -158,9 +158,11 @@ func describe(n Node) (head string, kids []Node) {
 	case *Arg:
 		return "arg" + direction(n.Direction) + " " + n.Name + typeAttr(n.Type) + dims(n.UnpackedDims) + valueAttr(n.DefaultExpr, n.Default), typeKids(n.Type)
 	case *Function:
-		return "function " + n.Name + flag(n.Prototype, "prototype") + typeAttr(n.ReturnType), concat(typeKids(n.ReturnType), values(n.Args))
+		return "function " + n.Name + flag(n.Prototype, "prototype") + typeAttr(n.ReturnType),
+			concat(typeKids(n.ReturnType), values(n.Args), decls(n.Decls), stmts(n.Stmts...))
 	case *Task:
-		return "task " + n.Name + flag(n.Prototype, "prototype"), values(n.Args)
+		return "task " + n.Name + flag(n.Prototype, "prototype"),
+			concat(values(n.Args), decls(n.Decls), stmts(n.Stmts...))
 	case *Type:
 		return "type " + typeString(*n), typeKids(*n)
 	case *Instantiation:

@@ -854,12 +854,12 @@ func (p *parser) parsePostfix(lhs ast.Expr, start int) ast.Expr {
 			// An array method called without parentheses but with an iterator
 			// clause, "q.find_first with (item > 1)" (LRM 7.12.1): the argument
 			// list is optional there, so this is a call with no arguments.
-			if _, ok := lhs.(*ast.MemberSelect); !ok || tok.Text != "with" || p.peekAt(1).Kind != token.KindLParen {
+			if _, ok := lhs.(*ast.MemberSelect); !ok || tok.Text != "with" ||
+				(p.peekAt(1).Kind != token.KindLParen && p.peekAt(1).Kind != token.KindLBrace) {
 				return lhs
 			}
-			p.advance() // "with"
 			c := &ast.Call{Func: lhs}
-			c.With = p.parseParen()
+			p.parseWithClause(c)
 			lhs = finish(p, start, c)
 
 		default:
@@ -888,11 +888,63 @@ func (p *parser) parseCall(fn ast.Expr, start int) ast.Expr {
 	p.advance() // '('
 	id, _ := fn.(*ast.Ident)
 	c := &ast.Call{Func: fn, Args: p.parseCallArgs(id != nil && typeArgFuncs[id.Name])}
-	if tok := p.peek(); tok.Kind == token.KindKeyword && tok.Text == "with" && p.peekAt(1).Kind == token.KindLParen {
+	p.parseWithClause(c)
+	return finish(p, start, c)
+}
+
+// parseWithClause parses the "with" tail of a call into c: an array method's
+// iterator expression "with (x > 3)", an inline constraint block "with { ...
+// }", or the two together "with (v) { ... }" (LRM 7.12, 18.7). The cursor is
+// where "with" would be; nothing is consumed if it is not there.
+func (p *parser) parseWithClause(c *ast.Call) {
+	tok := p.peek()
+	if tok.Kind != token.KindKeyword || tok.Text != "with" {
+		return
+	}
+	switch p.peekAt(1).Kind {
+	case token.KindLParen:
 		p.advance() // "with"
 		c.With = p.parseParen()
+		if p.peek().Kind == token.KindLBrace {
+			c.Constraints = p.parseConstraintBlock()
+		}
+	case token.KindLBrace:
+		p.advance() // "with"
+		c.Constraints = p.parseConstraintBlock()
 	}
-	return finish(p, start, c)
+}
+
+// parseConstraintBlock keeps "{ ... }" as an unparsed ast.ConstraintBlock. The
+// cursor is on '{'. The scan stops at a block end or the end of input, since a
+// constraint block contains no begin/end, so a missing '}' cannot run on.
+func (p *parser) parseConstraintBlock() *ast.ConstraintBlock {
+	start := p.pos
+	p.advance() // '{'
+	from := p.pos
+	depth := 0
+scan:
+	for {
+		tok := p.peek()
+		switch {
+		case tok.Kind == token.KindEOF, isStmtStop(tok):
+			p.errorf(tok, "unterminated constraint block, expected '}'")
+			b := &ast.ConstraintBlock{Tokens: p.toks[from:p.pos]}
+			b.SetPos(p.spanFrom(start))
+			return b
+		case tok.Kind == token.KindLBrace || tok.Kind == token.KindTickLBrace:
+			depth++
+		case tok.Kind == token.KindRBrace:
+			if depth == 0 {
+				break scan
+			}
+			depth--
+		}
+		p.advance()
+	}
+	b := &ast.ConstraintBlock{Tokens: p.toks[from:p.pos]}
+	p.advance() // '}'
+	b.SetPos(p.spanFrom(start))
+	return b
 }
 
 // parseCallArgs parses an argument list with the '(' already consumed,

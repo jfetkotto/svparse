@@ -160,7 +160,20 @@ partway through an item, leave a short "Status:" note under it.
       corpus test. Fuzzing found a panic at the depth limit, two printer
       disagreements, and a token-adjacency bug in `tokenSource`; all fixed with
       regression seeds.
-- [ ] `feature/function-task-bodies`
+- [x] `feature/function-task-bodies`: `Function`/`Task` gain `Decls` and `Stmts`.
+      `skipBody` still finds where a body ends, so declaration boundaries and
+      recovery did not move; the tokens in between are parsed by a bounded
+      sub-parser (`parseSubroutineBody`), so it cannot read past `endfunction`.
+      Old-style arguments declared in the body (`function f; input int a;`) become
+      `Args`. Body errors are NOT reported yet: they are kept in
+      `parser.suppressed` for `feature/expr-diagnostics`. Conformance unchanged
+      (165). Corpus: all 377 bodies parse; the only suppressed errors are 240
+      undefined `uvm_*` macros (UVM is not vendored). Added on the way: inline
+      constraint blocks `randomize() with {...}` / `with (v) {...}` as an unparsed
+      `ast.ConstraintBlock` (replaced when `feature/constraints` lands), and a
+      `for` initialisation with several typed declarations
+      (`for (int i = 0, bit c = 1; ...)`). sigils gains argument lists for
+      old-style subroutines in hover and outline (see `demosv/rtl/old_style.sv`).
 - [ ] `feature/procedural-blocks`
 
 ## M4: Hierarchy-level constructs (LRM 23, 25, 27, 28, 29)
@@ -225,3 +238,4 @@ partway through an item, leave a short "Status:" note under it.
 | lexer-trivia (no pipeline change) | 165 |
 | stmt-ast (no pipeline change) | 165 |
 | stmt-parser (not wired into declarations yet) | 165 |
+| function-task-bodies (errors suppressed on purpose) | 165 |

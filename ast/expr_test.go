@@ -97,6 +97,11 @@ var exprCases = []struct {
 		{Value: lit("5"), Weight: lit("6"), PerRange: true}}},
 		"(dist x 1 (:= [2:3] 4) (:/ 5 6))\n"},
 	{"bad expression", &ast.BadExpr{Tokens: tk("a", "+")}, "(bad \"a +\")\n"},
+	{"constraint block", &ast.ConstraintBlock{Tokens: tk("x", ">", "0", ";")}, "(constraints \"x > 0 ;\")\n"},
+	{"randomize with iterator and constraints",
+		&ast.Call{Func: &ast.MemberSelect{X: id("obj"), Member: "randomize"}, With: &ast.Paren{X: id("v")},
+			Constraints: &ast.ConstraintBlock{Tokens: tk("v", ">", "0", ";")}},
+		"(call (. obj randomize) with (paren v) (constraints \"v > 0 ;\"))\n"},
 }
 
 func TestExprDump(t *testing.T) {
