@@ -8,6 +8,9 @@
 // kept as raw []preprocessor.Token spans, never a real expression tree.
 // This is the "declaration-grade, not full expression grammar" design
 // principle made concrete: capture what's written, don't interpret it.
+//
+// Walk and Inspect traverse a tree in source order (go/ast style), and Dump
+// renders one as a compact S-expression for golden tests and debugging.
 package ast
 
 import "github.com/jfetkotto/svparse/preprocessor"
@@ -34,10 +37,11 @@ func (declBase) declNode() {}
 
 func (b declBase) Pos() Position { return b.Position }
 
-// Decl is implemented by every AST node.
+// Decl is implemented by every declaration node. It is a Node that can
+// appear directly in a File, Container, Class, or Package body.
 type Decl interface {
+	Node
 	declNode()
-	Pos() Position
 }
 
 // File is one source file's parse result: every top-level declaration,
