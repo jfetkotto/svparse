@@ -16,9 +16,13 @@ partway through an item, leave a short "Status:" note under it.
       21 and `generic` exist upstream at that commit (627 files, 1014 total).
       `parser/corpus_test.go` stays scoped to the original 387 via
       `declarationGradeChapters`.
-- [ ] `feature/conformance-harness`: `internal/conformance` honouring sv-tests
+- [x] `feature/conformance-harness`: `internal/conformance` honouring sv-tests
       metadata (`:type:`, `:should_fail_because:`, `:top_module:`,
-      `:defines:`, `:incdirs:`), with `testdata/conformance-baseline.txt`
+      `:defines:`, `:incdirs:`), with `testdata/conformance-baseline.txt`.
+      Raise `conformance.MaxImplemented` when a new stage lands, then fix or
+      explain the entries that appear. Open question: 89 baseline entries
+      only need the UVM library (tests tagged `uvm`; a git submodule upstream,
+      not vendored). Vendoring it would let those files be judged for real.
 - [ ] `feature/ast-walk-dump`: `ast.Walk`/`ast.Inspect` and `ast.Dump`
 
 ## M1: Expressions (LRM 11, Annex A.8)
@@ -89,3 +93,4 @@ partway through an item, leave a short "Status:" note under it.
 
 | Merged item | Conformance mismatches |
 |-------------|------------------------|
+| conformance-harness (parse stage; 1014 files) | 201 (59 undetected negatives, 53 parser gaps, 89 need UVM) |
