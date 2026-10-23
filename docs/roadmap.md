@@ -105,7 +105,18 @@ partway through an item, leave a short "Status:" note under it.
       forward typedefs with a keyword (`typedef struct|union|enum Name;`, new
       `Typedef.ForwardKind`, now also set for `typedef class`) and `rand`/`randc`
       struct members. Conformance 175 -> 171.
-- [ ] `feature/nettype-interconnect-specparam`
+- [x] `feature/nettype-interconnect-specparam`: `nettype` (new `ast.Nettype`,
+      alias and `with` forms), `interconnect` nets, `specparam`
+      (`Parameter.IsSpecparam`), `vectored`/`scalared`, drive/charge strengths,
+      net delays (`Variable.NetQualifier`/`DriveStrength`/`Delay`), and the
+      `type(expr)` data type (`Type.TypeRef`). The suffix after a net type is
+      one small loop (`parseNetSuffix`) taking strength, qualifier, dimensions
+      and delay in the orders LRM 6.7 allows; strength and delay are net-only,
+      so `logic #5 x` stays an error. Shared delay and `type()` nodes are
+      deep-copied per declarator (`cloneExpr`, reflection-based) to keep a tree.
+      Conformance 171 -> 165 (8 fixed, 2 negatives now `undetected`).
+      Not done: continuous-assignment delay/strength (`assign #5 ...`) is M3;
+      sigils does not index `nettype` yet.
 - [ ] `feature/lexer-trivia` (comments retained for suppression and hover)
 
 ## M3: Statements and procedural code (LRM 9, 10, 12, 13)
@@ -173,3 +184,4 @@ partway through an item, leave a short "Status:" note under it.
 | subnode-spans (no pipeline change) | 185 |
 | class-parameterization | 175 (65 undetected negatives, 21 parser gaps, 89 need UVM) |
 | aggregate-leftovers | 171 (65 undetected negatives, 17 parser gaps, 89 need UVM) |
+| nettype-interconnect-specparam | 165 (67 undetected negatives, 9 parser gaps, 89 need UVM) |

@@ -104,7 +104,17 @@ func describe(n Node) (head string, kids []Node) {
 	case *Import:
 		return "import " + n.Package + "::" + n.Member, nil
 	case *Variable:
-		h := "variable " + n.Name + typeAttr(n.Type) + dims(n.UnpackedDims) + valueAttr(n.InitialExpr, n.Initial)
+		h := "variable " + n.Name + typeAttr(n.Type) + dims(n.UnpackedDims)
+		if n.NetQualifier != "" {
+			h += " " + n.NetQualifier
+		}
+		if len(n.DriveStrength) > 0 {
+			h += " strength=(" + strings.Join(n.DriveStrength, ",") + ")"
+		}
+		if len(n.Delay) > 0 {
+			h += " delay=[" + strings.Join(exprTexts(n.Delay), " ") + "]"
+		}
+		h += valueAttr(n.InitialExpr, n.Initial)
 		h += flag(n.IsRand, "rand") + flag(n.IsRandC, "randc") + flag(n.IsStatic, "static")
 		return h, typeKids(n.Type)
 	case *Parameter:
@@ -112,7 +122,16 @@ func describe(n Node) (head string, kids []Node) {
 		if n.IsLocal {
 			kw = "localparam"
 		}
+		if n.IsSpecparam {
+			kw = "specparam"
+		}
 		return kw + " " + n.Name + typeAttr(n.Type) + dims(n.UnpackedDims) + valueAttr(n.DefaultExpr, n.Default), typeKids(n.Type)
+	case *Nettype:
+		h := "nettype " + n.Name + typeAttr(n.Type)
+		if n.ResolveFunc != "" {
+			h += " with=" + n.ResolveFunc
+		}
+		return h, typeKids(n.Type)
 	case *Typedef:
 		if n.Underlying == nil {
 			return "typedef " + n.Name + " forward" + forwardSuffix(n.ForwardKind), nil
@@ -244,6 +263,9 @@ func typeAttr(t Type) string {
 func typeString(t Type) string {
 	var parts []string
 	name := t.Name + aggregateQualifiers(t.Inline)
+	if t.TypeRef != nil {
+		name = exprText(t.TypeRef)
+	}
 	if t.PackageQualifier != "" {
 		name = t.PackageQualifier + overridesText(t.QualifierOverrides) + "::" + name
 	}

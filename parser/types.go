@@ -69,7 +69,7 @@ func (p *parser) netTypeAndName() (ast.Type, preprocessor.Token, bool) {
 	return ast.Type{}, preprocessor.Token{}, false
 }
 
-// consumeNetTypeQualifier is netTypeAndName's counterpart for a net
+// consumeNetTypeQualifier (which reports whether it swallowed the keyword) is netTypeAndName's counterpart for a net
 // declaration written as a statement ("wire logic foo;"), where the same
 // [net_type] data_type shape is legal. It swallows the net-type keyword
 // only when the keyword is qualifying a following data type, not serving
@@ -84,18 +84,20 @@ func (p *parser) netTypeAndName() (ast.Type, preprocessor.Token, bool) {
 // excluded despite lexing as type-name tokens, so "wire signed [3:0] x"
 // and "tri1 scalared [15:0] a" both keep naming the net type as their
 // type, as before.
-func (p *parser) consumeNetTypeQualifier() {
+func (p *parser) consumeNetTypeQualifier() bool {
 	if !netTypeKeywords[p.peek().Text] {
-		return
+		return false
 	}
 	next := p.peekAt(1)
 	if !isTypeNameToken(next) || nonTypeNameQualifiers[next.Text] {
-		return
+		return false
 	}
 	switch p.peekAt(2).Kind {
 	case token.KindIdent, token.KindLBrack, token.KindColonColon:
 		p.advance()
+		return true
 	}
+	return false
 }
 
 // parseDataType parses a data type with its packed dimensions: an anonymous
@@ -105,7 +107,12 @@ func (p *parser) consumeNetTypeQualifier() {
 // parameter, argument, return type, and struct member alike.
 func (p *parser) parseDataType() ast.Type {
 	var t ast.Type
-	if p.atAggregate() {
+	if tok := p.peek(); tok.Kind == token.KindKeyword && tok.Text == "type" && p.peekAt(1).Kind == token.KindLParen {
+		// The type reference operator, "type(a + b)" (LRM 6.23).
+		t = ast.Type{Name: "type"}
+		t.Position = namePosition(tok)
+		t.TypeRef, _ = p.parseTypeRef().(*ast.TypeRef)
+	} else if p.atAggregate() {
 		t, _ = p.parseInlineAggregate() // on failure the error is recorded and t still names the keyword
 	} else {
 		t = p.parseTypeBase()

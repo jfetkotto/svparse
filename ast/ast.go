@@ -85,6 +85,11 @@ type Type struct {
 	// type. Name is "struct", "union" or "enum" when it is set.
 	Inline Decl
 
+	// TypeRef is the operand of the type reference operator, "type(a + b)"
+	// (LRM 6.23), when the type is written that way; Name is "type" then.
+	// nil for every other type.
+	TypeRef *TypeRef
+
 	// ParamOverrides carries a parameterized type reference's "#( ... )"
 	// arguments -- the class-type half of the same syntax an Instantiation
 	// uses, e.g. the "#(8)" in "my_class #(8) obj;". nil for the ordinary

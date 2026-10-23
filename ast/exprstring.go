@@ -203,6 +203,9 @@ func overridesSource(os []ParamOverride) string {
 func typeSource(t Type) string {
 	var parts []string
 	name := t.Name
+	if t.TypeRef != nil {
+		name = exprSource(t.TypeRef)
+	}
 	if t.PackageQualifier != "" {
 		name = t.PackageQualifier + "::" + name
 	}

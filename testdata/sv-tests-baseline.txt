@@ -21,8 +21,6 @@ chapter-22/22.5.1--define-expansion_6.sv 1 # should_fail_because: fewer actual t
 chapter-22/22.5.1--define-expansion_7.sv 1 # should_fail_because: function-like macro invoked without parentheses
 chapter-22/22.5.1--define-expansion_8.sv 1 # should_fail_because: more actual than formal macro args -- newly detected; svparse used to drop the surplus silently, so this file sat outside the baseline entirely
 chapter-5/5.6--wrong-identifiers.sv 2 # should_fail_because: identifiers starting with a digit or $
-chapter-6/6.20.5--specparam_inv.sv 1 # should_fail_because: invalid specparam -- also see the specparam entry below (not implemented regardless)
-chapter-6/6.9.2--vector_vectored_inv.sv 1 # should_fail_because: invalid vectored net declaration
 chapter-8/8.26.4--illegal_forward_def_implements.sv 3 # should_fail_because: illegal forward-typedef interface-class implements
 
 # --- Out of scope: preprocessor macro operators this preprocessor doesn't implement ---
@@ -37,14 +35,3 @@ chapter-5/5.6.4--compiler-directives-begin-keywords.sv 3 # relies on `begin_keyw
 
 # --- Out of scope: this harness has no :defines: metadata support ---
 chapter-5/5.6.4--compiler-directives-preprocessor-macro_0.sv 2 # requires :defines: TEST_VAR (an external +define+, not something in the source itself); without it the file's own `else branch is (intentionally) invalid placeholder text
-
-# --- Out of scope: other declaration forms not implemented ---
-chapter-6/6.20.5--specparam.sv 1 # specparam (LRM 24.5, specify-block parameters) not supported
-chapter-6/6.23--type_op.sv 1 # type(expr) type-reference operator not supported
-chapter-6/6.6.7--nettype.sv 1 # user-defined nettype (LRM 6.6.7) not supported
-chapter-6/6.6.7--nettype_resolution_fn.sv 2 # user-defined nettype with a resolution function (LRM 6.6.7) not supported
-chapter-6/6.6.8--interconnect.sv 1 # interconnect nets (LRM 6.6.8) not supported
-
-# --- Out of scope: niche net qualifiers (already a documented limitation) ---
-chapter-6/6.9.2--vector_scalared.sv 1 # "scalared" net qualifier not supported
-chapter-6/6.9.2--vector_vectored.sv 1 # "vectored" net qualifier not supported

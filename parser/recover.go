@@ -29,6 +29,7 @@ var containerStartKeywords = map[string]bool{
 	"class": true, "package": true, "virtual": true,
 	"typedef": true, "parameter": true, "localparam": true,
 	"function": true, "task": true, "extern": true, "import": true,
+	"nettype": true, "specparam": true,
 	"constraint": true, "static": true, "rand": true, "randc": true,
 }
 

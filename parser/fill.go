@@ -1,6 +1,7 @@
 package parser
 
 import (
+	"reflect"
 	"slices"
 
 	"github.com/jfetkotto/svparse/ast"
@@ -23,6 +24,7 @@ import (
 // tell they were written as one type.
 func ownTypes(f *ast.File) {
 	claimed := make(map[ast.Decl]bool)
+	claimedRefs := make(map[*ast.TypeRef]bool)
 	ast.Inspect(f, func(n ast.Node) bool {
 		t, ok := n.(*ast.Type)
 		if !ok {
@@ -39,6 +41,12 @@ func ownTypes(f *ast.File) {
 				t.Inline = cloneAggregate(t.Inline)
 			}
 			claimed[t.Inline] = true
+		}
+		if t.TypeRef != nil {
+			if claimedRefs[t.TypeRef] {
+				t.TypeRef, _ = cloneExpr(t.TypeRef).(*ast.TypeRef)
+			}
+			claimedRefs[t.TypeRef] = true
 		}
 		return true
 	})
@@ -77,6 +85,9 @@ func cloneMembers(ms []ast.Variable) []ast.Variable {
 func cloneType(t ast.Type) ast.Type {
 	t.ParamOverrides = slices.Clone(t.ParamOverrides)
 	t.QualifierOverrides = slices.Clone(t.QualifierOverrides)
+	if t.TypeRef != nil {
+		t.TypeRef, _ = cloneExpr(t.TypeRef).(*ast.TypeRef)
+	}
 	if t.Inline != nil {
 		t.Inline = cloneAggregate(t.Inline)
 	}
@@ -209,4 +220,67 @@ func badSpan(toks []preprocessor.Token) ast.Expr {
 	b := &ast.BadExpr{Tokens: toks}
 	b.SetPos(tokensSpan(toks))
 	return b
+}
+
+var tokenSliceType = reflect.TypeOf([]preprocessor.Token(nil))
+
+// cloneExpr deep-copies an expression tree. It is reflection-based because it
+// serves the few places where one parsed expression has to be given to several
+// owners ("wire #5 a, b;", "var type(x) a, b;") and nothing else is worth a
+// hand-written copy of all forty node types. Raw token spans are shared: they
+// are never mutated.
+func cloneExpr(e ast.Expr) ast.Expr {
+	if e == nil {
+		return nil
+	}
+	return deepCopy(reflect.ValueOf(e)).Interface().(ast.Expr)
+}
+
+func cloneExprs(es []ast.Expr) []ast.Expr {
+	if es == nil {
+		return nil
+	}
+	out := make([]ast.Expr, len(es))
+	for i, e := range es {
+		out[i] = cloneExpr(e)
+	}
+	return out
+}
+
+func deepCopy(v reflect.Value) reflect.Value {
+	switch v.Kind() {
+	case reflect.Pointer:
+		if v.IsNil() {
+			return v
+		}
+		c := reflect.New(v.Type().Elem())
+		c.Elem().Set(deepCopy(v.Elem()))
+		return c
+	case reflect.Interface:
+		if v.IsNil() {
+			return v
+		}
+		c := reflect.New(v.Type()).Elem()
+		c.Set(deepCopy(v.Elem()))
+		return c
+	case reflect.Struct:
+		c := reflect.New(v.Type()).Elem()
+		c.Set(v) // a shallow copy first, which also carries the unexported position
+		for i := 0; i < v.NumField(); i++ {
+			if c.Field(i).CanSet() {
+				c.Field(i).Set(deepCopy(v.Field(i)))
+			}
+		}
+		return c
+	case reflect.Slice:
+		if v.IsNil() || v.Type() == tokenSliceType {
+			return v
+		}
+		c := reflect.MakeSlice(v.Type(), v.Len(), v.Len())
+		for i := 0; i < v.Len(); i++ {
+			c.Index(i).Set(deepCopy(v.Index(i)))
+		}
+		return c
+	}
+	return v
 }

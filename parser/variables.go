@@ -18,7 +18,8 @@ var dataTypeKeywords = map[string]bool{
 	"int": true, "integer": true, "byte": true, "shortint": true, "longint": true,
 	"real": true, "shortreal": true, "realtime": true, "time": true,
 	"string": true, "chandle": true, "event": true,
-	"signed": true, "unsigned": true,
+	"interconnect": true, // LRM 6.6.8 -- a net with no data type, only for connecting ports
+	"signed":       true, "unsigned": true,
 	"genvar": true, // LRM 27.4 -- a generate for-loop's index variable, declared like any other variable outside the loop header itself
 }
 
@@ -67,8 +68,10 @@ func (p *parser) parseVariableDecl() ([]ast.Decl, bool) {
 // doesn't need to wait for the general identifier-vs-instantiation
 // disambiguation a later commit adds.
 func (p *parser) parseVariableDeclQualified(isRand, isRandC, isStatic bool) ([]ast.Decl, bool) {
-	p.consumeNetTypeQualifier()
+	isNet := p.consumeNetTypeQualifier()
 	typ := p.parseDataType()
+	isNet = isNet || netTypeKeywords[typ.Name] || typ.Name == "interconnect"
+	qualifier, strength, delay := p.parseNetSuffix(&typ, isNet)
 
 	groups, closed := p.splitDeclaratorsToSemi()
 	if !closed {
@@ -81,6 +84,14 @@ func (p *parser) parseVariableDeclQualified(isRand, isRandC, isStatic bool) ([]a
 			v.IsRand = isRand
 			v.IsRandC = isRandC
 			v.IsStatic = isStatic
+			v.NetQualifier = qualifier
+			v.DriveStrength = strength
+			// One delay serves every name in the statement, but each Variable
+			// owns its copy so the tree has no shared nodes.
+			v.Delay = delay
+			if len(decls) > 0 {
+				v.Delay = cloneExprs(delay)
+			}
 			decls = append(decls, v)
 		}
 	}
@@ -92,6 +103,135 @@ func (p *parser) parseVariableDeclQualified(isRand, isRandC, isStatic bool) ([]a
 	// Every group that failed already recorded its own error via
 	// parseVariableDeclarator, so nothing goes unreported.
 	return decls, true
+}
+
+// strengthKeywords are the drive strengths (LRM 28.11) and charge strengths
+// (LRM 28.16) that can appear in a net declaration's "( ... )".
+var strengthKeywords = map[string]bool{
+	"supply0": true, "strong0": true, "pull0": true, "weak0": true, "highz0": true,
+	"supply1": true, "strong1": true, "pull1": true, "weak1": true, "highz1": true,
+	"small": true, "medium": true, "large": true,
+}
+
+// parseNetSuffix parses what may follow a net declaration's type name, in
+// any order (LRM 6.7): a drive or charge strength "(strong0, pull1)", the
+// "vectored" or "scalared" qualifier, packed dimensions that come after one of
+// those ("tri1 scalared [15:0] a"), and a delay "#10" or "#(1, 2, 3)".
+// Strength and delay only follow a net type (isNet); the qualifier is accepted
+// anywhere, since whether it suits the type is a semantic question.
+func (p *parser) parseNetSuffix(typ *ast.Type, isNet bool) (qualifier string, strength []string, delay []ast.Expr) {
+	for {
+		tok := p.peek()
+		switch {
+		case isNet && tok.Kind == token.KindLParen && p.peekAt(1).Kind == token.KindKeyword && strengthKeywords[p.peekAt(1).Text]:
+			strength = p.parseStrength()
+		case tok.Kind == token.KindKeyword && (tok.Text == "vectored" || tok.Text == "scalared"):
+			qualifier = tok.Text
+			p.advance()
+		case tok.Kind == token.KindLBrack && len(typ.PackedDims) == 0:
+			typ.PackedDims = p.parseDims()
+		case isNet && tok.Kind == token.KindHash:
+			delay = p.parseDelay3()
+		default:
+			return qualifier, strength, delay
+		}
+	}
+}
+
+// parseStrength parses "(strong0, pull1)" or "(small)", the cursor on '('.
+func (p *parser) parseStrength() []string {
+	p.advance() // '('
+	var out []string
+	afterComma := false
+	for {
+		tok := p.peek()
+		if tok.Kind != token.KindKeyword || !strengthKeywords[tok.Text] {
+			if afterComma {
+				p.errorf(tok, "expected a strength after ',', found %s", describeTok(tok))
+			}
+			break
+		}
+		out = append(out, tok.Text)
+		p.advance()
+		if p.peek().Kind != token.KindComma {
+			break
+		}
+		p.advance()
+		afterComma = true
+	}
+	p.expectKind(token.KindRParen, "')' to close the drive strength")
+	return out
+}
+
+// parseDelay3 parses "#10", "#d", "#1.5ns", or "#(rise, fall, turnoff)" (LRM
+// 28.16), the cursor on '#'. A parenthesised value may be a min:typ:max triple.
+func (p *parser) parseDelay3() []ast.Expr {
+	p.advance() // '#'
+	if p.peek().Kind != token.KindLParen {
+		return []ast.Expr{p.parsePrimary()} // a plain delay value, not an expression: "#10 w" must stop before w
+	}
+	p.advance() // '('
+	var out []ast.Expr
+	for {
+		start := p.pos
+		e := p.parseExpr()
+		if p.peek().Kind == token.KindColon {
+			p.advance()
+			typ := p.parseExpr()
+			var max ast.Expr
+			if p.expectKind(token.KindColon, "':' in a min:typ:max delay") {
+				max = p.parseExpr()
+			} else {
+				max = p.emptyBad()
+			}
+			e = finish(p, start, &ast.MinTypMax{Min: e, Typ: typ, Max: max})
+		}
+		out = append(out, e)
+		if p.peek().Kind != token.KindComma {
+			break
+		}
+		p.advance()
+	}
+	p.expectKind(token.KindRParen, "')' to close the delay")
+	return out
+}
+
+// parseNettype parses a user-defined net type declaration (LRM 6.6.7):
+// "nettype data_type name [with resolve_function];", the cursor on "nettype".
+func (p *parser) parseNettype() (ast.Decl, bool) {
+	p.advance() // "nettype"
+	typ, nameTok, ok := p.parseTypeAndName()
+	if !ok {
+		return nil, false
+	}
+	if typ.Name == "" && typ.Inline == nil && typ.TypeRef == nil {
+		p.errorf(nameTok, "expected a data type before the net type name %q", nameTok.Text)
+	}
+	nt := &ast.Nettype{Name: nameTok.Text, Type: typ}
+	nt.Position = namePosition(nameTok)
+
+	if p.peek().Kind == token.KindKeyword && p.peek().Text == "with" {
+		p.advance()
+		// The resolution function may be package-qualified: pkg::resolve.
+		for {
+			fn, ok := p.expectIdent()
+			if !ok {
+				break
+			}
+			nt.ResolveFunc += fn.Text
+			if p.peek().Kind != token.KindColonColon {
+				break
+			}
+			p.advance()
+			nt.ResolveFunc += "::"
+		}
+	}
+	if p.peek().Kind == token.KindSemi {
+		p.advance()
+	} else {
+		p.errorf(p.peek(), "expected ';' after net type declaration")
+	}
+	return nt, true
 }
 
 // parseVariableDeclarator parses one already-comma-isolated declarator:
@@ -134,7 +274,8 @@ func (p *parser) parseVariableDeclarator(group []preprocessor.Token, typ ast.Typ
 // independent entry in a parameter port list has its own.
 func (p *parser) parseParameterDecl() ([]ast.Decl, bool) {
 	isLocal := p.peek().Text == "localparam"
-	p.advance() // "parameter"/"localparam"
+	isSpec := p.peek().Text == "specparam"
+	p.advance() // "parameter"/"localparam"/"specparam"
 
 	typ, nameTok, ok := p.parseTypeAndName()
 	if !ok {
@@ -155,7 +296,7 @@ func (p *parser) parseParameterDecl() ([]ast.Decl, bool) {
 	}
 
 	makeParam := func(nameTok preprocessor.Token) *ast.Parameter {
-		param := &ast.Parameter{IsLocal: isLocal, Type: typ, Name: nameTok.Text}
+		param := &ast.Parameter{IsLocal: isLocal, IsSpecparam: isSpec, Type: typ, Name: nameTok.Text}
 		param.Position = namePosition(nameTok)
 		return param
 	}

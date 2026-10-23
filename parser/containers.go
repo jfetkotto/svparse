@@ -219,8 +219,10 @@ func (p *parser) parseDecl() ([]ast.Decl, bool) {
 		return oneDecl(p.parsePackage())
 	case "typedef":
 		return oneDecl(p.parseTypedef())
-	case "parameter", "localparam":
+	case "parameter", "localparam", "specparam":
 		return p.parseParameterDecl()
+	case "nettype":
+		return oneDecl(p.parseNettype())
 	case "input", "output", "inout":
 		// A non-ANSI port declaration (LRM 23.2.2.3), giving direction/type
 		// to a name the container's header port list already declared bare
