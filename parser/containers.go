@@ -291,9 +291,7 @@ func (p *parser) parseDecl() ([]ast.Decl, bool) {
 		// begin ... end" otherwise looks like its own bad top-level
 		// declaration once recover() -- which doesn't understand begin/end
 		// nesting -- stops at the first semicolon it finds).
-		p.advance()
-		p.skipProceduralConstruct()
-		return nil, true
+		return []ast.Decl{p.parseProceduralItem()}, true
 	case "assert", "assume", "cover", "restrict":
 		// A module-scope concurrent assertion statement (LRM 16.14),
 		// e.g. "assert property (@(posedge clk) req |-> ##1 ack) else

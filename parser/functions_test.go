@@ -248,20 +248,47 @@ func TestFunctionAndExternPrototypeBothFound(t *testing.T) {
 	}
 }
 
-func TestProceduralBlockSingleStatementIsSkipped(t *testing.T) {
+// moduleBodyNoProc is moduleBody without the procedural items (initial,
+// always, final, assign): the boundary tests below care that the declarations
+// around an item survive intact, not about the item itself.
+func moduleBodyNoProc(t *testing.T, src string) []ast.Decl {
+	t.Helper()
+	var out []ast.Decl
+	for _, d := range moduleBody(t, src) {
+		switch d.(type) {
+		case *ast.Initial, *ast.Final, *ast.Always, *ast.ContinuousAssign:
+		default:
+			out = append(out, d)
+		}
+	}
+	return out
+}
+
+func TestProceduralBlockSingleStatement(t *testing.T) {
 	body := moduleBody(t, `initial $display("hi");`)
-	if len(body) != 0 {
-		t.Fatalf("expected the initial statement to be skipped with no declarations, got %+v", body)
+	if len(body) != 1 {
+		t.Fatalf("expected one initial item, got %+v", body)
+	}
+	if _, ok := body[0].(*ast.Initial); !ok {
+		t.Fatalf("expected *ast.Initial, got %T", body[0])
 	}
 }
 
-func TestProceduralBlockBeginEndIsSkipped(t *testing.T) {
+func TestProceduralBlockBeginEnd(t *testing.T) {
 	body := moduleBody(t, `initial begin
 		$display("one");
 		$display("two");
 	end`)
-	if len(body) != 0 {
-		t.Fatalf("expected the initial begin/end block to be skipped with no declarations, got %+v", body)
+	if len(body) != 1 {
+		t.Fatalf("expected one initial item, got %+v", body)
+	}
+	init, ok := body[0].(*ast.Initial)
+	if !ok {
+		t.Fatalf("expected *ast.Initial, got %T", body[0])
+	}
+	blk, ok := init.Body.(*ast.Block)
+	if !ok || len(blk.Stmts) != 2 {
+		t.Fatalf("expected a block of two statements, got %+v", init.Body)
 	}
 }
 
@@ -270,18 +297,34 @@ func TestProceduralBlockKeywordsAllRecognized(t *testing.T) {
 		t.Run(kw, func(t *testing.T) {
 			src := kw + " begin\n$display(\"x\");\nend"
 			if kw == "always_comb" || kw == "final" {
-				src = kw + " $display(\"x\");" // always_comb/final take a single statement or block either way; exercise the single-statement form for variety
+				src = kw + " $display(\"x\");" // single statement form for variety
 			}
 			body := moduleBody(t, src)
-			if len(body) != 0 {
-				t.Fatalf("expected %q to be skipped with no declarations, got %+v", kw, body)
+			if len(body) != 1 {
+				t.Fatalf("expected one item for %q, got %+v", kw, body)
+			}
+			switch n := body[0].(type) {
+			case *ast.Initial:
+				if kw != "initial" {
+					t.Fatalf("%q parsed as Initial", kw)
+				}
+			case *ast.Final:
+				if kw != "final" {
+					t.Fatalf("%q parsed as Final", kw)
+				}
+			case *ast.Always:
+				if n.Kind != kw {
+					t.Fatalf("Always.Kind = %q, want %q", n.Kind, kw)
+				}
+			default:
+				t.Fatalf("unexpected node %T for %q", n, kw)
 			}
 		})
 	}
 }
 
 func TestProceduralBlockDoesNotConsumeFollowingDeclaration(t *testing.T) {
-	body := moduleBody(t, `initial $display("hi");
+	body := moduleBodyNoProc(t, `initial $display("hi");
 logic [7:0] data;`)
 	if len(body) != 1 {
 		t.Fatalf("expected exactly 1 declaration (data) after the skipped initial statement, got %+v", body)
@@ -302,12 +345,18 @@ endmodule`)
 		t.Fatalf("expected an error for the missing ';' after \"assign sig_a = sig_b\"")
 	}
 	c := f.Decls[0].(*ast.Container)
-	if len(c.Body) != 1 {
-		t.Fatalf("expected exactly 1 surviving declaration (swallowed_signal), got %+v", c.Body)
+	var body []ast.Decl
+	for _, d := range c.Body {
+		if _, ok := d.(*ast.Variable); ok {
+			body = append(body, d)
+		}
 	}
-	v, ok := c.Body[0].(*ast.Variable)
+	if len(body) != 1 {
+		t.Fatalf("expected exactly 1 surviving declaration (swallowed_signal), got %+v", body)
+	}
+	v, ok := body[0].(*ast.Variable)
 	if !ok || v.Name != "swallowed_signal" {
-		t.Fatalf("expected variable swallowed_signal to survive, got %+v", c.Body[0])
+		t.Fatalf("expected variable swallowed_signal to survive, got %+v", body[0])
 	}
 }
 
@@ -346,7 +395,7 @@ func TestProceduralBlockCastExpressionIsNotMistakenForNextDeclaration(t *testing
 	// "int'(y)" (LRM 6.24.1) reuses the "int" keyword text
 	// isDeclBoundaryKeyword otherwise treats as a new declaration's type
 	// -- it must not be misread as one here.
-	body := moduleBody(t, "initial x = int'(y);\nlogic done;")
+	body := moduleBodyNoProc(t, "initial x = int'(y);\nlogic done;")
 	if len(body) != 1 {
 		t.Fatalf("expected exactly 1 declaration (done), got %+v", body)
 	}
@@ -362,7 +411,7 @@ func TestProceduralBlockAssignAsSingleStatementIsNotMistakenForNextDeclaration(t
 	// isDeclBoundaryKeyword otherwise treats as the start of a new
 	// module-scope continuous assignment; it must not be mistaken for one
 	// as the very first token of the construct being skipped.
-	body := moduleBody(t, "initial assign x = y;\nlogic done;")
+	body := moduleBodyNoProc(t, "initial assign x = y;\nlogic done;")
 	if len(body) != 1 {
 		t.Fatalf("expected exactly 1 declaration (done), got %+v", body)
 	}
@@ -375,7 +424,7 @@ func TestProceduralBlockWithNestedCaseStatement(t *testing.T) {
 	// case/endcase is itself a blockOpen/blockCloseKeywords pair -- confirm
 	// nested block-keyword depth is tracked correctly inside an always
 	// block, not just a single begin/end.
-	body := moduleBody(t, `always @(posedge clk) begin
+	body := moduleBodyNoProc(t, `always @(posedge clk) begin
 		case (state)
 			IDLE: next = RUN;
 			RUN: next = IDLE;
@@ -394,7 +443,7 @@ func TestProceduralBlockWithNamedBeginEndBlock(t *testing.T) {
 	// "begin : label ... end : label" -- a named block (LRM 9.3.1); the
 	// label on either side must not be mistaken for the start of a new
 	// declaration.
-	body := moduleBody(t, `initial begin : blk
+	body := moduleBodyNoProc(t, `initial begin : blk
 		$display("hi");
 	end : blk
 logic done;`)
@@ -407,7 +456,7 @@ logic done;`)
 }
 
 func TestProceduralBlockWithNamedForkJoinBlock(t *testing.T) {
-	body := moduleBody(t, `initial fork : blk
+	body := moduleBodyNoProc(t, `initial fork : blk
 		$display("hi");
 	join : blk
 logic done;`)
@@ -423,7 +472,7 @@ func TestProceduralBlockDisableFork(t *testing.T) {
 	// "disable fork;" (LRM 9.6.2) is a single statement -- its "fork" must
 	// NOT be mistaken for a fork/join block opener with no matching join,
 	// which would otherwise run the scan to end of file.
-	body := moduleBody(t, `initial begin
+	body := moduleBodyNoProc(t, `initial begin
 		disable fork;
 	end
 logic done;`)
@@ -456,7 +505,7 @@ endclass`)
 }
 
 func TestContinuousAssignmentIsSkipped(t *testing.T) {
-	body := moduleBody(t, `assign out = a & b;
+	body := moduleBodyNoProc(t, `assign out = a & b;
 logic done;`)
 	if len(body) != 1 {
 		t.Fatalf("expected exactly 1 declaration (done) after the skipped assign, got %+v", body)
@@ -503,7 +552,7 @@ func TestContinuousAssignmentWithConcatenationLHS(t *testing.T) {
 	// A brace-delimited concatenation on the LHS must not be mistaken for
 	// a procedural block's begin/end -- braces are tracked via the
 	// general paren/brace/bracket depth counter, not blockOpen/CloseKeywords.
-	body := moduleBody(t, `assign {carry, sum} = a + b;
+	body := moduleBodyNoProc(t, `assign {carry, sum} = a + b;
 logic done;`)
 	if len(body) != 1 {
 		t.Fatalf("expected exactly 1 declaration (done) after the skipped assign, got %+v", body)
@@ -516,7 +565,7 @@ logic done;`)
 func TestProceduralBlockWithParenSemicolonsInForLoop(t *testing.T) {
 	// A for-loop header's own ';'s (inside the parens) must not be
 	// mistaken for the statement's terminator.
-	body := moduleBody(t, `initial begin
+	body := moduleBodyNoProc(t, `initial begin
 		for (int i = 0; i < 10; i++) begin
 			$display("%d", i);
 		end
@@ -535,7 +584,7 @@ func TestProceduralBlockWithRandcase(t *testing.T) {
 	// pair; without "randcase" tracked as an opener, "endcase" alone would
 	// prematurely close the enclosing begin/end and leave "x = 1;" dangling
 	// at container scope.
-	body := moduleBody(t, `initial begin
+	body := moduleBodyNoProc(t, `initial begin
 		randcase
 			1: x = 0;
 		endcase
@@ -551,7 +600,7 @@ logic done;`)
 }
 
 func TestProceduralBlockDoWhile(t *testing.T) {
-	body := moduleBody(t, `initial do begin
+	body := moduleBodyNoProc(t, `initial do begin
 		x = x + 1;
 	end while (x < 10);
 logic done;`)
@@ -564,7 +613,7 @@ logic done;`)
 }
 
 func TestProceduralBlockDoWhileSingleStatement(t *testing.T) {
-	body := moduleBody(t, `initial do x = x + 1; while (x < 10);
+	body := moduleBodyNoProc(t, `initial do x = x + 1; while (x < 10);
 logic done;`)
 	if len(body) != 1 {
 		t.Fatalf("expected exactly 1 declaration (done) after the skipped do-while, got %+v", body)
@@ -575,7 +624,7 @@ logic done;`)
 }
 
 func TestProceduralBlockDanglingElse(t *testing.T) {
-	body := moduleBody(t, `always_ff @(posedge clk)
+	body := moduleBodyNoProc(t, `always_ff @(posedge clk)
 		if (q) q <= 0;
 		else q <= 1;
 logic done;`)
@@ -588,7 +637,7 @@ logic done;`)
 }
 
 func TestProceduralBlockElseIfChain(t *testing.T) {
-	body := moduleBody(t, `always_ff @(posedge clk)
+	body := moduleBodyNoProc(t, `always_ff @(posedge clk)
 		if (a) q <= 0;
 		else if (b) q <= 1;
 		else if (c) q <= 2;
@@ -603,7 +652,7 @@ logic done;`)
 }
 
 func TestProceduralBlockDanglingElseWithBeginEnd(t *testing.T) {
-	body := moduleBody(t, `always_ff @(posedge clk) begin
+	body := moduleBodyNoProc(t, `always_ff @(posedge clk) begin
 		if (q) begin
 			q <= 0;
 		end else begin

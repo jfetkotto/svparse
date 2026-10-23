@@ -174,7 +174,12 @@ partway through an item, leave a short "Status:" note under it.
       `for` initialisation with several typed declarations
       (`for (int i = 0, bit c = 1; ...)`). sigils gains argument lists for
       old-style subroutines in hover and outline (see `demosv/rtl/old_style.sv`).
-- [ ] `feature/procedural-blocks`
+- [x] `feature/procedural-blocks`: `initial`, `final`, `always*` and `assign` now
+      become `Initial`, `Final`, `Always`, `ContinuousAssign` nodes in
+      `Container.Body` (`parser/procedural.go`). Extents still come from
+      `skipProceduralConstruct`; the consumed tokens are parsed by a bounded
+      sub-parser and its errors go to `parser.suppressed`. Conformance stays
+      165. Concurrent assertions are still skipped (M5).
 
 ## M4: Hierarchy-level constructs (LRM 23, 25, 27, 28, 29)
 
@@ -239,3 +244,4 @@ partway through an item, leave a short "Status:" note under it.
 | stmt-ast (no pipeline change) | 165 |
 | stmt-parser (not wired into declarations yet) | 165 |
 | function-task-bodies (errors suppressed on purpose) | 165 |
+| procedural-blocks (errors suppressed on purpose) | 165 |
