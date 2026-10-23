@@ -15,13 +15,10 @@ func TestGenerateForWithInstantiation(t *testing.T) {
 		endgenerate`)
 
 	var gv *ast.Variable
-	var inst *ast.Instantiation
+	inst := firstInst(body)
 	for _, d := range body {
-		switch n := d.(type) {
-		case *ast.Variable:
+		if n, ok := d.(*ast.Variable); ok {
 			gv = n
-		case *ast.Instantiation:
-			inst = n
 		}
 	}
 	if gv == nil || gv.Type.Name != "genvar" || gv.Name != "i" {
@@ -41,12 +38,7 @@ func TestGenerateIfElse(t *testing.T) {
 		end
 	endgenerate`)
 
-	var insts []*ast.Instantiation
-	for _, d := range body {
-		if inst, ok := d.(*ast.Instantiation); ok {
-			insts = append(insts, inst)
-		}
-	}
+	insts := allInsts(body)
 	if len(insts) != 2 {
 		t.Fatalf("expected both branches' instantiations to parse, got %+v", body)
 	}
@@ -61,12 +53,9 @@ func TestGenerateIfWithoutBeginEnd(t *testing.T) {
 		if (WIDTH > 8)
 			leaf u_leaf (.clk(clk));
 	endgenerate`)
-	if len(body) != 1 {
-		t.Fatalf("expected 1 decl, got %+v", body)
-	}
-	inst := body[0].(*ast.Instantiation)
-	if inst.Instances[0].Name != "u_leaf" {
-		t.Fatalf("unexpected instantiation: %+v", inst)
+	inst := firstInst(body)
+	if len(body) != 1 || inst == nil || inst.Instances[0].Name != "u_leaf" {
+		t.Fatalf("unexpected body: %+v", body)
 	}
 }
 
@@ -78,16 +67,13 @@ func TestGenerateNestedBeginEnd(t *testing.T) {
 			end
 		end
 	endgenerate`)
-	if len(body) != 1 {
-		t.Fatalf("expected 1 decl, got %+v", body)
-	}
-	inst := body[0].(*ast.Instantiation)
-	if inst.Instances[0].Name != "u_leaf" {
-		t.Fatalf("unexpected instantiation: %+v", inst)
+	inst := firstInst(body)
+	if len(body) != 1 || inst == nil || inst.Instances[0].Name != "u_leaf" {
+		t.Fatalf("unexpected body: %+v", body)
 	}
 }
 
-func TestGenerateCaseSkipsToEndcase(t *testing.T) {
+func TestGenerateCaseKeepsSurroundingDecls(t *testing.T) {
 	body := moduleBody(t, `logic before_marker;
 		generate
 			case (WIDTH)
@@ -120,12 +106,7 @@ func TestGenerateWithoutGenerateKeywords(t *testing.T) {
 		for (i = 0; i < 2; i = i + 1) begin : gen_leaf
 			leaf u_leaf (.clk(clk));
 		end`)
-	var inst *ast.Instantiation
-	for _, d := range body {
-		if n, ok := d.(*ast.Instantiation); ok {
-			inst = n
-		}
-	}
+	inst := firstInst(body)
 	if inst == nil || inst.Instances[0].Name != "u_leaf" {
 		t.Fatalf("expected the leaf instantiation to be parsed, got %+v", body)
 	}
@@ -159,4 +140,24 @@ endmodule
 	if len(names) != 2 || names[0] != "top" || names[1] != "after" {
 		t.Fatalf("expected modules top and after, got %v", names)
 	}
+}
+
+func allInsts(body []ast.Decl) []*ast.Instantiation {
+	var out []*ast.Instantiation
+	for _, d := range body {
+		ast.Inspect(d, func(n ast.Node) bool {
+			if i, ok := n.(*ast.Instantiation); ok {
+				out = append(out, i)
+			}
+			return true
+		})
+	}
+	return out
+}
+
+func firstInst(body []ast.Decl) *ast.Instantiation {
+	if all := allInsts(body); len(all) > 0 {
+		return all[0]
+	}
+	return nil
 }

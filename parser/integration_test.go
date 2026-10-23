@@ -253,6 +253,10 @@ func FuzzParseNeverPanics(f *testing.F) {
 		"rand",
 		"static constraint",
 		"extern function",
+		"generate for (genvar i = 0; i < 2; i++) begin : g if (i) wire w; else begin end end endgenerate",
+		"case (W) 1, 2: begin end default: ; endcase",
+		"if (a) assign x = 1; else if (",
+		"for (genvar i = 0;",
 	}
 	for _, s := range seeds {
 		f.Add(s)

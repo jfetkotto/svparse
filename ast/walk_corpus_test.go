@@ -150,6 +150,23 @@ func TestWalkReachesEveryNodeOnce(t *testing.T) {
 			t.Errorf("Dump hit its fallback:\n%s", out)
 		}
 	})
+	t.Run("generate", func(t *testing.T) {
+		toks, _ := preprocessor.Preprocess("g.sv", generateSource, nil)
+		f, errs := parser.Parse("g.sv", toks)
+		if len(errs) != 0 {
+			t.Fatalf("generateSource has errors: %v", errs)
+		}
+		checkWalkComplete(t, f, seenKinds)
+		out := ast.Dump(f)
+		if strings.Contains(out, "UNHANDLED") {
+			t.Errorf("Dump hit its fallback:\n%s", out)
+		}
+		for _, kind := range []string{"GenerateRegion", "GenerateBlock", "GenerateIf", "GenerateFor", "GenerateCase", "GenerateCaseItem"} {
+			if !seenKinds[kind] {
+				t.Errorf("no %s node in generateSource", kind)
+			}
+		}
+	})
 	t.Run("all-expressions", func(t *testing.T) {
 		checkWalkComplete(t, fileHoldingAllExprs(), seenKinds)
 	})
@@ -295,6 +312,21 @@ const subroutineSource = `module m;
     repeat (n) @(posedge clk);
     q.find_first with (item > 1);
   endtask
+endmodule`
+
+// generateSource has every generate construct, nested, with bare branches.
+const generateSource = `module m #(int W = 8);
+  generate
+    for (genvar i = 0; i < W; i++) begin : g
+      if (i == 0) assign a = 1; else if (i > 3) begin : hi
+        leaf u();
+      end else wire w;
+    end
+    case (W)
+      8, 16: begin end
+      default: ;
+    endcase
+  endgenerate
 endmodule`
 
 // goldenSource touches most declaration kinds, including ones the vendored

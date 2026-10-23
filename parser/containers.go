@@ -461,58 +461,28 @@ func (p *parser) parseDecl() ([]ast.Decl, bool) {
 		p.skipToKeyword("endclocking", nil)
 		p.skipEndLabel()
 		return nil, true
-	case "generate", "endgenerate":
-		// "generate"/"endgenerate" (LRM 27.3) are pure scope brackets around
-		// an otherwise ordinary run of module items (instantiations,
-		// variable/parameter declarations, generate for/if/case
-		// constructs, ...) -- consumed as no-ops so everything between them
-		// parses exactly as it would outside a generate region.
-		p.advance()
-		return nil, true
-	case "begin", "end":
-		// A generate block's own delimiters (LRM 27.3's "generate_block" ::
-		// begin [ : name ] ... end [ : name ]), reached here only at
-		// container/generate scope -- a procedural block's begin/end is
-		// already consumed whole by skipProceduralConstruct/skipBody before
-		// parseDecl ever sees it. Consumed as a no-op (plus an optional
-		// ": name" block label) so a generate block's contents parse as
-		// ordinary declarations, same reasoning as "generate"/"endgenerate"
-		// above.
+	case "generate":
+		return p.parseGenerateRegion()
+	case "endgenerate", "end":
+		// A stray closer (its opener is consumed by the construct that owns
+		// it): a no-op, plus an optional ": name" label after "end".
 		p.advance()
 		p.skipEndLabel()
 		return nil, true
+	case "begin":
+		// A bare generate block at item scope (LRM 27.3).
+		n := p.parseGenerateBlock()
+		return []ast.Decl{n}, true
 	case "else":
-		// A generate-if's "else" (LRM 27.5): consumed as a no-op. What
-		// follows -- "begin"/"if"/a bare single item -- is left for the
-		// next parseBody iteration to dispatch on normally, which is what
-		// naturally chains an "else if" and reaches the "begin"/"if" cases
-		// above/below without this case needing to recurse.
+		// A stray "else" (its "if" was consumed by parseGenerateIf): a no-op.
 		p.advance()
 		return nil, true
-	case "for", "if":
-		// A generate for-loop or generate-if's condition/header (LRM 27.4,
-		// 27.5) -- never parsed, same "declaration-grade, not full
-		// expression/statement grammar" reasoning as everywhere else in
-		// this parser. Skipped as a single balanced "(...)" group; what
-		// follows (a "begin ... end" generate block, or -- LRM allows it --
-		// a single bare generate item with no begin/end) is left for the
-		// next parseBody iteration, which reaches the "begin" case above
-		// or parses the single item as an ordinary declaration.
-		p.advance()
-		p.skipParenGroup()
-		return nil, true
-	case "case", "casex", "casez":
-		// A generate-case construct (LRM 27.5): unlike for/if, its per-item
-		// "expr : item" / "default : item" shape (item possibly a bare
-		// statement with no begin/end at all) doesn't fit this parser's
-		// declaration-oriented dispatch loop cleanly, so it's skipped
-		// wholesale -- header and body together -- down to the matching
-		// "endcase", rather than letting its items parse individually the
-		// way for/if's do.
-		p.advance()
-		p.skipParenGroup()
-		p.skipToKeyword("endcase", caseOpenKeywords)
-		return nil, true
+	case "if":
+		return p.parseGenerateIf()
+	case "for":
+		return p.parseGenerateFor()
+	case "case":
+		return p.parseGenerateCase()
 	}
 	if gatePrimitiveKeywords[tok.Text] {
 		p.advance()
