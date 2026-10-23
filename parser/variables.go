@@ -44,7 +44,7 @@ var nonTypeNameQualifiers = map[string]bool{
 }
 
 func isVariableStartKeyword(text string) bool {
-	return dataTypeKeywords[text]
+	return dataTypeKeywords[text] || aggregateKeywords[text]
 }
 
 // parseVariableDecl parses a net/variable declaration statement, which
@@ -68,8 +68,7 @@ func (p *parser) parseVariableDecl() ([]ast.Decl, bool) {
 // disambiguation a later commit adds.
 func (p *parser) parseVariableDeclQualified(isRand, isRandC, isStatic bool) ([]ast.Decl, bool) {
 	p.consumeNetTypeQualifier()
-	typ := p.parseTypeBase()
-	typ.PackedDims = p.parseDims()
+	typ := p.parseDataType()
 
 	groups, closed := p.splitDeclaratorsToSemi()
 	if !closed {

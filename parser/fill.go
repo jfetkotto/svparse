@@ -8,6 +8,77 @@ import (
 	"github.com/jfetkotto/svparse/token"
 )
 
+// ownTypes gives every Type in f its own copies of the parts that
+// declarators of one statement share, so the tree stays a tree.
+//
+// "struct {int x;} a, b;" and "cls #(8) c, d;" produce a Variable per name,
+// each holding a copy of the same Type value: a copy shares its slices and its
+// Inline pointer with the others. Left alone, Walk would visit the shared
+// aggregate or override once per declarator, and a fill that writes into it
+// would hang one set of expression nodes under every owner.
+//
+// The first Type to claim an Inline aggregate keeps it; each later one gets a
+// deep copy, which keeps the original's Position. Two declarators therefore
+// have equal-looking but distinct aggregates, and "same Position" is how to
+// tell they were written as one type.
+func ownTypes(f *ast.File) {
+	claimed := make(map[ast.Decl]bool)
+	ast.Inspect(f, func(n ast.Node) bool {
+		t, ok := n.(*ast.Type)
+		if !ok {
+			return true
+		}
+		if len(t.ParamOverrides) > 0 {
+			t.ParamOverrides = slices.Clone(t.ParamOverrides)
+		}
+		if t.Inline != nil {
+			if claimed[t.Inline] {
+				t.Inline = cloneAggregate(t.Inline)
+			}
+			claimed[t.Inline] = true
+		}
+		return true
+	})
+}
+
+// cloneAggregate deep-copies an anonymous struct, union, or enum, including
+// aggregates nested in its members. It runs before fillExprs, so only raw
+// token spans (never mutated, so safe to share) need no copying.
+func cloneAggregate(d ast.Decl) ast.Decl {
+	switch d := d.(type) {
+	case *ast.Struct:
+		c := *d
+		c.Members = cloneMembers(d.Members)
+		return &c
+	case *ast.Union:
+		c := *d
+		c.Members = cloneMembers(d.Members)
+		return &c
+	case *ast.Enum:
+		c := *d
+		c.BaseType = cloneType(d.BaseType)
+		c.Members = slices.Clone(d.Members)
+		return &c
+	}
+	return d
+}
+
+func cloneMembers(ms []ast.Variable) []ast.Variable {
+	out := slices.Clone(ms)
+	for i := range out {
+		out[i].Type = cloneType(out[i].Type)
+	}
+	return out
+}
+
+func cloneType(t ast.Type) ast.Type {
+	t.ParamOverrides = slices.Clone(t.ParamOverrides)
+	if t.Inline != nil {
+		t.Inline = cloneAggregate(t.Inline)
+	}
+	return t
+}
+
 // fillExprs populates the parsed-expression sibling of every raw expression
 // span in f: Variable.InitialExpr from Initial, Dim.LeftExpr from Dim.Left,
 // and so on (see the field docs in package ast). The raw spans are left

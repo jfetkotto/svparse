@@ -39,7 +39,7 @@ func isEndKeyword(text string) bool { return endKeywords[text] }
 // builtin data-type keywords a variable/net declaration can start with
 // (dataTypeKeywords, defined in variables.go).
 func isDeclStartKeyword(text string) bool {
-	return containerStartKeywords[text] || dataTypeKeywords[text]
+	return containerStartKeywords[text] || dataTypeKeywords[text] || aggregateKeywords[text]
 }
 
 // proceduralStartKeywords are the keywords that begin a procedural block

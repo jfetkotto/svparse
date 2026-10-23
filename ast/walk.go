@@ -109,6 +109,9 @@ func Walk(v Visitor, n Node) {
 	case *Task:
 		walkValues(v, n.Args)
 	case *Type:
+		if n.Inline != nil {
+			Walk(v, n.Inline)
+		}
 		walkValues(v, n.ParamOverrides)
 		walkDims(v, n.PackedDims)
 	case *Instantiation:
@@ -270,7 +273,7 @@ func walkType(v Visitor, t *Type) {
 func (t *Type) isZero() bool {
 	return t.Position == (Position{}) && !t.Signed && !t.Unsigned &&
 		t.PackageQualifier == "" && t.Modport == "" && t.Name == "" &&
-		len(t.PackedDims) == 0 && len(t.ParamOverrides) == 0
+		len(t.PackedDims) == 0 && len(t.ParamOverrides) == 0 && t.Inline == nil
 }
 
 type inspector func(Node) bool

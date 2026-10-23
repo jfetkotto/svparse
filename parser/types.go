@@ -19,16 +19,18 @@ func (p *parser) parseTypeAndName() (ast.Type, preprocessor.Token, bool) {
 		return t, nameTok, true
 	}
 
-	save := p.pos
-	t := p.parseTypeBase()
-	t.PackedDims = p.parseDims()
+	save, saveErrs := p.pos, len(p.errs)
+	t := p.parseDataType()
 
 	if nameTok := p.peek(); nameTok.Kind == token.KindIdent {
 		p.advance()
 		return t, nameTok, true
 	}
 
-	p.pos = save
+	// Rewind, and forget any error the speculative parse recorded (an
+	// aggregate body can report some; the implicit-type reading will not
+	// re-parse it).
+	p.pos, p.errs = save, p.errs[:saveErrs]
 	nameTok, ok := p.expectIdent()
 	return ast.Type{}, nameTok, ok
 }
@@ -54,8 +56,7 @@ func (p *parser) netTypeAndName() (ast.Type, preprocessor.Token, bool) {
 	savePos, saveErrs := p.pos, len(p.errs)
 	p.advance() // the net-type keyword
 
-	t := p.parseTypeBase()
-	t.PackedDims = p.parseDims()
+	t := p.parseDataType()
 	if t.Name != "" && !nonTypeNameQualifiers[t.Name] {
 		if nameTok := p.peek(); nameTok.Kind == token.KindIdent {
 			p.advance()
@@ -95,6 +96,22 @@ func (p *parser) consumeNetTypeQualifier() {
 	case token.KindIdent, token.KindLBrack, token.KindColonColon:
 		p.advance()
 	}
+}
+
+// parseDataType parses a data type with its packed dimensions: an anonymous
+// struct, union, or enum written in place (parseInlineAggregate), or else a
+// named type (parseTypeBase). Every site that reads "type [dims]" before a
+// declared name uses this, so an inline aggregate works in a variable, port,
+// parameter, argument, return type, and struct member alike.
+func (p *parser) parseDataType() ast.Type {
+	var t ast.Type
+	if p.atAggregate() {
+		t, _ = p.parseInlineAggregate() // on failure the error is recorded and t still names the keyword
+	} else {
+		t = p.parseTypeBase()
+	}
+	t.PackedDims = p.parseDims()
+	return t
 }
 
 // parseTypeBase greedily consumes signed/unsigned and one type name
