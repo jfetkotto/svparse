@@ -48,11 +48,11 @@ partway through an item, leave a short "Status:" note under it.
       (statements), SVA operators. Known limit: a chain of a million binary
       operators builds a left-nested tree that deep, so tree walks recurse
       that deeply; fine for real code.
-- [ ] `bugfix/lexer-spaced-based-literals` (prerequisite for expr-fields): LRM
-      5.7.1 allows white space between a literal's size, base and digits
-      (`32 'd 1`, `'b 0`); the lexer splits them into separate tokens. Join them
-      into one `IntLiteral`; 11 entries in `knownRejectedSpans`
-      (`parser/expr_corpus_test.go`) disappear.
+- [x] `bugfix/lexer-spaced-based-literals`: `32 'd 1` and `'b 0` are one
+      `IntLiteral` (Text keeps the spaces). Departs from LRM 5.7.1 on purpose in
+      one case: a line break between the base and its digits is not joined, so a
+      bare `'h` at the end of a line being typed cannot swallow the next line.
+      The 11 spaced-literal spans left `knownRejectedSpans`.
 - [ ] `feature/expr-fields`: populate `*Expr` siblings of every raw span.
       Dimension parsing must special-case the wildcard `[*]` (4 corpus spans),
       and a `parameter type` default is a data type, not an expression (M2).
@@ -124,3 +124,4 @@ partway through an item, leave a short "Status:" note under it.
 | ast-walk-dump (no pipeline change) | 201 |
 | expr-ast (no pipeline change) | 201 |
 | expr-parser (parser not wired in yet) | 201 |
+| lexer-spaced-based-literals | 201 |

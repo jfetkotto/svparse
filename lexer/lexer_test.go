@@ -254,6 +254,8 @@ func TestTokenEndAgreesWithLexerColumns(t *testing.T) {
 		"8'hFF+'h1<<<2",
 		"\"\U0001F600\"+a",
 		"$display(\"x\")",
+		"8\n'h FF+1",
+		"32 'd 1;",
 	}
 	for _, src := range sources {
 		toks, _ := Lex(src)
