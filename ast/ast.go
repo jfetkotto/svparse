@@ -3,11 +3,13 @@
 // token/lexer split for the same reasoning: vocabulary and algorithm
 // stay separate.
 //
-// Unparsed sub-expressions -- a default value, an array-dimension bound,
-// a parameter override's value, a port-connection expression -- are
-// kept as raw []preprocessor.Token spans, never a real expression tree.
-// This is the "declaration-grade, not full expression grammar" design
-// principle made concrete: capture what's written, don't interpret it.
+// Sub-expressions -- a default value, an array-dimension bound, a parameter
+// override's value, a port-connection expression -- are kept as raw
+// []preprocessor.Token spans exactly as written, and each also has a parsed
+// sibling field (InitialExpr, DefaultExpr, LeftExpr, ...) holding the
+// expression tree. The raw span stays populated alongside it: capture what's
+// written, and interpret it separately. A parsed sibling is nil when its span
+// is empty, and a *BadExpr over the whole span when the span did not parse.
 //
 // Walk and Inspect traverse a tree in source order (go/ast style), and Dump
 // renders one as a compact S-expression for golden tests and debugging.
@@ -55,6 +57,10 @@ type File struct {
 // user-defined typedef name, optionally package-qualified -- the parser
 // doesn't resolve or distinguish these, it just records the name and
 // dimensions as written.
+//
+// Position covers the type's name token only, not its dimensions or
+// parameter overrides, so the bound expressions of PackedDims lie outside it
+// (the range a consumer wants for hover and go-to-definition on the name).
 type Type struct {
 	Position
 	Signed           bool
@@ -74,6 +80,16 @@ type Type struct {
 // Dim is one array/bit-range dimension: [Left:Right] (a range) or
 // [Left] alone (an unsized/queue-style dimension, Right nil). Left/Right
 // are raw expression token spans -- see the package doc comment.
+//
+// LeftExpr and RightExpr are the parsed forms of Left and Right: nil when the
+// bound is absent, a *BadExpr covering the tokens if they did not parse. A
+// lone bound that is just a name ("[N]") is wrapped in a *TypeOrExpr, since in
+// a declarator it is a size or, for an associative array, an index type.
+// Wildcard marks the "[*]" index of a wildcard associative array (LRM 7.8.1),
+// which is not an expression; Left holds its "*" token and LeftExpr is nil.
 type Dim struct {
 	Left, Right []preprocessor.Token
+
+	LeftExpr, RightExpr Expr
+	Wildcard            bool
 }

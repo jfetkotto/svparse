@@ -84,7 +84,9 @@ func describe(n Node) (head string, kids []Node) {
 		if n.Extends != "" {
 			h += " extends=" + n.Extends
 		}
-		if len(n.ExtendsArgs) > 0 {
+		if len(n.ExtendsArgExprs) > 0 {
+			h += " extends-args=[" + strings.Join(exprTexts(n.ExtendsArgExprs), " ") + "]"
+		} else if len(n.ExtendsArgs) > 0 {
 			h += " extends-args=" + span(n.ExtendsArgs)
 		}
 		if len(n.Implements) > 0 {
@@ -98,7 +100,7 @@ func describe(n Node) (head string, kids []Node) {
 	case *Import:
 		return "import " + n.Package + "::" + n.Member, nil
 	case *Variable:
-		h := "variable " + n.Name + typeAttr(n.Type) + dims(n.UnpackedDims) + initial(n.Initial)
+		h := "variable " + n.Name + typeAttr(n.Type) + dims(n.UnpackedDims) + valueAttr(n.InitialExpr, n.Initial)
 		h += flag(n.IsRand, "rand") + flag(n.IsRandC, "randc") + flag(n.IsStatic, "static")
 		return h, nil
 	case *Parameter:
@@ -106,7 +108,7 @@ func describe(n Node) (head string, kids []Node) {
 		if n.IsLocal {
 			kw = "localparam"
 		}
-		return kw + " " + n.Name + typeAttr(n.Type) + dims(n.UnpackedDims) + initial(n.Default), nil
+		return kw + " " + n.Name + typeAttr(n.Type) + dims(n.UnpackedDims) + valueAttr(n.DefaultExpr, n.Default), nil
 	case *Typedef:
 		if n.Underlying == nil {
 			return "typedef " + n.Name + " forward", nil
@@ -121,9 +123,9 @@ func describe(n Node) (head string, kids []Node) {
 	case *Enum:
 		return "enum" + typeAttr(n.BaseType), values(n.Members)
 	case *EnumMember:
-		return "enum-member " + n.Name + initial(n.Value), nil
+		return "enum-member " + n.Name + valueAttr(n.ValueExpr, n.Value), nil
 	case *Port:
-		return "port" + direction(n.Direction) + " " + n.Name + typeAttr(n.Type) + dims(n.UnpackedDims) + initial(n.Default), nil
+		return "port" + direction(n.Direction) + " " + n.Name + typeAttr(n.Type) + dims(n.UnpackedDims) + valueAttr(n.DefaultExpr, n.Default), nil
 	case *PortDecl:
 		return "port-decl" + direction(n.Direction) + " " + n.Name + typeAttr(n.Type) + dims(n.UnpackedDims), nil
 	case *Modport:
@@ -131,7 +133,7 @@ func describe(n Node) (head string, kids []Node) {
 	case *ModportPort:
 		return "modport-port" + direction(n.Direction) + " " + n.Name, nil
 	case *Arg:
-		return "arg" + direction(n.Direction) + " " + n.Name + typeAttr(n.Type) + dims(n.UnpackedDims) + initial(n.Default), nil
+		return "arg" + direction(n.Direction) + " " + n.Name + typeAttr(n.Type) + dims(n.UnpackedDims) + valueAttr(n.DefaultExpr, n.Default), nil
 	case *Function:
 		return "function " + n.Name + flag(n.Prototype, "prototype") + typeAttr(n.ReturnType), values(n.Args)
 	case *Task:
@@ -150,6 +152,9 @@ func describe(n Node) (head string, kids []Node) {
 			return "connection .*", nil
 		case n.Implicit:
 			return "connection ." + n.Name + " implicit", nil
+		}
+		if n.ConnExpr != nil {
+			return "connection ." + n.Name + " " + exprText(n.ConnExpr), nil
 		}
 		return "connection" + namedValue(n.Name, n.Expr), nil
 	}
@@ -255,19 +260,43 @@ func typeString(t Type) string {
 	return strings.Join(parts, " ")
 }
 
-// dims is " [l:r] [l] []" for a dimension list, empty for none.
+// dims is " [l:r] [l] [] [*]" for a dimension list, empty for none, using each
+// bound's parsed expression when there is one.
 func dims(ds []Dim) string {
 	var b strings.Builder
 	for _, dim := range ds {
 		b.WriteString(" [")
-		b.WriteString(tokenText(dim.Left))
-		if dim.Right != nil {
-			b.WriteByte(':')
-			b.WriteString(tokenText(dim.Right))
+		switch {
+		case dim.Wildcard:
+			b.WriteByte('*')
+		default:
+			b.WriteString(boundText(dim.LeftExpr, dim.Left))
+			if dim.Right != nil {
+				b.WriteByte(':')
+				b.WriteString(boundText(dim.RightExpr, dim.Right))
+			}
 		}
 		b.WriteByte(']')
 	}
 	return b.String()
+}
+
+// boundText is one dimension bound: the parsed expression if present, else
+// its raw tokens.
+func boundText(e Expr, raw []preprocessor.Token) string {
+	if e != nil {
+		return exprText(e)
+	}
+	return tokenText(raw)
+}
+
+// valueAttr is " = value" for a variable's initializer, a default, or an enum
+// value: the parsed expression if present, else the raw span quoted.
+func valueAttr(e Expr, raw []preprocessor.Token) string {
+	if e != nil {
+		return " = " + exprText(e)
+	}
+	return initial(raw)
 }
 
 func initial(toks []preprocessor.Token) string {

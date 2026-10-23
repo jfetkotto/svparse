@@ -53,10 +53,20 @@ partway through an item, leave a short "Status:" note under it.
       one case: a line break between the base and its digits is not joined, so a
       bare `'h` at the end of a line being typed cannot swallow the next line.
       The 11 spaced-literal spans left `knownRejectedSpans`.
-- [ ] `feature/expr-fields`: populate `*Expr` siblings of every raw span.
-      Dimension parsing must special-case the wildcard `[*]` (4 corpus spans),
-      and a `parameter type` default is a data type, not an expression (M2).
-      `TestParseExprOnCorpusSpans` already pins which real spans are rejected.
+- [x] `feature/expr-fields`: every raw expression span now has a parsed sibling
+      (`InitialExpr`, `DefaultExpr`, `ValueExpr`, `ConnExpr`, `Dim.LeftExpr/
+      RightExpr`, `Class.ExtendsArgExprs`); the raw spans stay populated. One
+      pass, `fillExprs` (`parser/fill.go`), runs at the end of `Parse`.
+      Expression errors are deliberately NOT reported yet (a bad span becomes a
+      `BadExpr` over the whole span), so no baseline moved; surfacing them is a
+      separate, deliberate change. `[*]` is `Dim.Wildcard`; a lone-name dim and a
+      `parameter type` default are `TypeOrExpr`. Dimension arrays are cloned per
+      owner so the tree stays a tree. `rawSpanSiblings` in `parser/fill_test.go`
+      must list any new raw `[]preprocessor.Token` field. Still BadExpr in the
+      corpus: `virtual x_if` type defaults (M2) and one undefined macro.
+- [ ] `feature/expr-diagnostics` (new): report expression syntax errors from the
+      fill pass as real parser errors, with the conformance and corpus baselines
+      updated deliberately. Do this after M3 so statements are covered too.
 
 ## M2: Types and declarations (Annex A.2)
 
@@ -125,3 +135,4 @@ partway through an item, leave a short "Status:" note under it.
 | expr-ast (no pipeline change) | 201 |
 | expr-parser (parser not wired in yet) | 201 |
 | lexer-spaced-based-literals | 201 |
+| expr-fields (errors suppressed on purpose) | 201 |

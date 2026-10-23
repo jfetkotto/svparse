@@ -56,4 +56,5 @@ type PortConnection struct {
 	Wildcard bool
 	Implicit bool
 	Expr     []preprocessor.Token
+	ConnExpr Expr // parsed Expr; nil for ".*", ".name" and an empty ".name()"
 }

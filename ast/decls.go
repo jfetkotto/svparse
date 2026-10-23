@@ -30,6 +30,7 @@ type Variable struct {
 	Name         string
 	UnpackedDims []Dim
 	Initial      []preprocessor.Token // nil unless "= expr"
+	InitialExpr  Expr                 // parsed Initial
 	IsRand       bool
 	IsRandC      bool
 	IsStatic     bool
@@ -46,6 +47,7 @@ type Parameter struct {
 	Name         string
 	UnpackedDims []Dim
 	Default      []preprocessor.Token
+	DefaultExpr  Expr // parsed Default; for a "parameter type", a type (*TypeExpr or *TypeOrExpr)
 }
 
 // Typedef is a typedef. Underlying is nil for a forward declaration
@@ -93,6 +95,8 @@ type EnumMember struct {
 	declBase
 	Name  string
 	Value []preprocessor.Token // nil unless "= expr"
+
+	ValueExpr Expr // parsed Value
 }
 
 // Port is one entry in a container's own header port list -- always
@@ -112,6 +116,7 @@ type Port struct {
 	Name         string
 	UnpackedDims []Dim
 	Default      []preprocessor.Token
+	DefaultExpr  Expr // parsed Default
 }
 
 // PortDecl is one non-ANSI port declaration (LRM 23.2.2.3): "direction
@@ -167,6 +172,7 @@ type Arg struct {
 	Name         string
 	UnpackedDims []Dim
 	Default      []preprocessor.Token
+	DefaultExpr  Expr // parsed Default
 }
 
 // Function and Task are near-identical: a name, an argument list, and
