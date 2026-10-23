@@ -82,7 +82,7 @@ generic/typedef/typedef_test_25__bad.sv pass # undetected: Using undefined param
 generic/typedef/typedef_test_28__bad.sv pass # undetected: missing forward typedef declaration, type_identifier does not resolve to a data type.
 generic/typedef/typedef_test_8__bad.sv pass # undetected: defining a type using an undefined type
 
-# --- Parser gaps: valid code the declaration-grade parser rejects (statements, expressions, assertions, constraints, ...) (21) ---
+# --- Parser gaps: valid code the declaration-grade parser rejects (statements, expressions, assertions, constraints, ...) (17) ---
 chapter-10/10.3.3--cont-assignment-net-delay.sv fail # parse error: expected an identifier, found "#"
 chapter-10/10.6.1--assign-deassign.sv fail # parse error: expected ';' before "assign"
 chapter-14/14.3--default-clocking-block.sv fail # parse error: unexpected token "default", skipping to the next declaration
@@ -100,10 +100,6 @@ chapter-6/6.6.7--nettype_resolution_fn.sv fail # parse error: unexpected token "
 chapter-6/6.6.8--interconnect.sv fail # parse error: unexpected token "interconnect", skipping to the next declaration
 chapter-6/6.9.2--vector_scalared.sv fail # parse error: expected an identifier, found "scalared"
 chapter-6/6.9.2--vector_vectored.sv fail # parse error: expected an identifier, found "vectored"
-generic/struct/struct_test_0.sv fail # parse error: expected '{' to start struct/union body
-generic/typedef/typedef_test_18.sv fail # parse error: unterminated struct/union member, expected ';'
-generic/typedef/typedef_test_22.sv fail # parse error: expected '{' to start enum body
-generic/union/union_test_0.sv fail # parse error: expected '{' to start struct/union body
 
 # --- Needs the UVM library, which is not vendored (89) ---
 chapter-16/16.10--property-local-var-uvm.sv fail # needs the UVM library (tag uvm; a git submodule upstream, not vendored): `include "uvm_macros.svh" unresolved

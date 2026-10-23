@@ -101,6 +101,10 @@ partway through an item, leave a short "Status:" note under it.
       Conformance 185 -> 175 (12 fixed, 2 negatives now honestly `undetected`).
       Not done: `type` parameters already worked; a chained `C#(1)::D#(2)::T`
       and an out-of-block method of a parameterized class are not handled.
+- [x] `bugfix/aggregate-leftovers` (found after inline-aggregate-types):
+      forward typedefs with a keyword (`typedef struct|union|enum Name;`, new
+      `Typedef.ForwardKind`, now also set for `typedef class`) and `rand`/`randc`
+      struct members. Conformance 175 -> 171.
 - [ ] `feature/nettype-interconnect-specparam`
 - [ ] `feature/lexer-trivia` (comments retained for suppression and hover)
 
@@ -168,3 +172,4 @@ partway through an item, leave a short "Status:" note under it.
 | inline-aggregate-types | 185 (63 undetected negatives, 33 parser gaps, 89 need UVM) |
 | subnode-spans (no pipeline change) | 185 |
 | class-parameterization | 175 (65 undetected negatives, 21 parser gaps, 89 need UVM) |
+| aggregate-leftovers | 171 (65 undetected negatives, 17 parser gaps, 89 need UVM) |
