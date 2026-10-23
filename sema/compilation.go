@@ -78,6 +78,7 @@ type Compilation struct {
 	opts  Options
 	files []*ast.File
 	built *index
+	model *Model
 }
 
 // index is everything derived from the files.
@@ -102,7 +103,7 @@ func (c *Compilation) AddFile(f *ast.File) {
 	if f == nil {
 		return
 	}
-	c.built = nil
+	c.built, c.model = nil, nil
 	for i, old := range c.files {
 		if old.Path == f.Path {
 			c.files[i] = f
@@ -117,7 +118,7 @@ func (c *Compilation) RemoveFile(path string) {
 	for i, f := range c.files {
 		if f.Path == path {
 			c.files = append(c.files[:i:i], c.files[i+1:]...)
-			c.built = nil
+			c.built, c.model = nil, nil
 			return
 		}
 	}
