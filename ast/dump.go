@@ -171,6 +171,29 @@ func describe(n Node) (head string, kids []Node) {
 		return strings.TrimSpace("param-override " + overrideText(*n)), nil
 	case *Instance:
 		return "instance " + n.Name + dims(n.UnpackedDims), values(n.Connections)
+	case *GateInstantiation:
+		h := "gate " + n.Gate
+		if len(n.DriveStrength) > 0 {
+			h += " strength=(" + strings.Join(n.DriveStrength, ",") + ")"
+		}
+		if len(n.Delay) > 0 {
+			h += " delay=[" + strings.Join(exprTexts(n.Delay), " ") + "]"
+		}
+		return h, values(n.Instances)
+	case *GateInstance:
+		name := n.Name
+		if name == "" {
+			name = "_"
+		}
+		return "gate-instance " + name + dims(n.UnpackedDims) + " (" + strings.Join(exprTexts(n.Terminals), " ") + ")", nil
+	case *UDP:
+		return "udp " + n.Name + flag(n.Sequential, "sequential"), concat(values(n.Ports), decls(n.Body), values(n.Rows))
+	case *UDPRow:
+		h := "row " + strings.Join(n.Inputs, " ")
+		if n.Current != "" {
+			h += " : " + n.Current
+		}
+		return h + " : " + n.Next, nil
 	case *PortConnection:
 		switch {
 		case n.Wildcard:

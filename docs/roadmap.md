@@ -191,7 +191,13 @@ partway through an item, leave a short "Status:" note under it.
       (`giveBackElse`). Nesting is capped at 256. Consumers must now descend
       into these nodes: sigilsv2 branch `feature/generate-nodes` does, and
       sigils pinned to v0.1.9 is unaffected until it bumps.
-- [ ] `feature/primitives`
+- [x] `feature/primitives`: gate and switch instantiations become
+      `GateInstantiation`/`GateInstance` (strength, delay, optional names,
+      arrays, terminals as expressions) and `primitive ... endprimitive`
+      becomes `UDP` with `UDPRow` table entries (`parser/primitives.go`).
+      UDPs used to produce a cascade of syntax errors; they now parse clean.
+      The vendored sv-tests has no chapter 28/29 files, so coverage is
+      hand-written tests only.
 - [ ] `feature/misc-items` (bind, defparam, config, let, clocking, alias, ...)
 
 ## M5: Verification constructs (LRM 16, 18, 19)
@@ -253,3 +259,4 @@ partway through an item, leave a short "Status:" note under it.
 | function-task-bodies (errors suppressed on purpose) | 165 |
 | procedural-blocks (errors suppressed on purpose) | 165 |
 | generate (structured nodes) | 165 |
+| primitives (UDP syntax errors gone, none in corpus) | 165 |

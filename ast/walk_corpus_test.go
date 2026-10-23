@@ -167,6 +167,22 @@ func TestWalkReachesEveryNodeOnce(t *testing.T) {
 			}
 		}
 	})
+	t.Run("primitives", func(t *testing.T) {
+		toks, _ := preprocessor.Preprocess("p.sv", primitivesSource, nil)
+		f, errs := parser.Parse("p.sv", toks)
+		if len(errs) != 0 {
+			t.Fatalf("primitivesSource has errors: %v", errs)
+		}
+		checkWalkComplete(t, f, seenKinds)
+		if out := ast.Dump(f); strings.Contains(out, "UNHANDLED") {
+			t.Errorf("Dump hit its fallback:\n%s", out)
+		}
+		for _, kind := range []string{"GateInstantiation", "GateInstance", "UDP", "UDPRow"} {
+			if !seenKinds[kind] {
+				t.Errorf("no %s node in primitivesSource", kind)
+			}
+		}
+	})
 	t.Run("all-expressions", func(t *testing.T) {
 		checkWalkComplete(t, fileHoldingAllExprs(), seenKinds)
 	})
@@ -327,6 +343,27 @@ const generateSource = `module m #(int W = 8);
       default: ;
     endcase
   endgenerate
+endmodule`
+
+// primitivesSource has gates with strength, delay, names and arrays, and both
+// a combinational and a sequential user-defined primitive.
+const primitivesSource = `primitive mux (out, sel, a, b);
+  output out;
+  input sel, a, b;
+  table
+    0 0 ? : 0;
+    (01) ? ? : - ;
+  endtable
+endprimitive
+primitive dff (output reg q, input d, clk);
+  initial q = 0;
+  table
+    r 0 : ? : 0;
+  endtable
+endprimitive
+module m;
+  and #(1,2) (strong0, weak1) g1 (o, a, b), g2[3:0] (o2, a2, b2);
+  pullup (p);
 endmodule`
 
 // goldenSource touches most declaration kinds, including ones the vendored
