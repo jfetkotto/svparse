@@ -21,8 +21,13 @@ type Token struct {
 // Character + UTF16Len(Text) instead is wrong for any token containing a CR
 // or a newline.
 func (t Token) End() (line, char int) {
-	line, char = t.Line, t.Character
-	for _, r := range t.Text {
+	return endPosition(t.Line, t.Character, t.Text)
+}
+
+// endPosition is the position just past text that starts at (line, char),
+// advancing exactly as the lexer does.
+func endPosition(line, char int, text string) (int, int) {
+	for _, r := range text {
 		switch r {
 		case '\n':
 			line++
