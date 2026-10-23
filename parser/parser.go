@@ -177,6 +177,21 @@ func namePosition(nameTok preprocessor.Token) ast.Position {
 	}
 }
 
+// tokensSpan is the span from the start of toks[0] through the end of the last
+// token, for a node that covers a run of tokens rather than a single name (a
+// positional override or connection, a wildcard). End is clamped so it never
+// precedes Start (tokens from a macro expansion can be positioned out of order
+// relative to their invocation). toks must not be empty.
+func tokensSpan(toks []preprocessor.Token) ast.Position {
+	first := toks[0]
+	pos := ast.Position{File: first.File, Line: first.Line, Character: first.Character}
+	pos.EndLine, pos.EndCharacter = toks[len(toks)-1].End()
+	if pos.EndLine < pos.Line || (pos.EndLine == pos.Line && pos.EndCharacter < pos.Character) {
+		pos.EndLine, pos.EndCharacter = pos.Line, pos.Character
+	}
+	return pos
+}
+
 // endOfName returns the End position for a declaration that has no body to
 // span: just past the last character of its own name. Applied to every
 // declaration by namePosition, and re-applied explicitly by a prototype

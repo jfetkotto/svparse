@@ -83,10 +83,11 @@ partway through an item, leave a short "Status:" note under it.
       Known gaps: an enum member's repeat count (`C[3]`) is parsed and dropped;
       an inline aggregate is not accepted inside an expression (`$bits(struct
       ...)`); sigils hover prints only `struct name`.
-- [ ] `bugfix/subnode-spans`: `ParamOverride`, `PortConnection`, `Instance` and
-      `ModportPort` positions set only a start, so End is 0:0 (a backwards
-      range, protocol-invalid for LSP). Give them real spans and extend the
-      corpus span test (`TestSVTestsCorpusSpansAreWellFormed`) beyond declarations.
+- [x] `bugfix/subnode-spans`: `ParamOverride` and `PortConnection` (the only
+      two affected; `Instance` and `ModportPort` were already right) now have
+      real spans via `tokensSpan`. `TestEveryNodeSpanIsWellFormedAcrossTheCorpus`
+      checks every node Walk reaches, not just declarations, which is how this
+      escaped. Named forms stay positioned on the name alone (sigils relies on it).
 - [ ] `feature/class-parameterization`
 - [ ] `feature/nettype-interconnect-specparam`
 - [ ] `feature/lexer-trivia` (comments retained for suppression and hover)
@@ -153,3 +154,4 @@ partway through an item, leave a short "Status:" note under it.
 | lexer-spaced-based-literals | 201 |
 | expr-fields (errors suppressed on purpose) | 201 |
 | inline-aggregate-types | 185 (63 undetected negatives, 33 parser gaps, 89 need UVM) |
+| subnode-spans (no pipeline change) | 185 |
