@@ -59,7 +59,13 @@ func (p *parser) parseFunction(isPrototype bool) (ast.Decl, bool) {
 		return fn, true
 	}
 
+	bodyStart := p.pos
 	end, found := p.skipBody("endfunction")
+	var extra []ast.Arg
+	var suppressed []Error
+	fn.Decls, fn.Stmts, extra, suppressed = p.parseSubroutineBody(p.toks[bodyStart:p.pos])
+	fn.Args = append(fn.Args, extra...)
+	p.suppressed = append(p.suppressed, suppressed...)
 	fn.EndLine, fn.EndCharacter = end.Line, end.Character
 	if found {
 		p.advance() // "endfunction"
@@ -97,7 +103,13 @@ func (p *parser) parseTask(isPrototype bool) (ast.Decl, bool) {
 		return task, true
 	}
 
+	bodyStart := p.pos
 	end, found := p.skipBody("endtask")
+	var extra []ast.Arg
+	var suppressed []Error
+	task.Decls, task.Stmts, extra, suppressed = p.parseSubroutineBody(p.toks[bodyStart:p.pos])
+	task.Args = append(task.Args, extra...)
+	p.suppressed = append(p.suppressed, suppressed...)
 	task.EndLine, task.EndCharacter = end.Line, end.Character
 	if found {
 		p.advance() // "endtask"

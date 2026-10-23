@@ -411,7 +411,7 @@ func (p *parser) parseBlock(start int) ast.Stmt {
 			p.errorf(tok, "expected %s before %q", blockCloser(b), tok.Text)
 			return finishStmt(p, start, b)
 		case p.atBlockDeclaration():
-			p.parseBlockDeclaration(b)
+			b.Decls = append(b.Decls, p.parseBlockDeclaration()...)
 		default:
 			before := p.pos
 			b.Stmts = append(b.Stmts, p.parseStatement())
@@ -504,21 +504,21 @@ func (p *parser) skipBalanced(i int) int {
 	}
 }
 
-// parseBlockDeclaration parses one block-local declaration into b.Decls using
-// the same declaration parser a module body uses.
-func (p *parser) parseBlockDeclaration(b *ast.Block) {
+// parseBlockDeclaration parses one block-local declaration using the same
+// declaration parser a module body uses, and returns what it declared.
+func (p *parser) parseBlockDeclaration() []ast.Decl {
 	if tok := p.peek(); tok.Kind == token.KindKeyword && tok.Text == "automatic" {
 		p.advance() // a lifetime qualifier: recorded nowhere, like a function's
 	}
 	before := p.pos
 	decls, ok := p.parseDecl()
-	b.Decls = append(b.Decls, decls...)
 	if !ok {
 		p.recover()
 	}
 	if p.pos == before {
 		p.advance()
 	}
+	return decls
 }
 
 // parseIf parses "if (cond) stmt [else stmt]"; the cursor is on "if" and any
@@ -754,15 +754,24 @@ func (p *parser) parseForHeader(n *ast.For) {
 	if p.peek().Kind != token.KindSemi {
 		if tok := p.peek(); (tok.Kind == token.KindKeyword && (dataTypeKeywords[tok.Text] || tok.Text == "var" || tok.Text == "automatic" || tok.Text == "static")) ||
 			(tok.Kind == token.KindIdent && p.looksLikeTypedDeclaration()) {
-			if tok.Text == "var" || tok.Text == "automatic" || tok.Text == "static" {
-				p.advance()
-			}
-			typ := p.parseDataType()
 			groups, closed := p.splitByComma(token.KindSemi, false)
 			if !closed {
 				p.errorf(p.peek(), "expected ';' after the for initialisation")
 			}
-			for _, g := range groups {
+			// "int i = 0, j = 1" shares one type; "int i = 0, bit c = 1" starts
+			// a new declaration (LRM 12.7.1), recognised by a group that begins
+			// with a type.
+			var typ ast.Type
+			for k, g := range groups {
+				decl := p.newSubParser(g)
+				if k == 0 || decl.atForDeclarationStart() {
+					if t := decl.peek(); t.Kind == token.KindKeyword && (t.Text == "var" || t.Text == "automatic" || t.Text == "static") {
+						decl.advance()
+					}
+					typ = decl.parseDataType()
+					p.mergeErrors(decl)
+					g = g[decl.pos:]
+				}
 				if v, ok := p.parseVariableDeclarator(g, typ); ok {
 					n.InitDecls = append(n.InitDecls, v)
 				}
@@ -786,6 +795,20 @@ func (p *parser) parseForHeader(n *ast.For) {
 	if tok := p.peek(); tok.Kind != token.KindEOF {
 		p.errorf(tok, "unexpected %s in the for header", describeTok(tok))
 	}
+}
+
+// atForDeclarationStart reports whether a comma-separated group of a for
+// initialisation begins a new declaration, with a type of its own, rather than
+// declaring one more name of the previous type.
+func (p *parser) atForDeclarationStart() bool {
+	tok := p.peek()
+	switch tok.Kind {
+	case token.KindKeyword:
+		return dataTypeKeywords[tok.Text] || aggregateKeywords[tok.Text] || tok.Text == "var"
+	case token.KindIdent:
+		return p.looksLikeTypedDeclaration()
+	}
+	return false
 }
 
 // parseAssignList parses comma-separated simple assignments or expression
@@ -1080,4 +1103,52 @@ func (p *parser) stmtTooDeep(start int) ast.Stmt {
 	p.errorf(p.peek(), "statements nested more than %d levels deep", maxStmtDepth)
 	p.rawStatement(start)
 	return p.badStmt(start)
+}
+
+// parseSubroutineBody parses the tokens of a function or task body, the ones
+// between the header's ';' and the end keyword, into its local declarations and
+// statements. It runs in a parser of its own, limited to those tokens, so it
+// cannot read past the end keyword however malformed the body is.
+//
+// A body written in the older style declares its arguments in the body,
+// "function int f; input int a, b; ...". Those come back as args, to follow the
+// ones in the header.
+//
+// Errors are not reported: the extent of the body was settled by skipBody
+// without looking inside, and reading it is new. They come back as suppressed.
+func (p *parser) parseSubroutineBody(toks []preprocessor.Token) (decls []ast.Decl, stmts []ast.Stmt, args []ast.Arg, suppressed []Error) {
+	body := p.newSubParser(toks)
+	for body.peek().Kind != token.KindEOF {
+		body.skipAttributeInstances()
+		if body.peek().Kind == token.KindEOF {
+			break
+		}
+		before := body.pos
+		switch tok := body.peek(); {
+		case tok.Kind == token.KindKeyword && isTFPortDirection(tok.Text):
+			ports, _ := body.parsePortDecl()
+			for _, d := range ports {
+				pd := d.(*ast.PortDecl)
+				a := ast.Arg{Direction: pd.Direction, Type: pd.Type, Name: pd.Name, UnpackedDims: pd.UnpackedDims}
+				a.Position = pd.Position
+				args = append(args, a)
+			}
+		case body.atBlockDeclaration():
+			decls = append(decls, body.parseBlockDeclaration()...)
+		default:
+			stmts = append(stmts, body.parseStatement())
+		}
+		if body.pos == before {
+			body.advance() // guarantee progress
+		}
+	}
+	return decls, stmts, args, body.errs
+}
+
+func isTFPortDirection(text string) bool {
+	switch text {
+	case "input", "output", "inout", "ref":
+		return true
+	}
+	return false
 }

@@ -48,6 +48,14 @@ type parser struct {
 	// maxStmtDepth -- see stmt.go.
 	stmtDepth int
 
+	// suppressed holds errors found while parsing a construct for its
+	// structure only, which are deliberately not reported: the body of a
+	// function or task, whose extent the declaration parser has always
+	// found without looking inside. Reporting them is a separate, deliberate
+	// change (the roadmap's feature/expr-diagnostics) with its own baseline
+	// update; until then they are kept here so a test can see them.
+	suppressed []Error
+
 	// zeroWidth* remember the most recent zero-width expression node (a
 	// placeholder for something missing) so enclosing spans can widen to
 	// contain it -- see spanFrom.

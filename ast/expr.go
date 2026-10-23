@@ -235,14 +235,28 @@ type Cast struct {
 // ("pkg::f"), or a *MemberSelect for a method ("obj.m", "arr.find"). Args are
 // positional expressions, *NamedArg, or *Empty for an omitted argument
 // ("f(a,,c)"). With is the parenthesized iterator expression of an array
-// method ("q.find(x) with (x > 3)"); a "randomize() with { ... }" constraint
-// block is added with the constraint grammar. A call written without
-// parentheses ("$time", "obj.size") is not a Call.
+// method ("q.find(x) with (x > 3)"). A call written without parentheses
+// ("$time", "obj.size") is not a Call, except an array method with an iterator
+// clause, "q.find_first with (x > 3)", where the argument list is optional and
+// the call has no arguments.
 type Call struct {
 	exprBase
 	Func Expr
 	Args []Expr
 	With Expr // nil unless a "with (expr)" clause
+
+	// Constraints is the inline constraint block of a randomize call, "x.randomize()
+	// with { ... }" or "with (v) { ... }" (LRM 18.7); nil if absent.
+	Constraints *ConstraintBlock
+}
+
+// ConstraintBlock holds the braces of an inline constraint block, "{ x > 0; x <
+// y; }". Tokens is everything between the braces, unparsed: the constraint
+// grammar is not modeled yet, so this node keeps the block intact and in place
+// until it is, at which point it is replaced by real constraint nodes.
+type ConstraintBlock struct {
+	exprBase
+	Tokens []preprocessor.Token
 }
 
 // NamedArg is ".name(Value)" in a call's argument list. Value is nil for
