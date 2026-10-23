@@ -64,14 +64,14 @@ type Package struct {
 	Body []Decl
 }
 
-// Constraint is a class constraint block. Its body is recognized and
-// skipped (balanced braces), never parsed -- constraint-expression
-// grammar is entirely out of scope. Prototype is true for an "extern
-// constraint name;" or "pure constraint name;" declaration (LRM
-// 18.5.1/18.5.2) -- no body at all, mirroring how ast.Function/Task use
-// Prototype for their own extern/pure-virtual/DPI-import forms.
+// Constraint is a class constraint block (LRM 18.5). Items are its parsed
+// constraint items. Prototype is true for an "extern constraint name;" or "pure
+// constraint name;" declaration (LRM 18.5.1/18.5.2) -- no body at all, mirroring
+// how ast.Function/Task use Prototype for their own extern/pure-virtual/DPI-import
+// forms.
 type Constraint struct {
 	declBase
 	Name      string
 	Prototype bool
+	Items     []ConstraintItem // nil for a prototype
 }

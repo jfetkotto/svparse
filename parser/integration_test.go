@@ -274,6 +274,9 @@ func FuzzParseNeverPanics(f *testing.F) {
 		"sequence s; a ##",
 		"cover sequence (a[->1:2] ##1 b[=3])",
 		"expect (a ##1 b) else $error;",
+		"class C; rand int x; constraint c { x dist {1 := 2, [3:4] :/ 5}; a -> { b; } solve x before y; }; endclass",
+		"class C; constraint c { foreach (a[i, ]) { if (x) y; else z; } unique {a, b}; disable soft q; } endclass",
+		"class C; constraint c { x > ",
 		"assert property (case (x) 1: a; endcase)",
 	}
 	for _, s := range seeds {

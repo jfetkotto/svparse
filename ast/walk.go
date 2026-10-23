@@ -237,7 +237,34 @@ func Walk(v Visitor, n Node) {
 		walkExpr(v, n.ValueExpr)
 	case *PortConnection:
 		walkExpr(v, n.ConnExpr)
-	case *Constraint, *Import, *ModportPort:
+	case *Constraint:
+		walkItems(v, n.Items)
+	case *ConstraintBlock:
+		walkItems(v, n.Items)
+	case *ConstraintExpr:
+		walkExpr(v, n.X)
+	case *ConstraintImplies:
+		walkExpr(v, n.Cond)
+		walkItem(v, n.Body)
+	case *ConstraintIf:
+		walkExpr(v, n.Cond)
+		walkItem(v, n.Then)
+		walkItem(v, n.Else)
+	case *ConstraintForeach:
+		walkExpr(v, n.Array)
+		walkItem(v, n.Body)
+	case *ConstraintSolve:
+		walkExprs(v, n.Solve)
+		walkExprs(v, n.Before)
+	case *ConstraintDisableSoft:
+		walkExpr(v, n.X)
+	case *ConstraintUnique:
+		walkExprs(v, n.Exprs)
+	case *ConstraintSet:
+		walkItems(v, n.Items)
+	case *ConstraintRaw:
+		// Leaf.
+	case *Import, *ModportPort:
 		// Leaves.
 
 	// Expressions.
@@ -332,7 +359,7 @@ func Walk(v Visitor, n Node) {
 	case *DistItem:
 		walkExpr(v, n.Value)
 		walkExpr(v, n.Weight)
-	case *Ident, *Literal, *Empty, *This, *Super, *BadExpr, *ConstraintBlock:
+	case *Ident, *Literal, *Empty, *This, *Super, *BadExpr:
 		// Leaves.
 
 	// Statements.
@@ -538,4 +565,18 @@ func (f inspector) Visit(n Node) Visitor {
 // skipped.
 func Inspect(n Node, f func(Node) bool) {
 	Walk(inspector(f), n)
+}
+
+// walkItems walks a list of constraint items.
+func walkItems(v Visitor, items []ConstraintItem) {
+	for _, it := range items {
+		Walk(v, it)
+	}
+}
+
+// walkItem walks an optional constraint item; nil is skipped.
+func walkItem(v Visitor, it ConstraintItem) {
+	if it != nil {
+		Walk(v, it)
+	}
 }

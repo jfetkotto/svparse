@@ -100,7 +100,25 @@ func describe(n Node) (head string, kids []Node) {
 	case *Package:
 		return "package " + n.Name, decls(n.Body)
 	case *Constraint:
-		return "constraint " + n.Name + flag(n.Prototype, "prototype"), nil
+		return "constraint " + n.Name + flag(n.Prototype, "prototype"), items(n.Items)
+	case *ConstraintExpr:
+		return "constraint-expr" + flag(n.Soft, "soft") + " " + exprText(n.X), nil
+	case *ConstraintImplies:
+		return "implies " + exprText(n.Cond), items([]ConstraintItem{n.Body})
+	case *ConstraintIf:
+		return "constraint-if " + exprText(n.Cond), items([]ConstraintItem{n.Then, n.Else})
+	case *ConstraintForeach:
+		return "constraint-foreach " + exprText(n.Array) + " [" + strings.Join(n.Vars, ",") + "]", items([]ConstraintItem{n.Body})
+	case *ConstraintSolve:
+		return "solve [" + strings.Join(exprTexts(n.Solve), " ") + "] before [" + strings.Join(exprTexts(n.Before), " ") + "]", nil
+	case *ConstraintDisableSoft:
+		return "disable-soft " + exprText(n.X), nil
+	case *ConstraintUnique:
+		return "unique [" + strings.Join(exprTexts(n.Exprs), " ") + "]", nil
+	case *ConstraintSet:
+		return "constraint-set", items(n.Items)
+	case *ConstraintRaw:
+		return "constraint-raw " + strconv.Quote(tokenText(n.Tokens)), nil
 	case *Import:
 		return "import " + n.Package + "::" + n.Member, nil
 	case *Variable:
@@ -486,4 +504,15 @@ func tokenText(toks []preprocessor.Token) string {
 		texts[i] = t.Text
 	}
 	return strings.Join(texts, " ")
+}
+
+// items returns the non-nil constraint items as children.
+func items(list []ConstraintItem) []Node {
+	var out []Node
+	for _, it := range list {
+		if it != nil {
+			out = append(out, it)
+		}
+	}
+	return out
 }

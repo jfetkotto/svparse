@@ -220,7 +220,16 @@ partway through an item, leave a short "Status:" note under it.
       in properties (constraints item), `checker` bodies, and property/sequence
       items inside clocking blocks (skipped). Corpus: 6 properties, 21
       sequences, 39 assertions, no BadExpr.
-- [ ] `feature/constraints`
+- [x] `feature/constraints`: constraint blocks are parsed into
+      `ConstraintItem` nodes (`ConstraintExpr` with optional `soft` and `dist`,
+      `ConstraintImplies`, `ConstraintIf`, `ConstraintForeach`,
+      `ConstraintSolve`, `ConstraintDisableSoft`, `ConstraintUnique`,
+      `ConstraintSet`, `ConstraintRaw` for the unparseable) in
+      `Constraint.Items` and in the inline `with { }` `ConstraintBlock.Items`,
+      which keeps its `Tokens`. Errors are suppressed; extents still come from
+      `skipBracedBlock`. Corpus: 125 constraints, 13 inline blocks, 5 dist,
+      no BadExpr or ConstraintRaw. Fuzzing found a panic on a constraint at
+      the end of input (seed `constraint A`), fixed with a regression seed.
 - [ ] `feature/covergroups`
 
 ## M6: Semantic model
@@ -279,3 +288,4 @@ partway through an item, leave a short "Status:" note under it.
 | primitives (UDP syntax errors gone, none in corpus) | 165 |
 | misc-items (default clocking test fixed) | 164 |
 | sva (concurrent assertions as nodes) | 164 |
+| constraints | 164 |

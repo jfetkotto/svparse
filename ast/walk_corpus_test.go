@@ -217,6 +217,23 @@ func TestWalkReachesEveryNodeOnce(t *testing.T) {
 			}
 		}
 	})
+	t.Run("constraints", func(t *testing.T) {
+		toks, _ := preprocessor.Preprocess("c.sv", constraintSource, nil)
+		f, errs := parser.Parse("c.sv", toks)
+		if len(errs) != 0 {
+			t.Fatalf("constraintSource has errors: %v", errs)
+		}
+		checkWalkComplete(t, f, seenKinds)
+		if out := ast.Dump(f); strings.Contains(out, "UNHANDLED") {
+			t.Errorf("Dump hit its fallback:\n%s", out)
+		}
+		for _, kind := range []string{"ConstraintExpr", "ConstraintImplies", "ConstraintIf", "ConstraintForeach",
+			"ConstraintSolve", "ConstraintDisableSoft", "ConstraintUnique", "ConstraintSet", "Dist", "DistItem"} {
+			if !seenKinds[kind] {
+				t.Errorf("no %s node in constraintSource", kind)
+			}
+		}
+	})
 	t.Run("all-expressions", func(t *testing.T) {
 		checkWalkComplete(t, fileHoldingAllExprs(), seenKinds)
 	})
@@ -461,6 +478,24 @@ const svaSource = `module m;
     assert property (not nexttime [2] always [1:3] a |-> accept_on (r) strong(b) until weak(c));
   end
 endmodule`
+
+// constraintSource has every constraint item kind, in a class and inline.
+const constraintSource = `class C;
+  rand int x, y;
+  int arr[4][4];
+  constraint c {
+    soft x == 1;
+    x dist {1 := 3, [2:4] :/ 2};
+    x inside {[1:5]} -> { y > 0; y < 9; }
+    if (x > 3) y == 0; else foreach (arr[i, j]) arr[i][j] > 0;
+    solve x before y;
+    disable soft y;
+    unique { x, y };
+  }
+  function void f();
+    void'(randomize(x) with { x > 0; });
+  endfunction
+endclass`
 
 // goldenSource touches most declaration kinds, including ones the vendored
 // corpus never produces (modports).
