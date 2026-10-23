@@ -100,7 +100,7 @@ func describe(n Node) (head string, kids []Node) {
 	case *Package:
 		return "package " + n.Name, decls(n.Body)
 	case *Constraint:
-		return "constraint " + n.Name + flag(n.Prototype, "prototype"), items(n.Items)
+		return "constraint " + scoped(n.Scope, n.Name) + flag(n.Prototype, "prototype"), items(n.Items)
 	case *ConstraintExpr:
 		return "constraint-expr" + flag(n.Soft, "soft") + " " + exprText(n.X), nil
 	case *ConstraintImplies:
@@ -176,10 +176,10 @@ func describe(n Node) (head string, kids []Node) {
 	case *Arg:
 		return "arg" + direction(n.Direction) + " " + n.Name + typeAttr(n.Type) + dims(n.UnpackedDims) + valueAttr(n.DefaultExpr, n.Default), typeKids(n.Type)
 	case *Function:
-		return "function " + n.Name + flag(n.Prototype, "prototype") + typeAttr(n.ReturnType),
+		return "function " + scoped(n.Scope, n.Name) + flag(n.Prototype, "prototype") + typeAttr(n.ReturnType),
 			concat(typeKids(n.ReturnType), values(n.Args), decls(n.Decls), stmts(n.Stmts...))
 	case *Task:
-		return "task " + n.Name + flag(n.Prototype, "prototype"),
+		return "task " + scoped(n.Scope, n.Name) + flag(n.Prototype, "prototype"),
 			concat(values(n.Args), decls(n.Decls), stmts(n.Stmts...))
 	case *Type:
 		return "type " + typeString(*n), typeKids(*n)
@@ -588,4 +588,12 @@ func items(list []ConstraintItem) []Node {
 		}
 	}
 	return out
+}
+
+// scoped spells a possibly class-qualified name, "C::m".
+func scoped(scope, name string) string {
+	if scope == "" {
+		return name
+	}
+	return scope + "::" + name
 }

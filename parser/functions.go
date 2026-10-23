@@ -42,10 +42,10 @@ func (p *parser) parseFunction(isPrototype bool) (ast.Decl, bool) {
 	if !ok {
 		return nil, false
 	}
-	nameTok = p.resolveQualifiedName(nameTok)
+	nameTok, scope := p.resolveQualifiedName(nameTok)
 	args := p.parseArgList()
 
-	fn := &ast.Function{Name: nameTok.Text, ReturnType: returnType, Args: args, Prototype: isPrototype}
+	fn := &ast.Function{Scope: scope, Name: nameTok.Text, ReturnType: returnType, Args: args, Prototype: isPrototype}
 	fn.Position = namePosition(nameTok)
 
 	if p.peek().Kind == token.KindSemi {
@@ -86,10 +86,10 @@ func (p *parser) parseTask(isPrototype bool) (ast.Decl, bool) {
 	if !ok {
 		return nil, false
 	}
-	nameTok = p.resolveQualifiedName(nameTok)
+	nameTok, scope := p.resolveQualifiedName(nameTok)
 	args := p.parseArgList()
 
-	task := &ast.Task{Name: nameTok.Text, Args: args, Prototype: isPrototype}
+	task := &ast.Task{Scope: scope, Name: nameTok.Text, Args: args, Prototype: isPrototype}
 	task.Position = namePosition(nameTok)
 
 	if p.peek().Kind == token.KindSemi {
@@ -126,17 +126,19 @@ func (p *parser) parseTask(isPrototype bool) (ast.Decl, bool) {
 // declaration support). If present, consumes the "::" and the real name
 // that follows, returning that as the effective name. The class
 // qualifier itself isn't retained -- ast.Function/Task have no field for
-// it; unifying an out-of-class body back with its class's extern
-// prototype is a future phase's job, not this one's.
-func (p *parser) resolveQualifiedName(nameTok preprocessor.Token) preprocessor.Token {
+// it in the name; it is returned separately and recorded as Scope on the
+// Function/Task/Constraint, so a definition "C::m" is not mistaken for a
+// free subroutine "m". Unifying it with its class's extern prototype is the
+// semantic layer's job.
+func (p *parser) resolveQualifiedName(nameTok preprocessor.Token) (preprocessor.Token, string) {
 	if p.peek().Kind != token.KindColonColon {
-		return nameTok
+		return nameTok, ""
 	}
 	p.advance() // "::"
 	if realName, ok := p.expectIdent(); ok {
-		return realName
+		return realName, nameTok.Text
 	}
-	return nameTok
+	return nameTok, ""
 }
 
 // parseDPIImport parses "import <string-literal> [context|pure]

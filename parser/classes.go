@@ -142,8 +142,8 @@ func (p *parser) parseConstraint() (ast.Decl, bool) {
 	if !ok {
 		return nil, false
 	}
-	nameTok = p.resolveQualifiedName(nameTok)
-	c := &ast.Constraint{Name: nameTok.Text}
+	nameTok, scope := p.resolveQualifiedName(nameTok)
+	c := &ast.Constraint{Scope: scope, Name: nameTok.Text}
 	c.Position = namePosition(nameTok)
 
 	open := p.pos

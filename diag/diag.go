@@ -86,15 +86,20 @@ const (
 	CodeSyntaxError       = "syntax-error"
 	CodePreprocessorError = "preprocessor-error"
 	CodeInternalError     = "internal-error"
+
+	CodeDuplicateDefinition  = "duplicate-definition"
+	CodeDuplicateDeclaration = "duplicate-declaration"
 )
 
 // Known maps every registered code to a one-line description. A code must be
 // registered here before anything reports it; the tests enforce the kebab-case
 // form and that the constants above are present.
 var Known = map[string]string{
-	CodeSyntaxError:       "the parser could not make sense of the source",
-	CodePreprocessorError: "a compiler directive is malformed or unbalanced",
-	CodeInternalError:     "a stage failed unexpectedly; this is a bug in svparse",
+	CodeSyntaxError:          "the parser could not make sense of the source",
+	CodePreprocessorError:    "a compiler directive is malformed or unbalanced",
+	CodeInternalError:        "a stage failed unexpectedly; this is a bug in svparse",
+	CodeDuplicateDefinition:  "a module, interface, program, primitive, package or configuration name is defined twice",
+	CodeDuplicateDeclaration: "a name is declared twice in the same compilation unit scope",
 }
 
 // ValidCode reports whether code is well-formed: lower-case words joined by

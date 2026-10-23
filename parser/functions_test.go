@@ -786,3 +786,31 @@ func hasErrorContaining(errs []Error, substr string) bool {
 	}
 	return false
 }
+
+func TestOutOfBlockDefinitionsRecordTheirClass(t *testing.T) {
+	f, errs := parseSrc(t, `class C; extern function int get(); extern task t(); extern constraint k; endclass
+function int C::get(); return 1; endfunction
+task C::t(); endtask
+constraint C::k { x > 0; }
+function int free(); return 2; endfunction`)
+	if len(errs) != 0 {
+		t.Fatalf("errors: %+v", errs)
+	}
+	got := map[string]string{}
+	for _, d := range f.Decls[1:] {
+		switch n := d.(type) {
+		case *ast.Function:
+			got["function "+n.Name] = n.Scope
+		case *ast.Task:
+			got["task "+n.Name] = n.Scope
+		case *ast.Constraint:
+			got["constraint "+n.Name] = n.Scope
+		}
+	}
+	want := map[string]string{"function get": "C", "task t": "C", "constraint k": "C", "function free": ""}
+	for k, v := range want {
+		if s, ok := got[k]; !ok || s != v {
+			t.Errorf("%s: scope %q (found %v), want %q", k, s, ok, v)
+		}
+	}
+}

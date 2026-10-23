@@ -260,7 +260,14 @@ partway through an item, leave a short "Status:" note under it.
       `Bits` ($bits), and the LRM 6.22 relations `Matches`, `Equivalent`,
       `Assignment` (Assignable/CastRequired/Incompatible) and `Castable`.
       Building these from `ast.Type` waits for scopes and lookup.
-- [ ] `sema/compilation.go`
+- [x] `sema/compilation.go`: `Compilation` over many files (`AddFile` replaces
+      by path, `RemoveFile`), `Definitions`, `Lookup`/`Package`/`Config` in
+      their separate name spaces (LRM 3.13), per-file or shared (`SingleUnit`,
+      -mfcu) `$unit` scopes with enum constants, `Tops`, and
+      `duplicate-definition`/`duplicate-declaration` diagnostics with the
+      original as related location. Needed `Function`/`Task`/`Constraint`
+      `Scope` (the class of an out-of-block `C::m`) so those are not taken for
+      free subroutines.
 - [ ] `sema/scope.go`, `lookup.go`
 - [ ] `sema/bind.go` (LRM 11.6/11.8 width and sign propagation)
 - [ ] `sema/consteval.go`

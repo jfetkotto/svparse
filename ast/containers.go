@@ -71,6 +71,7 @@ type Package struct {
 // forms.
 type Constraint struct {
 	declBase
+	Scope     string // class qualifier of an out-of-block definition; empty otherwise
 	Name      string
 	Prototype bool
 	Items     []ConstraintItem // nil for a prototype
