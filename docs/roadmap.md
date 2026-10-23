@@ -242,7 +242,10 @@ partway through an item, leave a short "Status:" note under it.
 
 ## M6: Semantic model
 
-- [ ] `diag/` unified diagnostics with stable codes
+- [x] `diag/` unified diagnostics with stable codes: `Diagnostic`, `Severity`,
+      `Related`, the `Known` code registry (kebab-case enforced), `Sort`, a
+      deduplicating `Set`, and `FromParser`/`FromPreprocessor` adapters. sigils
+      can adopt it in M9 in place of its own conversion.
 - [ ] `svint/` 4-state arbitrary-width values
 - [ ] `sema/types.go`
 - [ ] `sema/compilation.go`
