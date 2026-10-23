@@ -34,7 +34,7 @@ func describeStmt(n Node) (head string, kids []Node, ok bool) {
 	case *If:
 		return "if" + prefixed(" ", n.Qualifier) + " cond=" + exprText(n.Cond), stmts(n.Then, n.Else), true
 	case *Case:
-		h := "case" + prefixed(" ", n.Qualifier) + " " + n.Kind + flag(n.Inside, "inside") + " subject=" + exprText(n.Subject)
+		h := n.Kind + prefixed(" ", n.Qualifier) + flag(n.Inside, "inside") + " subject=" + exprText(n.Subject)
 		return h, values(n.Items), true
 	case *CaseItem:
 		if n.Default {
@@ -81,7 +81,7 @@ func describeStmt(n Node) (head string, kids []Node, ok bool) {
 	case *WaitFork:
 		return "wait-fork", nil, true
 	case *WaitOrder:
-		return "wait-order " + strings.Join(exprTexts(n.Events), " "), stmts(n.Then, n.Else), true
+		return "wait-order " + strings.Join(exprTexts(n.Events), " ") + elseOnly(n.Then, n.Else), stmts(n.Then, n.Else), true
 	case *EventTrigger:
 		op := "->"
 		if n.Nonblocking {
@@ -99,7 +99,7 @@ func describeStmt(n Node) (head string, kids []Node, ok bool) {
 		}
 		return h, nil, true
 	case *ProcAssign:
-		h := n.Kind + " " + exprText(n.LHS)
+		h := "proc-" + n.Kind + " " + exprText(n.LHS)
 		if n.RHS != nil {
 			h += " " + exprText(n.RHS)
 		}
@@ -121,7 +121,7 @@ func describeStmt(n Node) (head string, kids []Node, ok bool) {
 		}
 		return "disable " + exprText(n.Target), nil, true
 	case *ImmediateAssert:
-		return n.Kind + prefixed(" ", n.Deferred) + " cond=" + exprText(n.Cond), stmts(n.Then, n.Else), true
+		return n.Kind + prefixed(" ", n.Deferred) + " cond=" + exprText(n.Cond) + elseOnly(n.Then, n.Else), stmts(n.Then, n.Else), true
 	case *RandCase:
 		return "randcase", values(n.Items), true
 	case *RandCaseItem:
@@ -147,6 +147,15 @@ func describeStmt(n Node) (head string, kids []Node, ok bool) {
 		return h, values(n.Assigns), true
 	}
 	return "", nil, false
+}
+
+// elseOnly marks a statement that has an else branch but no then branch, which
+// the child list alone cannot show: there is then a single child, the else.
+func elseOnly(then, els Stmt) string {
+	if then == nil && els != nil {
+		return " else-only"
+	}
+	return ""
 }
 
 // stmts returns the non-nil statements as children.

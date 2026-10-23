@@ -52,6 +52,12 @@ file, parseErrs := parser.Parse(path, toks)
 - `parser.ParseTokens(path string, toks []token.Token) (*ast.File, []Error)`:
   parse raw lexer tokens directly, skipping preprocessing.
 
+- `parser.ParseExpr(toks)` and `parser.ParseStmt(toks)`: parse tokens as one
+  expression or one statement (a block, an assignment, a loop, ...). Each
+  returns a tree that is never nil: what it cannot read becomes a `BadExpr` or
+  `BadStmt` plus an error, and parsing carries on. `ast.ExprString` and
+  `ast.StmtString` print a tree back as source. Function and task bodies and
+  `initial`/`always` blocks are not parsed into the file's tree yet.
 - `lexer.LexWithComments(src)`: `Lex` that also returns the comments it skipped
   (`token.Comment`: text, position, and whether it sits alone on its line).
 - `preprocessor.PreprocessDetailed(path, text, resolver, opts)`: like

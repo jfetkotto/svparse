@@ -357,6 +357,7 @@ func (p *parser) parseVirtualInterfaceDecl() ([]ast.Decl, bool) {
 	if typ.Name == "" {
 		return nil, false
 	}
+	typ.Virtual = true
 	if p.peek().Kind == token.KindDot && p.peekAt(1).Kind == token.KindIdent {
 		p.advance() // '.'
 		modportTok := p.peek()

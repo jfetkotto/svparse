@@ -44,6 +44,10 @@ type parser struct {
 	// maxExprDepth -- see expr.go.
 	exprDepth int
 
+	// stmtDepth is the current statement nesting depth, bounded by
+	// maxStmtDepth -- see stmt.go.
+	stmtDepth int
+
 	// zeroWidth* remember the most recent zero-width expression node (a
 	// placeholder for something missing) so enclosing spans can widen to
 	// contain it -- see spanFrom.

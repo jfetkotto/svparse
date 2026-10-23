@@ -120,7 +120,7 @@ var typeArgFuncs = map[string]bool{
 // isExprTypeKeyword reports whether text begins a data type in expression
 // position (a cast target, a $bits operand, a "#(int)" override).
 func isExprTypeKeyword(text string) bool {
-	return dataTypeKeywords[text] || text == "void" || text == "const"
+	return dataTypeKeywords[text] || text == "void" || text == "const" || text == "virtual"
 }
 
 // finish stamps e with the span from token index start to the last token
@@ -423,6 +423,9 @@ func (p *parser) parseKeywordPrimary() ast.Expr {
 func (p *parser) parseTypeOperand() ast.Expr {
 	start := p.pos
 	first := p.peek()
+	if first.Text == "virtual" {
+		return p.parseVirtualTypeOperand(start)
+	}
 	t := p.parseTypeBase()
 	if (t.Signed || t.Unsigned) && (t.PackageQualifier != "" || (t.Name != "" && !token.Keywords[t.Name])) {
 		// parseTypeBase accepts a sign next to any name, since in a
@@ -430,6 +433,26 @@ func (p *parser) parseTypeOperand() ast.Expr {
 		// name. Here there is no declarator, and only built-in integer
 		// types take a sign (LRM 6.11).
 		p.errorf(first, "signed/unsigned cannot qualify the user-defined type %q", t.Name)
+	}
+	t.PackedDims = p.parseTypeDims()
+	return finish(p, start, &ast.TypeExpr{Type: t})
+}
+
+// parseVirtualTypeOperand parses "virtual [interface] Name[.modport]" in
+// expression position, as in "uvm_resource_db#(virtual clk_if)::set(...)".
+func (p *parser) parseVirtualTypeOperand(start int) ast.Expr {
+	p.advance() // "virtual"
+	if tok := p.peek(); tok.Kind == token.KindKeyword && tok.Text == "interface" {
+		p.advance()
+	}
+	t := p.parseTypeBase()
+	t.Virtual = true
+	if t.Name == "" {
+		p.errorf(p.peek(), "expected an interface name after 'virtual', found %s", describeTok(p.peek()))
+	}
+	if p.peek().Kind == token.KindDot && p.peekAt(1).Kind == token.KindIdent {
+		p.advance()
+		t.Modport = p.advance().Text
 	}
 	t.PackedDims = p.parseTypeDims()
 	return finish(p, start, &ast.TypeExpr{Type: t})
@@ -826,6 +849,18 @@ func (p *parser) parsePostfix(lhs ast.Expr, start int) ast.Expr {
 			}
 			p.advance()
 			lhs = finish(p, start, &ast.IncDec{Op: tok.Text, X: lhs})
+
+		case token.KindKeyword:
+			// An array method called without parentheses but with an iterator
+			// clause, "q.find_first with (item > 1)" (LRM 7.12.1): the argument
+			// list is optional there, so this is a call with no arguments.
+			if _, ok := lhs.(*ast.MemberSelect); !ok || tok.Text != "with" || p.peekAt(1).Kind != token.KindLParen {
+				return lhs
+			}
+			p.advance() // "with"
+			c := &ast.Call{Func: lhs}
+			c.With = p.parseParen()
+			lhs = finish(p, start, c)
 
 		default:
 			return lhs
