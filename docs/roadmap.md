@@ -23,7 +23,10 @@ partway through an item, leave a short "Status:" note under it.
       explain the entries that appear. Open question: 89 baseline entries
       only need the UVM library (tests tagged `uvm`; a git submodule upstream,
       not vendored). Vendoring it would let those files be judged for real.
-- [ ] `feature/ast-walk-dump`: `ast.Walk`/`ast.Inspect` and `ast.Dump`
+- [x] `feature/ast-walk-dump`: `ast.Walk`/`ast.Inspect` and `ast.Dump`.
+      New nodes must be added to `Walk` (walk.go) and `Dump` (dump.go,
+      `describe`); the corpus tests in `ast/walk_corpus_test.go` fail if either
+      misses one. `Node` is the wider interface (Decl plus Type, Instance, ...).
 
 ## M1: Expressions (LRM 11, Annex A.8)
 
@@ -94,3 +97,4 @@ partway through an item, leave a short "Status:" note under it.
 | Merged item | Conformance mismatches |
 |-------------|------------------------|
 | conformance-harness (parse stage; 1014 files) | 201 (59 undetected negatives, 53 parser gaps, 89 need UVM) |
+| ast-walk-dump (no pipeline change) | 201 |
