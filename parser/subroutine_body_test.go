@@ -47,7 +47,7 @@ func TestFunctionAndTaskBodies(t *testing.T) {
 			"(function new\n  (arg v <int>)\n  (expr (call (. super new) v))\n  (assign = (. this v) v))\n"},
 		{"out-of-block method",
 			"class c; extern function void m(); endclass function void c::m(); x = 1; endfunction",
-			"(function m <void>\n  (assign = x 1))\n"},
+			"(function c::m <void>\n  (assign = x 1))\n"},
 		{"local typedef and parameter",
 			"module m; function int f(); typedef int word; localparam K = 3; word w; w = K; return w; endfunction endmodule",
 			"(function f <int>\n  (typedef word\n    (type-alias <int>))\n  (localparam K = 3)\n  (variable w <word>)\n  (assign = w K)\n  (return w))\n"},

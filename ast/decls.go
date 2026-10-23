@@ -220,6 +220,7 @@ type Arg struct {
 // declared in the body, after the header's.
 type Function struct {
 	declBase
+	Scope      string // class qualifier of an out-of-block definition, "C" in "C::m"; empty otherwise
 	Name       string
 	ReturnType Type
 	Args       []Arg
@@ -230,6 +231,7 @@ type Function struct {
 
 type Task struct {
 	declBase
+	Scope     string // class qualifier of an out-of-block definition; empty otherwise
 	Name      string
 	Args      []Arg
 	Prototype bool
