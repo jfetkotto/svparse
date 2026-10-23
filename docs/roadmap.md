@@ -129,7 +129,18 @@ partway through an item, leave a short "Status:" note under it.
 
 ## M3: Statements and procedural code (LRM 9, 10, 12, 13)
 
-- [ ] `feature/stmt-ast`
+- [x] `feature/stmt-ast`: `ast/stmt.go`, 34 node types (statements plus the
+      procedural items `Initial`, `Final`, `Always`, `ContinuousAssign`, which
+      are Decls). Consolidations from the plan: one `Assign` (nonblocking is
+      `Op == "<="`), one `Block` for `begin` and `fork`, `Labeled` as a wrapper.
+      `RawStmt` is for a construct recognised but not modeled yet (pattern
+      matching `matches`, `randsequence`): tokens kept, never an error, so the
+      parser can replace the skip helpers without regressing the baselines.
+      `BadStmt` is a real failure. `TimingControl`/`EventTerm` model `#`, `##`,
+      `@(...)`, `@*`, intra-assignment control. Walk, Dump and the
+      `TestEveryStmtTypeIsExercised` guard are in. Block-local declarations and
+      statements are kept in two lists (the LRM orders them), so a block that
+      mixes them loses their relative order.
 - [ ] `feature/stmt-parser`
 - [ ] `feature/function-task-bodies`
 - [ ] `feature/procedural-blocks`
@@ -194,3 +205,4 @@ partway through an item, leave a short "Status:" note under it.
 | aggregate-leftovers | 171 (65 undetected negatives, 17 parser gaps, 89 need UVM) |
 | nettype-interconnect-specparam | 165 (67 undetected negatives, 9 parser gaps, 89 need UVM) |
 | lexer-trivia (no pipeline change) | 165 |
+| stmt-ast (no pipeline change) | 165 |
