@@ -97,3 +97,23 @@ func (p *parser) parseAssignItems() []ast.Assign {
 		p.advance()
 	}
 }
+
+// parseAssertionItem parses an assertion statement at module scope (LRM 16.14),
+// the cursor on its keyword or on a "label:" before it. Like the procedural
+// items, its extent comes from skipProceduralConstruct and the tokens it
+// consumed are parsed by the statement parser with errors suppressed.
+func (p *parser) parseAssertionItem() ([]ast.Decl, bool) {
+	start := p.pos
+	if p.peek().Kind == token.KindIdent {
+		p.advance() // label
+		p.advance() // ':'
+	}
+	p.advance() // the assertion keyword
+	p.skipProceduralConstruct()
+	sub := p.newSubParser(p.toks[start:p.pos])
+	n := &ast.AssertionItem{Body: sub.parseStatement()}
+	p.giveBackElse(sub, start)
+	p.suppressed = append(p.suppressed, sub.errs...)
+	n.Position = p.spanFrom(start)
+	return []ast.Decl{n}, true
+}

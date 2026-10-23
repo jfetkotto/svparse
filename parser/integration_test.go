@@ -269,6 +269,12 @@ func FuzzParseNeverPanics(f *testing.F) {
 		"alias a = b = c;",
 		"default disable iff (",
 		"timeunit 1ns / ",
+		"assert property (@(posedge clk) disable iff (rst) a ##[1:$] b |-> c[*2] throughout d);",
+		"property p(sequence s, local input int n); int x; first_match(s ##1 (a, x = 1)); endproperty",
+		"sequence s; a ##",
+		"cover sequence (a[->1:2] ##1 b[=3])",
+		"expect (a ##1 b) else $error;",
+		"assert property (case (x) 1: a; endcase)",
 	}
 	for _, s := range seeds {
 		f.Add(s)

@@ -510,7 +510,21 @@ func (p *parser) parseParen() ast.Expr {
 	start := p.pos
 	p.advance() // '('
 	innerStart := p.pos
-	inner := p.parseExpr()
+	var inner ast.Expr
+	if p.inProp > 0 {
+		inner = p.parsePropBP(pbpLowest)
+		if p.peek().Kind == token.KindComma {
+			// "(seq, a = 1, f())": match items on a sequence (LRM 16.10).
+			m := &ast.SeqMatch{X: inner}
+			for p.peek().Kind == token.KindComma {
+				p.advance()
+				m.Items = append(m.Items, p.parseMatchItem())
+			}
+			inner = finish(p, innerStart, m)
+		}
+	} else {
+		inner = p.parseExpr()
+	}
 
 	switch tok := p.peek(); {
 	case isAssignOp(tok.Kind):
@@ -787,6 +801,9 @@ func (p *parser) parsePostfix(lhs ast.Expr, start int) ast.Expr {
 		tok := p.peek()
 		switch tok.Kind {
 		case token.KindLBrack:
+			if p.inProp > 0 && p.atRepeat() {
+				return lhs // a sequence repetition, read by the property parser
+			}
 			lhs = p.parseSelect(lhs, start)
 
 		case token.KindDot:

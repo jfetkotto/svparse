@@ -209,7 +209,17 @@ partway through an item, leave a short "Status:" note under it.
 
 ## M5: Verification constructs (LRM 16, 18, 19)
 
-- [ ] `feature/sva`
+- [x] `feature/sva`: property and sequence expressions (`parser/sva.go`:
+      `SeqDelay`, `SeqRepeat`, `PropPrefix`, `PropIf`, `PropCase`, `ClockedProp`,
+      `DisableIff`, `SeqMatch`, plus `Binary` for the infix operators, with the
+      LRM 16 table 16-1 precedence), `PropertyDecl`/`SequenceDecl`,
+      `ConcurrentAssert` (assert, assume, cover, cover sequence, restrict,
+      expect) as a statement and `AssertionItem` at module scope. Extents still
+      come from the old skips, errors are suppressed, and no lexer change was
+      needed (`#-#` and `#=#` are read as three tokens). Not covered: `dist`
+      in properties (constraints item), `checker` bodies, and property/sequence
+      items inside clocking blocks (skipped). Corpus: 6 properties, 21
+      sequences, 39 assertions, no BadExpr.
 - [ ] `feature/constraints`
 - [ ] `feature/covergroups`
 
@@ -268,3 +278,4 @@ partway through an item, leave a short "Status:" note under it.
 | generate (structured nodes) | 165 |
 | primitives (UDP syntax errors gone, none in corpus) | 165 |
 | misc-items (default clocking test fixed) | 164 |
+| sva (concurrent assertions as nodes) | 164 |

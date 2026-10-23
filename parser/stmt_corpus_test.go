@@ -23,11 +23,12 @@ import (
 //     which the parser is right to reject: an unterminated macro expansion, an
 //     assignment used in an expression without parentheses, an illegal integer
 //     literal, an illegal real literal;
-//   - three depend on things outside the statement parser: a vendor macro that
+//   - four depend on things outside the statement parser: a vendor macro that
 //     is never defined (`SV_COV_CHECK), the unsupported predefined `__FILE__,
-//     and a UVM macro (`uvm_info) whose library is not vendored.
+//     and UVM macros (`uvm_info, `uvm_error) whose library is not vendored.
 var knownRejectedBlocks = []string{
 	"chapter-11/11.3.6--assign_in_expr_inv.sv:22 expected ';', found \"=\"",
+	"chapter-16/16.17--expect-uvm.sv:111 expected a statement, found \"uvm_error\"",
 	"chapter-16/16.2--assert-final-uvm.sv:61 expected ';', found \"else\"",
 	"chapter-20/20.14--coverage.sv:27 expected an expression, found \"SV_COV_CHECK\"",
 	"chapter-22/22.5.1--define-expansion_21.sv:19 expected ')' to close the argument list, found \"end\"",

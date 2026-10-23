@@ -52,6 +52,10 @@ type parser struct {
 	// maxGenDepth -- see generate.go.
 	genDepth int
 
+	// inProp is positive while a property or sequence expression is being
+	// parsed, which changes how a parenthesised group is read -- see sva.go.
+	inProp int
+
 	// suppressed holds errors found while parsing a construct for its
 	// structure only, which are deliberately not reported: the body of a
 	// function or task, whose extent the declaration parser has always

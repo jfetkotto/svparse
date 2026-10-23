@@ -200,6 +200,23 @@ func TestWalkReachesEveryNodeOnce(t *testing.T) {
 			}
 		}
 	})
+	t.Run("sva", func(t *testing.T) {
+		toks, _ := preprocessor.Preprocess("s.sv", svaSource, nil)
+		f, errs := parser.Parse("s.sv", toks)
+		if len(errs) != 0 {
+			t.Fatalf("svaSource has errors: %v", errs)
+		}
+		checkWalkComplete(t, f, seenKinds)
+		if out := ast.Dump(f); strings.Contains(out, "UNHANDLED") {
+			t.Errorf("Dump hit its fallback:\n%s", out)
+		}
+		for _, kind := range []string{"SeqDelay", "SeqRepeat", "PropPrefix", "PropIf", "PropCase", "PropCaseItem",
+			"ClockedProp", "DisableIff", "SeqMatch", "PropertyDecl", "SequenceDecl", "ConcurrentAssert", "AssertionItem"} {
+			if !seenKinds[kind] {
+				t.Errorf("no %s node in svaSource", kind)
+			}
+		}
+	})
 	t.Run("all-expressions", func(t *testing.T) {
 		checkWalkComplete(t, fileHoldingAllExprs(), seenKinds)
 	})
@@ -418,6 +435,32 @@ config cfg;
   cell lib.c use x;
 endconfig
 `
+
+// svaSource has every property and sequence construct.
+const svaSource = `module m;
+  property p1(sequence s, local input int n = 1, untyped u);
+    int x;
+    @(posedge clk) disable iff (rst) (s ##1 a[*2]) |-> ##[1:3] b;
+  endproperty
+  sequence s1;
+    a ##1 b[->2] ##0 (c, x = 1);
+  endsequence
+  sequence s2(a, b);
+    first_match(a ##[1:$] b) throughout c;
+  endsequence : s2
+  a1: assert property (@(posedge clk) a |-> b) else $error("x");
+  assume property (p1(s1, 2, 3));
+  cover property (a ##1 b) $display("hit");
+  cover sequence (@(posedge clk) s1);
+  restrict property (@(posedge clk) a);
+  assert property (p) else begin $error("a"); end
+  initial begin
+    expect (@(posedge clk) a ##1 b) $display("ok"); else $error("fail");
+    assert property (if (c) a else b);
+    assert property (case (x) 1: a; default: b; endcase);
+    assert property (not nexttime [2] always [1:3] a |-> accept_on (r) strong(b) until weak(c));
+  end
+endmodule`
 
 // goldenSource touches most declaration kinds, including ones the vendored
 // corpus never produces (modports).
