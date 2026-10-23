@@ -95,38 +95,14 @@ func walkCorpus(t *testing.T, fn func(t *testing.T, rel string, f *ast.File)) {
 // exactly once.
 func TestWalkReachesEveryNodeOnce(t *testing.T) {
 	seenKinds := make(map[string]bool)
-	check := func(t *testing.T, f *ast.File) {
-		want := make(map[ast.Node]bool)
-		reachableNodes(reflect.ValueOf(f), want)
-		want[f] = true
-
-		got := make(map[ast.Node]int)
-		ast.Inspect(f, func(n ast.Node) bool {
-			if n != nil {
-				got[n]++
-				seenKinds[reflect.TypeOf(n).Elem().Name()] = true
-			}
-			return true
-		})
-		for n := range want {
-			if got[n] == 0 {
-				t.Errorf("Walk missed %T at %+v", n, n.Pos())
-			}
-		}
-		for n, c := range got {
-			if !want[n] {
-				t.Errorf("Walk visited %T at %+v that reflection did not find", n, n.Pos())
-			}
-			if c != 1 {
-				t.Errorf("Walk visited %T at %+v %d times", n, n.Pos(), c)
-			}
-		}
-	}
-	walkCorpus(t, func(t *testing.T, rel string, f *ast.File) { check(t, f) })
+	walkCorpus(t, func(t *testing.T, rel string, f *ast.File) { checkWalkComplete(t, f, seenKinds) })
 	t.Run("golden-source", func(t *testing.T) {
 		toks, _ := preprocessor.Preprocess("t.sv", goldenSource, nil)
 		f, _ := parser.Parse("t.sv", toks)
-		check(t, f)
+		checkWalkComplete(t, f, seenKinds)
+	})
+	t.Run("all-expressions", func(t *testing.T) {
+		checkWalkComplete(t, fileHoldingAllExprs(), seenKinds)
 	})
 
 	// Guard against the corpus test going vacuous: these are the node
@@ -145,12 +121,43 @@ func TestWalkReachesEveryNodeOnce(t *testing.T) {
 	}
 }
 
+// checkWalkComplete fails unless Walk visits exactly the nodes reflection
+// finds in f, each once, and records the node kinds it saw in seenKinds.
+func checkWalkComplete(t *testing.T, f *ast.File, seenKinds map[string]bool) {
+	t.Helper()
+	want := make(map[ast.Node]bool)
+	reachableNodes(reflect.ValueOf(f), want)
+	want[f] = true
+
+	got := make(map[ast.Node]int)
+	ast.Inspect(f, func(n ast.Node) bool {
+		if n != nil {
+			got[n]++
+			seenKinds[reflect.TypeOf(n).Elem().Name()] = true
+		}
+		return true
+	})
+	for n := range want {
+		if got[n] == 0 {
+			t.Errorf("Walk missed %T at %+v", n, n.Pos())
+		}
+	}
+	for n, c := range got {
+		if !want[n] {
+			t.Errorf("Walk visited %T at %+v that reflection did not find", n, n.Pos())
+		}
+		if c != 1 {
+			t.Errorf("Walk visited %T at %+v %d times", n, n.Pos(), c)
+		}
+	}
+}
+
 // TestDumpCoversEveryNodeInTheCorpus fails if any node type reaches Dump's
-// "?" fallback, i.e. a node was added without a Dump case.
+// "UNHANDLED" fallback, i.e. a node was added without a Dump case.
 func TestDumpCoversEveryNodeInTheCorpus(t *testing.T) {
 	walkCorpus(t, func(t *testing.T, rel string, f *ast.File) {
 		out := ast.Dump(f)
-		if strings.Contains(out, "(?") || strings.Contains(out, "container?") {
+		if strings.Contains(out, "UNHANDLED") || strings.Contains(out, "container?") {
 			t.Errorf("Dump hit its fallback:\n%s", out)
 		}
 		if out != ast.Dump(f) {

@@ -30,7 +30,13 @@ partway through an item, leave a short "Status:" note under it.
 
 ## M1: Expressions (LRM 11, Annex A.8)
 
-- [ ] `feature/expr-ast`: sealed `ast.Expr` node set incl. `BadExpr`, `TypeOrExpr`
+- [x] `feature/expr-ast`: sealed `ast.Expr` node set incl. `BadExpr`, `TypeOrExpr`.
+      37 node types in `ast/expr.go`, all in `Walk` and `Dump` (expressions dump
+      inline, e.g. `(+ a (* b c))`). Only `ParamOverride.ValueExpr` exists so far;
+      the other `*Expr` sibling fields arrive with `feature/expr-fields`.
+      `TestEveryExprTypeIsExercised` fails if a new node lacks a test case.
+      Note for the parser: operators are source text (`Op string`); `|->`,
+      `|=>` and `->>` already lex.
 - [ ] `feature/expr-parser`: error-tolerant Pratt parser (`parser/expr.go`)
 - [ ] `feature/expr-fields`: populate `*Expr` siblings of every raw span
 
@@ -98,3 +104,4 @@ partway through an item, leave a short "Status:" note under it.
 |-------------|------------------------|
 | conformance-harness (parse stage; 1014 files) | 201 (59 undetected negatives, 53 parser gaps, 89 need UVM) |
 | ast-walk-dump (no pipeline change) | 201 |
+| expr-ast (no pipeline change) | 201 |

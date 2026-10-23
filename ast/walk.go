@@ -105,11 +105,118 @@ func Walk(v Visitor, n Node) {
 		walkValues(v, n.Instances)
 	case *Instance:
 		walkValues(v, n.Connections)
-	case *EnumMember, *Constraint, *Import, *ParamOverride, *PortConnection, *ModportPort:
+	case *ParamOverride:
+		walkExpr(v, n.ValueExpr)
+	case *EnumMember, *Constraint, *Import, *PortConnection, *ModportPort:
+		// Leaves (until their raw expression spans get parsed siblings).
+
+	// Expressions.
+	case *ScopedName:
+		walkExpr(v, n.Scope)
+	case *ParameterizedName:
+		walkValues(v, n.Overrides)
+	case *MemberSelect:
+		walkExpr(v, n.X)
+	case *Index:
+		walkExpr(v, n.X)
+		walkExpr(v, n.Index)
+	case *RangeSelect:
+		walkExpr(v, n.X)
+		walkExpr(v, n.Left)
+		walkExpr(v, n.Right)
+	case *Paren:
+		walkExpr(v, n.X)
+	case *Unary:
+		walkExpr(v, n.X)
+	case *Binary:
+		walkExpr(v, n.X)
+		walkExpr(v, n.Y)
+	case *Conditional:
+		walkExpr(v, n.Cond)
+		walkExpr(v, n.Then)
+		walkExpr(v, n.Else)
+	case *Inside:
+		walkExpr(v, n.X)
+		walkExprs(v, n.Ranges)
+	case *ValueRange:
+		walkExpr(v, n.Lo)
+		walkExpr(v, n.Hi)
+	case *Concat:
+		walkExprs(v, n.Elems)
+	case *Replicate:
+		walkExpr(v, n.Count)
+		walkExprs(v, n.Elems)
+	case *AssignPattern:
+		walkExpr(v, n.Type)
+		walkExprs(v, n.Items)
+	case *PatternItem:
+		walkExpr(v, n.Key)
+		walkExpr(v, n.Value)
+	case *Cast:
+		walkExpr(v, n.Type)
+		walkExpr(v, n.X)
+	case *Call:
+		walkExpr(v, n.Func)
+		walkExprs(v, n.Args)
+		walkExpr(v, n.With)
+	case *NamedArg:
+		walkExpr(v, n.Value)
+	case *New:
+		walkExpr(v, n.Scope)
+		walkExprs(v, n.Args)
+		walkExpr(v, n.Copy)
+	case *NewArray:
+		walkExpr(v, n.Size)
+		walkExpr(v, n.Init)
+	case *MinTypMax:
+		walkExpr(v, n.Min)
+		walkExpr(v, n.Typ)
+		walkExpr(v, n.Max)
+	case *Streaming:
+		walkExpr(v, n.SliceSize)
+		walkExprs(v, n.Elems)
+	case *WithRange:
+		walkExpr(v, n.X)
+		walkExpr(v, n.Left)
+		walkExpr(v, n.Right)
+	case *Tagged:
+		walkExpr(v, n.X)
+	case *TypeRef:
+		walkExpr(v, n.X)
+	case *TypeExpr:
+		walkType(v, &n.Type)
+	case *TypeOrExpr:
+		walkExpr(v, n.X)
+	case *IncDec:
+		walkExpr(v, n.X)
+	case *AssignExpr:
+		walkExpr(v, n.LHS)
+		walkExpr(v, n.RHS)
+	case *Dist:
+		walkExpr(v, n.X)
+		walkValues(v, n.Items)
+	case *DistItem:
+		walkExpr(v, n.Value)
+		walkExpr(v, n.Weight)
+	case *Ident, *Literal, *Empty, *This, *Super, *BadExpr:
 		// Leaves.
 	}
 
 	v.Visit(nil)
+}
+
+// walkExpr walks an optional expression child; nil (an absent optional
+// field) is skipped.
+func walkExpr(v Visitor, e Expr) {
+	if e != nil {
+		Walk(v, e)
+	}
+}
+
+func walkExprs(v Visitor, list []Expr) {
+	for _, e := range list {
+		walkExpr(v, e)
+	}
 }
 
 func walkList(v Visitor, list []Decl) {
