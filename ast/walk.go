@@ -26,6 +26,12 @@ func (GateInstance) node()             {}
 func (g GateInstance) Pos() Position   { return g.Position }
 func (UDPRow) node()                   {}
 func (r UDPRow) Pos() Position         { return r.Position }
+func (ClockingItem) node()             {}
+func (c ClockingItem) Pos() Position   { return c.Position }
+func (ClockingSignal) node()           {}
+func (c ClockingSignal) Pos() Position { return c.Position }
+func (ConfigRule) node()               {}
+func (c ConfigRule) Pos() Position     { return c.Position }
 func (PortConnection) node()           {}
 func (c PortConnection) Pos() Position { return c.Position }
 func (ModportPort) node()              {}
@@ -149,6 +155,33 @@ func Walk(v Visitor, n Node) {
 		walkValues(v, n.Rows)
 	case *UDPRow:
 		// Leaf: symbols only.
+	case *Defparam:
+		walkValues(v, n.Assigns)
+	case *Bind:
+		if n.Inst != nil {
+			Walk(v, n.Inst)
+		}
+	case *Let:
+		walkValues(v, n.Ports)
+		walkExpr(v, n.Body)
+	case *Alias:
+		walkExprs(v, n.Nets)
+	case *DefaultDisable:
+		walkExpr(v, n.Cond)
+	case *Clocking:
+		if n.Event != nil {
+			Walk(v, n.Event)
+		}
+		walkValues(v, n.Items)
+	case *ClockingItem:
+		walkValues(v, n.Signals)
+	case *ClockingSignal:
+		walkExpr(v, n.Expr)
+	case *Config:
+		walkList(v, n.Body)
+		walkValues(v, n.Rules)
+	case *TimeUnit, *Export, *DPIExport, *DefaultClocking, *ConfigRule:
+		// Leaves.
 	case *ParamOverride:
 		walkExpr(v, n.ValueExpr)
 	case *EnumMember:

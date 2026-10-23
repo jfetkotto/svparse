@@ -194,6 +194,61 @@ func describe(n Node) (head string, kids []Node) {
 			h += " : " + n.Current
 		}
 		return h + " : " + n.Next, nil
+	case *TimeUnit:
+		h := n.Keyword + " " + n.Value
+		if n.Divisor != "" {
+			h += " / " + n.Divisor
+		}
+		return h, nil
+	case *Defparam:
+		return "defparam", values(n.Assigns)
+	case *Bind:
+		h := "bind " + n.Target
+		if len(n.Instances) > 0 {
+			h += " : " + strings.Join(n.Instances, ",")
+		}
+		var kids []Node
+		if n.Inst != nil {
+			kids = append(kids, n.Inst)
+		}
+		return h, kids
+	case *Let:
+		return "let " + n.Name + " = " + exprText(n.Body), values(n.Ports)
+	case *Alias:
+		return "alias [" + strings.Join(exprTexts(n.Nets), " ") + "]", nil
+	case *Export:
+		return "export " + n.Package + "::" + n.Member, nil
+	case *DPIExport:
+		h := "dpi-export " + strconv.Quote(n.Spec)
+		if n.CName != "" {
+			h += " " + n.CName + " ="
+		}
+		return h + " " + n.Kind + " " + n.Name, nil
+	case *DefaultClocking:
+		return "default-clocking " + n.Name, nil
+	case *DefaultDisable:
+		return "default-disable-iff " + exprText(n.Cond), nil
+	case *Clocking:
+		h := "clocking " + n.Name + flag(n.Default, "default") + flag(n.Global, "global")
+		var kids []Node
+		if n.Event != nil {
+			kids = append(kids, n.Event)
+		}
+		return h, concat(kids, values(n.Items))
+	case *ClockingItem:
+		if n.Default {
+			return "clocking-default" + prefixed(" input ", n.InputSkew) + prefixed(" output ", n.OutputSkew), nil
+		}
+		return "clocking-item " + n.Direction + prefixed(" in-skew=", n.InputSkew) + prefixed(" out-skew=", n.OutputSkew), values(n.Signals)
+	case *ClockingSignal:
+		if n.Expr != nil {
+			return "clocking-signal " + n.Name + " = " + exprText(n.Expr), nil
+		}
+		return "clocking-signal " + n.Name, nil
+	case *Config:
+		return "config " + n.Name + " design=[" + strings.Join(n.Design, " ") + "]", concat(decls(n.Body), values(n.Rules))
+	case *ConfigRule:
+		return "rule " + n.Kind + " " + strconv.Quote(n.Text), nil
 	case *PortConnection:
 		switch {
 		case n.Wildcard:

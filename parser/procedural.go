@@ -71,24 +71,29 @@ func (p *parser) parseContinuousAssign() *ast.ContinuousAssign {
 	if p.peek().Kind == token.KindHash {
 		n.Delay = p.parseDelay3()
 	}
+	n.Assigns = p.parseAssignItems()
+	p.expectSemi()
+	return n
+}
+
+// parseAssignItems parses "lhs = rhs {, lhs = rhs}" without a terminator, as
+// in a continuous assignment or a defparam (LRM 10.3.2, 23.10.1).
+func (p *parser) parseAssignItems() []ast.Assign {
+	var out []ast.Assign
 	for {
 		start := p.pos
 		lhs := p.parseUnary()
-		a := ast.Assign{Op: "="}
-		if p.expectKind(token.KindAssign, "'=' in a continuous assignment") {
-			a.LHS = lhs
+		a := ast.Assign{Op: "=", LHS: lhs}
+		if p.expectKind(token.KindAssign, "'=' in an assignment") {
 			a.RHS = p.parseExpr()
 		} else {
-			a.LHS = lhs
 			a.RHS = p.emptyBad()
 		}
 		a.SetPos(p.spanFrom(start))
-		n.Assigns = append(n.Assigns, a)
+		out = append(out, a)
 		if p.peek().Kind != token.KindComma {
-			break
+			return out
 		}
 		p.advance()
 	}
-	p.expectSemi()
-	return n
 }

@@ -198,7 +198,14 @@ partway through an item, leave a short "Status:" note under it.
       UDPs used to produce a cascade of syntax errors; they now parse clean.
       The vendored sv-tests has no chapter 28/29 files, so coverage is
       hand-written tests only.
-- [ ] `feature/misc-items` (bind, defparam, config, let, clocking, alias, ...)
+- [x] `feature/misc-items`: `TimeUnit`, `Defparam`, `Bind`, `Let`, `Alias`,
+      `Export`, `DPIExport`, `DefaultClocking`, `DefaultDisable`, `Clocking`
+      (items with directions, skews and signals; global and default forms) and
+      `Config` (design cells and rules as text) in `parser/misc.go`,
+      `clocking.go`, `config.go`. Values are parsed with errors suppressed;
+      a missing `;` stops before the next declaration. Property, sequence
+      and let items inside a clocking block are still skipped (M5). Fixed
+      conformance entry chapter-14/14.3--default-clocking-block.sv.
 
 ## M5: Verification constructs (LRM 16, 18, 19)
 
@@ -260,3 +267,4 @@ partway through an item, leave a short "Status:" note under it.
 | procedural-blocks (errors suppressed on purpose) | 165 |
 | generate (structured nodes) | 165 |
 | primitives (UDP syntax errors gone, none in corpus) | 165 |
+| misc-items (default clocking test fixed) | 164 |

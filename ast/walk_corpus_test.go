@@ -183,6 +183,23 @@ func TestWalkReachesEveryNodeOnce(t *testing.T) {
 			}
 		}
 	})
+	t.Run("misc-items", func(t *testing.T) {
+		toks, _ := preprocessor.Preprocess("m.sv", miscSource, nil)
+		f, errs := parser.Parse("m.sv", toks)
+		if len(errs) != 0 {
+			t.Fatalf("miscSource has errors: %v", errs)
+		}
+		checkWalkComplete(t, f, seenKinds)
+		if out := ast.Dump(f); strings.Contains(out, "UNHANDLED") {
+			t.Errorf("Dump hit its fallback:\n%s", out)
+		}
+		for _, kind := range []string{"TimeUnit", "Defparam", "Bind", "Let", "Alias", "Export", "DPIExport",
+			"DefaultClocking", "DefaultDisable", "Clocking", "ClockingItem", "ClockingSignal", "Config", "ConfigRule"} {
+			if !seenKinds[kind] {
+				t.Errorf("no %s node in miscSource", kind)
+			}
+		}
+	})
 	t.Run("all-expressions", func(t *testing.T) {
 		checkWalkComplete(t, fileHoldingAllExprs(), seenKinds)
 	})
@@ -365,6 +382,42 @@ module m;
   and #(1,2) (strong0, weak1) g1 (o, a, b), g2[3:0] (o2, a2, b2);
   pullup (p);
 endmodule`
+
+// miscSource is the parser's miscSource: every misc item kind.
+const miscSource = `package p; endpackage
+module m;
+  timeunit 1ns / 1ps;
+  timeprecision 10ps;
+  defparam u1.W = 8, u2.sub[1].W = 4;
+  bind top.u1 : a.b, c checker_t chk (.clk(clk));
+  bind m other_t o (.x(x));
+  let max(a, b = 1) = a > b ? a : b;
+  alias w1 = w2 = w3;
+  export p::f;
+  export *::*;
+  export "DPI-C" c_f = function f;
+  export "DPI-C" task t;
+  default disable iff rst;
+  default clocking cb;
+  default clocking cb2 @(posedge clk);
+    default input #1step output negedge #2;
+    input a, b;
+    output #3 c = top.c;
+    input output d;
+    inout e;
+    property pp; a; endproperty
+  endclocking
+  global clocking g @(posedge clk); endclocking
+  clocking @(negedge clk); endclocking
+endmodule
+config cfg;
+  localparam P = 1;
+  design lib.top other.cell;
+  default liblist lib1 lib2;
+  instance top.u1 use lib.cell2;
+  cell lib.c use x;
+endconfig
+`
 
 // goldenSource touches most declaration kinds, including ones the vendored
 // corpus never produces (modports).
