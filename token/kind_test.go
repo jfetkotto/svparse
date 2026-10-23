@@ -14,6 +14,7 @@ func TestKindStringKnownKinds(t *testing.T) {
 		{KindShl, "<<"},
 		{KindAShlAssign, "<<<="},
 		{KindImplies, "|->"},
+		{KindEquiv, "<->"},
 		{KindEOF, "EOF"},
 	}
 	for _, c := range cases {

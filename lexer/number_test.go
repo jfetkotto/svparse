@@ -103,6 +103,45 @@ func TestLexCastOperatorTickIsNotAMalformedLiteral(t *testing.T) {
 	}
 }
 
+func TestLexSizeCastSplitsIntoLiteralAndTick(t *testing.T) {
+	// "8'(x)" is a size cast (LRM 6.24.1): the size is a plain integer
+	// literal and the tick is the cast operator, not a malformed based
+	// number.
+	toks, errs := Lex("8'(x)")
+	if len(errs) != 0 {
+		t.Fatalf("unexpected errors: %+v", errs)
+	}
+	assertKinds(t, toks, token.KindIntLiteral, token.KindTick, token.KindLParen, token.KindIdent, token.KindRParen, token.KindEOF)
+	if toks[0].Text != "8" || toks[0].Character != 0 {
+		t.Errorf("size token = %+v, want text 8 at column 0", toks[0])
+	}
+	if toks[1].Text != "'" || toks[1].Character != 1 {
+		t.Errorf("tick token = %+v, want text ' at column 1", toks[1])
+	}
+	if toks[2].Character != 2 {
+		t.Errorf("paren token at column %d, want 2", toks[2].Character)
+	}
+}
+
+func TestLexSizeCastWithUnderscoredSize(t *testing.T) {
+	toks, errs := Lex("1_6'(x)")
+	if len(errs) != 0 {
+		t.Fatalf("unexpected errors: %+v", errs)
+	}
+	assertKinds(t, toks, token.KindIntLiteral, token.KindTick, token.KindLParen, token.KindIdent, token.KindRParen, token.KindEOF)
+	if toks[0].Text != "1_6" || toks[1].Character != 3 {
+		t.Errorf("got size %q and tick at column %d", toks[0].Text, toks[1].Character)
+	}
+}
+
+func TestLexSignedSizeBeforeParenIsStillMalformed(t *testing.T) {
+	// "8's(" has a signed marker but no base letter: not a cast.
+	_, errs := Lex("8's(x)")
+	if len(errs) != 1 {
+		t.Fatalf("expected one error, got %+v", errs)
+	}
+}
+
 func TestLexMalformedTickLiteralIsInvalidWithError(t *testing.T) {
 	toks, errs := Lex("'q")
 	// "'" isn't followed by a base letter, an unbased-unsized digit, or

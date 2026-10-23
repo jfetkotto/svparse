@@ -139,6 +139,10 @@ const (
 	// Punctuation/operators, 4 characters.
 	KindAShlAssign // <<<=
 	KindAShrAssign // >>>=
+
+	// Appended after the length groups above rather than inserted into
+	// the 3-character group, so no existing Kind value shifts.
+	KindEquiv // <-> (logical equivalence, LRM 11.4.7)
 )
 
 var kindNames = map[Kind]string{
@@ -174,6 +178,8 @@ var kindNames = map[Kind]string{
 	KindNonblockTrigger: "->>", KindImplies: "|->", KindImpliesNext: "|=>",
 
 	KindAShlAssign: "<<<=", KindAShrAssign: ">>>=",
+
+	KindEquiv: "<->",
 }
 
 // String returns a human-readable name for k, primarily for debugging and
