@@ -37,6 +37,8 @@ var rawSpanSiblings = map[string]string{
 // expression spans of a declaration.
 var notDeclarationSpans = map[string]bool{
 	"BadExpr.Tokens": true, // the tokens a BadExpr stands for
+	"RawStmt.Tokens": true, // the tokens a recognised-but-unmodeled statement stands for
+	"BadStmt.Tokens": true, // the tokens a BadStmt stands for
 }
 
 func TestEveryRawSpanFieldHasASibling(t *testing.T) {
