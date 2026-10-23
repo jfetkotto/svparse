@@ -253,7 +253,13 @@ partway through an item, leave a short "Status:" note under it.
       big.Int, `**` rules, shifts, relational, `==`/`===`/`==?`, `?:` merge),
       concat/replicate/slice/index, `$clog2`, real and string conversion.
       Tested against uint64/int64/big.Int references and 4-state truth tables.
-- [ ] `sema/types.go`
+- [x] `sema/types.go`: the type model (`Integral` with reg/logic folding and
+      packed range, `Real`, `String`/`Chandle`/`Event`/`Void`/`Null`/`Invalid`
+      singletons, `Alias`, packed/unpacked/dynamic/queue/assoc arrays,
+      `Struct`, `Union`, `Enum`, `Class`, `VirtualInterface`), classification,
+      `Bits` ($bits), and the LRM 6.22 relations `Matches`, `Equivalent`,
+      `Assignment` (Assignable/CastRequired/Incompatible) and `Castable`.
+      Building these from `ast.Type` waits for scopes and lookup.
 - [ ] `sema/compilation.go`
 - [ ] `sema/scope.go`, `lookup.go`
 - [ ] `sema/bind.go` (LRM 11.6/11.8 width and sign propagation)
