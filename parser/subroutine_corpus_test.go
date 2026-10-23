@@ -41,8 +41,29 @@ func TestSubroutineBodiesOnCorpus(t *testing.T) {
 		ownTypes(f)
 		fillExprs(f)
 
+		// Procedural items (initial, always, assign, ...) hold suppressed
+		// errors of their own, many from the corpus's deliberately illegal
+		// files; only errors outside them come from subroutine bodies.
+		var items []ast.Position
+		ast.Inspect(f, func(n ast.Node) bool {
+			switch n.(type) {
+			case *ast.Initial, *ast.Final, *ast.Always, *ast.ContinuousAssign:
+				items = append(items, n.Pos())
+			}
+			return true
+		})
+		inItem := func(e Error) bool {
+			for _, it := range items {
+				after := e.Line > it.Line || (e.Line == it.Line && e.Character >= it.Character)
+				before := e.Line < it.EndLine || (e.Line == it.EndLine && e.Character <= it.EndCharacter)
+				if after && before {
+					return true
+				}
+			}
+			return false
+		}
 		for _, e := range p.suppressed {
-			if !undefinedUVMMacro.MatchString(e.Message) {
+			if !undefinedUVMMacro.MatchString(e.Message) && !inItem(e) {
 				t.Errorf("%s:%d: unexpected body error: %s", rel, e.Line+1, e.Message)
 			}
 		}
