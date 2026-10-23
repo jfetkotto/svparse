@@ -109,9 +109,53 @@ func (p *parser) parseDataType() ast.Type {
 		t, _ = p.parseInlineAggregate() // on failure the error is recorded and t still names the keyword
 	} else {
 		t = p.parseTypeBase()
+		p.parseClassTypeSuffix(&t)
 	}
 	t.PackedDims = p.parseDims()
 	return t
+}
+
+// parseClassTypeSuffix parses the "#( ... )" that follows a user-defined
+// class type's name, and the "::name" that may follow that: "cls #(8)" is a
+// parameterized class, and "cls #(8)::inner_t" is a type inside one. The
+// cursor is after the type name parseTypeBase consumed.
+//
+// Only an identifier can be a class name. After a keyword type a '#' is
+// something else ("wire #(5) w" is a net delay, not a parameter list), so it
+// is left for the declaration to deal with as before.
+func (p *parser) parseClassTypeSuffix(t *ast.Type) {
+	if t.Name == "" || token.Keywords[t.Name] || p.peek().Kind != token.KindHash || p.peekAt(1).Kind != token.KindLParen {
+		return
+	}
+	overrides := p.parseParamOverrideList()
+	if !p.absorbClassScope(t, overrides) {
+		t.ParamOverrides = overrides
+	}
+}
+
+// absorbClassScope handles "::name" after a parameterized class's overrides,
+// the cursor on the "::". The class becomes the type's qualifier (keeping its
+// overrides as QualifierOverrides) and name becomes the type's Name. It
+// reports whether a "::" was there to absorb.
+func (p *parser) absorbClassScope(t *ast.Type, overrides []ast.ParamOverride) bool {
+	if p.peek().Kind != token.KindColonColon {
+		return false
+	}
+	p.advance() // "::"
+	nameTok, ok := p.expectIdent()
+	if !ok {
+		t.ParamOverrides = overrides // keep what was parsed; the error is recorded
+		return true
+	}
+	qualifier := t.Name
+	if t.PackageQualifier != "" {
+		qualifier = t.PackageQualifier + "::" + t.Name
+	}
+	t.PackageQualifier = qualifier
+	t.QualifierOverrides = overrides
+	t.Name = nameTok.Text
+	t.Position = namePosition(nameTok)
+	return true
 }
 
 // parseTypeBase greedily consumes signed/unsigned and one type name

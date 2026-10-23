@@ -37,11 +37,23 @@ type Class struct {
 	IsInterfaceClass bool
 	Name             string
 	Params           []Parameter
-	Extends          string
-	ExtendsArgs      []preprocessor.Token
-	ExtendsArgExprs  []Expr // parsed ExtendsArgs, one per argument (as in a Call's Args)
-	Implements       []string
-	Body             []Decl
+
+	// Extends is the base class's bare name (a package qualifier and any
+	// parameter list are dropped), "" if there is no extends clause; for an
+	// interface class that extends several, the first. ExtendsTypes has the
+	// full references, "pkg::Base #(5)" included, one per base.
+	Extends      string
+	ExtendsTypes []Type
+
+	ExtendsArgs     []preprocessor.Token
+	ExtendsArgExprs []Expr // parsed ExtendsArgs, one per argument (as in a Call's Args)
+
+	// Implements lists the implemented interface classes' bare names, and
+	// ImplementsTypes their full references, in the same order.
+	Implements      []string
+	ImplementsTypes []Type
+
+	Body []Decl
 }
 
 // Package is a package declaration: a flat body of imports, variables,

@@ -81,7 +81,9 @@ func describe(n Node) (head string, kids []Node) {
 	case *Class:
 		h := "class " + n.Name
 		h += flag(n.Virtual, "virtual") + flag(n.IsInterfaceClass, "interface")
-		if n.Extends != "" {
+		if len(n.ExtendsTypes) > 0 {
+			h += " extends=" + strings.Join(typeStrings(n.ExtendsTypes), ", ")
+		} else if n.Extends != "" {
 			h += " extends=" + n.Extends
 		}
 		if len(n.ExtendsArgExprs) > 0 {
@@ -89,7 +91,9 @@ func describe(n Node) (head string, kids []Node) {
 		} else if len(n.ExtendsArgs) > 0 {
 			h += " extends-args=" + span(n.ExtendsArgs)
 		}
-		if len(n.Implements) > 0 {
+		if len(n.ImplementsTypes) > 0 {
+			h += " implements=" + strings.Join(typeStrings(n.ImplementsTypes), ", ")
+		} else if len(n.Implements) > 0 {
 			h += " implements=" + strings.Join(n.Implements, ",")
 		}
 		return h, concat(values(n.Params), decls(n.Body))
@@ -233,7 +237,7 @@ func typeString(t Type) string {
 	var parts []string
 	name := t.Name + aggregateQualifiers(t.Inline)
 	if t.PackageQualifier != "" {
-		name = t.PackageQualifier + "::" + name
+		name = t.PackageQualifier + overridesText(t.QualifierOverrides) + "::" + name
 	}
 	if t.Modport != "" {
 		name += "." + t.Modport
@@ -242,11 +246,7 @@ func typeString(t Type) string {
 		parts = append(parts, name)
 	}
 	if len(t.ParamOverrides) > 0 {
-		var os []string
-		for _, o := range t.ParamOverrides {
-			os = append(os, overrideText(o))
-		}
-		parts = append(parts, "#("+strings.Join(os, ", ")+")")
+		parts = append(parts, overridesText(t.ParamOverrides))
 	}
 	if t.Signed {
 		parts = append(parts, "signed")
@@ -258,6 +258,26 @@ func typeString(t Type) string {
 		parts = append(parts, strings.TrimPrefix(dims(t.PackedDims), " "))
 	}
 	return strings.Join(parts, " ")
+}
+
+// overridesText is "#(a, .n v)" for a parameter value list, "" for none.
+func overridesText(os []ParamOverride) string {
+	if len(os) == 0 {
+		return ""
+	}
+	texts := make([]string, len(os))
+	for i, o := range os {
+		texts[i] = overrideText(o)
+	}
+	return "#(" + strings.Join(texts, ", ") + ")"
+}
+
+func typeStrings(ts []Type) []string {
+	out := make([]string, len(ts))
+	for i, t := range ts {
+		out[i] = typeString(t)
+	}
+	return out
 }
 
 // typeKids is the anonymous aggregate a type is written as, which hangs as a
