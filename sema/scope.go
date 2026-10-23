@@ -77,6 +77,8 @@ type Symbol struct {
 	// Child is the scope the symbol opens (a module, class, function, named
 	// block, ...), or nil.
 	Child *Scope
+	// Owner is the *ast.Enum that declares an enum member.
+	Owner ast.Node
 	// Target is the module, interface or program type an instance symbol
 	// instantiates.
 	Target string
@@ -163,6 +165,8 @@ type Model struct {
 	nodes   map[ast.Node]*Scope
 	diags   []diag.Diagnostic
 	pending []pendingMethod
+	tc      *typeCache
+	params  map[*Symbol]*paramInfo
 }
 
 // pendingMethod is an out-of-block method definition "function C::m", whose
@@ -484,7 +488,15 @@ func (m *Model) declareIn(s *Scope, d ast.Decl) {
 
 func (m *Model) declareEnum(s *Scope, e *ast.Enum) {
 	for i := range e.Members {
-		m.declare(s, SymEnumMember, e.Members[i].Name, &e.Members[i], nil)
+		mem := &e.Members[i]
+		// "enum {A, B} x, y;" gives each declarator its own copy of the enum,
+		// at the same source position: the second copy is not a clash.
+		if prev, ok := s.syms[mem.Name]; ok && prev.Kind == SymEnumMember && prev.Decl.Pos() == mem.Pos() {
+			continue
+		}
+		if sym := m.declare(s, SymEnumMember, mem.Name, mem, nil); sym != nil {
+			sym.Owner = e
+		}
 	}
 }
 
