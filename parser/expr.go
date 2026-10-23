@@ -931,7 +931,8 @@ func (p *parser) parseWithClause(c *ast.Call) {
 	}
 }
 
-// parseConstraintBlock keeps "{ ... }" as an unparsed ast.ConstraintBlock. The
+// parseConstraintBlock parses "{ ... }" into an ast.ConstraintBlock, keeping the
+// raw tokens beside the parsed items. The
 // cursor is on '{'. The scan stops at a block end or the end of input, since a
 // constraint block contains no begin/end, so a missing '}' cannot run on.
 func (p *parser) parseConstraintBlock() *ast.ConstraintBlock {
@@ -946,6 +947,7 @@ scan:
 		case tok.Kind == token.KindEOF, isStmtStop(tok):
 			p.errorf(tok, "unterminated constraint block, expected '}'")
 			b := &ast.ConstraintBlock{Tokens: p.toks[from:p.pos]}
+			b.Items = p.parseConstraintItems(b.Tokens)
 			b.SetPos(p.spanFrom(start))
 			return b
 		case tok.Kind == token.KindLBrace || tok.Kind == token.KindTickLBrace:
@@ -959,6 +961,7 @@ scan:
 		p.advance()
 	}
 	b := &ast.ConstraintBlock{Tokens: p.toks[from:p.pos]}
+	b.Items = p.parseConstraintItems(b.Tokens)
 	p.advance() // '}'
 	b.SetPos(p.spanFrom(start))
 	return b

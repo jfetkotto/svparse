@@ -251,12 +251,12 @@ type Call struct {
 }
 
 // ConstraintBlock holds the braces of an inline constraint block, "{ x > 0; x <
-// y; }". Tokens is everything between the braces, unparsed: the constraint
-// grammar is not modeled yet, so this node keeps the block intact and in place
-// until it is, at which point it is replaced by real constraint nodes.
+// y; }". Tokens is everything between the braces and Items is that text
+// parsed.
 type ConstraintBlock struct {
 	exprBase
 	Tokens []preprocessor.Token
+	Items  []ConstraintItem // parsed Tokens
 }
 
 // NamedArg is ".name(Value)" in a call's argument list. Value is nil for

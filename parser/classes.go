@@ -146,8 +146,19 @@ func (p *parser) parseConstraint() (ast.Decl, bool) {
 	c := &ast.Constraint{Name: nameTok.Text}
 	c.Position = namePosition(nameTok)
 
+	open := p.pos
+	opens := p.peek().Kind == token.KindLBrace // peek, not p.toks[open]: the block can start at the end of input
 	end := p.skipBracedBlock()
 	c.EndLine, c.EndCharacter = end.Line, end.Character
+	if opens {
+		// The tokens between the braces; the closing brace is the last token
+		// consumed when the block was terminated.
+		to := p.pos
+		if end.Kind == token.KindRBrace {
+			to--
+		}
+		c.Items = p.parseConstraintItems(p.toks[open+1 : to])
+	}
 	return c, true
 }
 
