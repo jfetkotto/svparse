@@ -268,7 +268,19 @@ partway through an item, leave a short "Status:" note under it.
       original as related location. Needed `Function`/`Task`/`Constraint`
       `Scope` (the class of an out-of-block `C::m`) so those are not taken for
       free subroutines.
-- [ ] `sema/scope.go`, `lookup.go`
+- [x] `sema/scope.go`, `lookup.go`: `Compilation.Model()` builds the scope tree
+      (`Scope`, `Symbol`, 30 `SymKind`s): $unit, packages, modules and nested
+      modules, classes, subroutines (out-of-block `C::m` nested in the class),
+      named and unnamed blocks, for/foreach scopes, generate blocks (with
+      genblkN naming and loop genvars), covergroups, properties, sequences,
+      clocking blocks; duplicate-declaration diagnostics inside scopes (a port
+      re-declared as a variable is folded). `Scope.Lookup` follows LRM 23.9
+      (own, explicit imports, wildcard imports with ambiguity, inherited class
+      members, then outward). `LookupQualified` (`pkg::`, `Class::`, `$unit::`,
+      nested, exports incl. `*::*`), `LookupPath` (hierarchical through
+      instances, blocks, `$root`) and `ClassifyName` (the TypeOrExpr
+      ambiguity). Not yet: position-to-scope (`ScopeAt`), type parameters of
+      parameterized classes, interface ports and modport members.
 - [ ] `sema/bind.go` (LRM 11.6/11.8 width and sign propagation)
 - [ ] `sema/consteval.go`
 - [ ] `sema/stmt.go`
