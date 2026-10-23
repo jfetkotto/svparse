@@ -203,7 +203,9 @@ func (p *parser) parseKeywordStatement(start int) ast.Stmt {
 		return p.parseImmediateAssert(start)
 	case "randcase":
 		return p.parseRandCase(start)
-	case "randsequence", "expect", "restrict":
+	case "expect", "restrict":
+		return p.parseConcurrentAssert(start)
+	case "randsequence":
 		return p.rawStatement(start)
 	}
 	return nil
@@ -956,11 +958,10 @@ func (p *parser) parseProcAssign(start int, withValue bool) ast.Stmt {
 // parseImmediateAssert parses "assert|assume|cover [#0|final] (cond) [stmt]
 // [else stmt]". A concurrent assertion ("assert property") is kept raw.
 func (p *parser) parseImmediateAssert(start int) ast.Stmt {
-	kind := p.advance().Text
-	if tok := p.peek(); tok.Kind == token.KindKeyword && (tok.Text == "property" || tok.Text == "sequence") {
-		p.pos = start
-		return p.rawStatement(start)
+	if tok := p.peekAt(1); tok.Kind == token.KindKeyword && (tok.Text == "property" || tok.Text == "sequence") {
+		return p.parseConcurrentAssert(start)
 	}
+	kind := p.advance().Text
 	n := &ast.ImmediateAssert{Kind: kind}
 	switch tok := p.peek(); {
 	case tok.Kind == token.KindHash && p.peekAt(1).Text == "0":

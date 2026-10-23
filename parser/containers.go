@@ -157,11 +157,7 @@ func (p *parser) parseDecl() ([]ast.Decl, bool) {
 		// label, a ternary expression) only occurs inside an
 		// already-skipped procedural/generate-case construct -- so this
 		// check is narrow enough to only ever fire here.
-		p.advance() // label
-		p.advance() // ":"
-		p.advance() // "assert"/"assume"/"cover"/"restrict"
-		p.skipProceduralConstruct()
-		return nil, true
+		return p.parseAssertionItem()
 	}
 	if tok.Kind == token.KindIdent {
 		return p.parseVariableOrInstantiation()
@@ -293,19 +289,7 @@ func (p *parser) parseDecl() ([]ast.Decl, bool) {
 		// nesting -- stops at the first semicolon it finds).
 		return []ast.Decl{p.parseProceduralItem()}, true
 	case "assert", "assume", "cover", "restrict":
-		// A module-scope concurrent assertion statement (LRM 16.14),
-		// e.g. "assert property (@(posedge clk) req |-> ##1 ack) else
-		// $error(...);" -- same "recognized and skipped, statement/
-		// expression grammar out of scope" treatment as "assign" above,
-		// and the identical skipProceduralConstruct shape handles its
-		// action_block (an ordinary statement, ending at a top-level ';',
-		// optionally itself starting with "else") with no changes needed.
-		// A labeled form ("a1: assert property (...);") is dispatched
-		// separately, before parseVariableOrInstantiation ever sees the
-		// label -- see parseDecl's KindIdent check above.
-		p.advance()
-		p.skipProceduralConstruct()
-		return nil, true
+		return p.parseAssertionItem()
 	case "primitive":
 		return oneDecl(p.parseUDP())
 	case "constraint":
@@ -324,26 +308,9 @@ func (p *parser) parseDecl() ([]ast.Decl, bool) {
 		p.skipEndLabel()
 		return nil, true
 	case "property":
-		// A property declaration (LRM 16.6): "property name [(...)]; ...
-		// endproperty [: name]" -- assertion expression grammar is entirely
-		// out of scope, so the whole thing is skipped wholesale, same
-		// treatment as "covergroup" above. Unambiguous with "assert
-		// property (...)" (LRM 16.14's concurrent assertion statement,
-		// found only inside/via a procedural construct or the also-skipped
-		// "assert"/"assume"/"cover" module items), since that form always
-		// starts with "assert"/"assume"/"cover", never with a bare
-		// "property" token reaching this dispatch.
-		p.advance()
-		p.skipToKeyword("endproperty", nil)
-		p.skipEndLabel()
-		return nil, true
+		return oneDecl(p.parsePropertyDecl())
 	case "sequence":
-		// A sequence declaration (LRM 16.11): "sequence name [(...)]; ...
-		// endsequence [: name]" -- same treatment as "property" above.
-		p.advance()
-		p.skipToKeyword("endsequence", nil)
-		p.skipEndLabel()
-		return nil, true
+		return oneDecl(p.parseSequenceDecl())
 	case "clocking":
 		return oneDecl(p.parseClocking(p.pos, false, false))
 	case "default":

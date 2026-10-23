@@ -154,6 +154,35 @@ func exprText(e Expr) string {
 		return sexpr("dist", parts...)
 	case *DistItem:
 		return distItemText(e)
+	case *SeqDelay:
+		return sexpr("##", optText(e.X), delayRangeText(e.Min, e.Max, e.Sugar), exprText(e.Y))
+	case *SeqRepeat:
+		return sexpr("["+e.Kind+"]", exprText(e.X), delayRangeText(e.Min, e.Max, e.Sugar))
+	case *PropPrefix:
+		parts := []string{}
+		if e.Arg != nil {
+			a := exprText(e.Arg)
+			if e.Range {
+				a = "[" + a + ":" + exprText(e.Max) + "]"
+			}
+			parts = append(parts, a)
+		}
+		parts = append(parts, exprText(e.X))
+		return sexpr(e.Op, append(parts, exprTexts(e.Items)...)...)
+	case *PropIf:
+		return sexpr("prop-if", exprText(e.Cond), exprText(e.Then), optText(e.Else))
+	case *PropCase:
+		parts := []string{exprText(e.Expr)}
+		for i := range e.Items {
+			parts = append(parts, propCaseItemText(&e.Items[i]))
+		}
+		return sexpr("prop-case", parts...)
+	case *ClockedProp:
+		return sexpr("clocked", timingText(e.Event), exprText(e.X))
+	case *DisableIff:
+		return sexpr("disable-iff", exprText(e.Cond), exprText(e.X))
+	case *SeqMatch:
+		return sexpr("match", append([]string{exprText(e.X)}, exprTexts(e.Items)...)...)
 	case *BadExpr:
 		return sexpr("bad", strconv.Quote(tokenText(e.Tokens)))
 	}
@@ -211,4 +240,32 @@ func overrideText(o ParamOverride) string {
 		parts = append(parts, span(o.Value))
 	}
 	return strings.Join(parts, " ")
+}
+
+// optText is exprText for an optional child: "_" when absent.
+func optText(e Expr) string {
+	if e == nil {
+		return "_"
+	}
+	return exprText(e)
+}
+
+// delayRangeText spells a cycle-delay or repetition bound: "[*]", "[+]",
+// "N" or "[lo:hi]".
+func delayRangeText(min, max Expr, sugar string) string {
+	switch {
+	case sugar != "":
+		return "[" + sugar + "]"
+	case max != nil:
+		return "[" + exprText(min) + ":" + exprText(max) + "]"
+	}
+	return exprText(min)
+}
+
+func propCaseItemText(e *PropCaseItem) string {
+	key := "default"
+	if !e.Default {
+		key = "[" + strings.Join(exprTexts(e.Exprs), " ") + "]"
+	}
+	return sexpr("item", key, exprText(e.Body))
 }

@@ -125,6 +125,22 @@ func stmtSource(s Stmt) string {
 			return "disable fork;"
 		}
 		return "disable " + exprSource(s.Target) + ";"
+	case *ConcurrentAssert:
+		out := s.Kind
+		if s.Kind != "expect" {
+			out += " property"
+			if s.Sequence {
+				out = s.Kind + " sequence"
+			}
+		}
+		out += " (" + exprSource(s.Spec) + ")"
+		if s.Then != nil {
+			out += " " + stmtSource(s.Then)
+		}
+		if s.Else != nil {
+			out += " else " + stmtSource(s.Else)
+		}
+		return out
 	case *ImmediateAssert:
 		out := s.Kind
 		if s.Deferred != "" {

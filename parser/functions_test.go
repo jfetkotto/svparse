@@ -256,7 +256,7 @@ func moduleBodyNoProc(t *testing.T, src string) []ast.Decl {
 	var out []ast.Decl
 	for _, d := range moduleBody(t, src) {
 		switch d.(type) {
-		case *ast.Initial, *ast.Final, *ast.Always, *ast.ContinuousAssign:
+		case *ast.Initial, *ast.Final, *ast.Always, *ast.ContinuousAssign, *ast.AssertionItem:
 		default:
 			out = append(out, d)
 		}
@@ -372,12 +372,14 @@ endmodule`)
 	if len(errs) == 0 {
 		t.Fatalf("expected an error for the missing ';' after the first assert property")
 	}
-	c := f.Decls[0].(*ast.Container)
-	if len(c.Body) != 1 {
-		t.Fatalf("expected exactly 1 surviving declaration (done), got %+v", c.Body)
+	var body []ast.Decl
+	for _, d := range f.Decls[0].(*ast.Container).Body {
+		if _, ok := d.(*ast.Variable); ok {
+			body = append(body, d)
+		}
 	}
-	if v, ok := c.Body[0].(*ast.Variable); !ok || v.Name != "done" {
-		t.Fatalf("expected variable done, got %+v", c.Body[0])
+	if len(body) != 1 || body[0].(*ast.Variable).Name != "done" {
+		t.Fatalf("expected exactly the variable done to survive, got %+v", body)
 	}
 }
 
@@ -516,7 +518,7 @@ logic done;`)
 }
 
 func TestConcurrentAssertionWithActionBlockIsSkipped(t *testing.T) {
-	body := moduleBody(t, `assert property (@(posedge clk) req |-> ##1 ack) else $error("no ack");
+	body := moduleBodyNoProc(t, `assert property (@(posedge clk) req |-> ##1 ack) else $error("no ack");
 logic done;`)
 	if len(body) != 1 {
 		t.Fatalf("expected exactly 1 declaration (done) after the skipped assertion, got %+v", body)
@@ -527,7 +529,7 @@ logic done;`)
 }
 
 func TestLabeledConcurrentAssertionIsSkipped(t *testing.T) {
-	body := moduleBody(t, `a1: assert property (@(posedge clk) req |-> ack);
+	body := moduleBodyNoProc(t, `a1: assert property (@(posedge clk) req |-> ack);
 logic done;`)
 	if len(body) != 1 {
 		t.Fatalf("expected exactly 1 declaration (done) after the skipped labeled assertion, got %+v", body)
@@ -538,7 +540,7 @@ logic done;`)
 }
 
 func TestCoverPropertyIsSkipped(t *testing.T) {
-	body := moduleBody(t, `cover property (@(posedge clk) req);
+	body := moduleBodyNoProc(t, `cover property (@(posedge clk) req);
 logic done;`)
 	if len(body) != 1 {
 		t.Fatalf("expected exactly 1 declaration (done) after the skipped cover, got %+v", body)

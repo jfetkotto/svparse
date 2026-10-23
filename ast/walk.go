@@ -32,6 +32,8 @@ func (ClockingSignal) node()           {}
 func (c ClockingSignal) Pos() Position { return c.Position }
 func (ConfigRule) node()               {}
 func (c ConfigRule) Pos() Position     { return c.Position }
+func (PropCaseItem) node()             {}
+func (c PropCaseItem) Pos() Position   { return c.Position }
 func (PortConnection) node()           {}
 func (c PortConnection) Pos() Position { return c.Position }
 func (ModportPort) node()              {}
@@ -182,6 +184,53 @@ func Walk(v Visitor, n Node) {
 		walkValues(v, n.Rules)
 	case *TimeUnit, *Export, *DPIExport, *DefaultClocking, *ConfigRule:
 		// Leaves.
+	case *SeqDelay:
+		walkExpr(v, n.X)
+		walkExpr(v, n.Min)
+		walkExpr(v, n.Max)
+		walkExpr(v, n.Y)
+	case *SeqRepeat:
+		walkExpr(v, n.X)
+		walkExpr(v, n.Min)
+		walkExpr(v, n.Max)
+	case *PropPrefix:
+		walkExpr(v, n.Arg)
+		walkExpr(v, n.Max)
+		walkExpr(v, n.X)
+		walkExprs(v, n.Items)
+	case *PropIf:
+		walkExpr(v, n.Cond)
+		walkExpr(v, n.Then)
+		walkExpr(v, n.Else)
+	case *PropCase:
+		walkExpr(v, n.Expr)
+		walkValues(v, n.Items)
+	case *PropCaseItem:
+		walkExprs(v, n.Exprs)
+		walkExpr(v, n.Body)
+	case *ClockedProp:
+		walkControl(v, n.Event)
+		walkExpr(v, n.X)
+	case *DisableIff:
+		walkExpr(v, n.Cond)
+		walkExpr(v, n.X)
+	case *SeqMatch:
+		walkExpr(v, n.X)
+		walkExprs(v, n.Items)
+	case *PropertyDecl:
+		walkValues(v, n.Ports)
+		walkList(v, n.Decls)
+		walkExpr(v, n.Body)
+	case *SequenceDecl:
+		walkValues(v, n.Ports)
+		walkList(v, n.Decls)
+		walkExpr(v, n.Body)
+	case *ConcurrentAssert:
+		walkExpr(v, n.Spec)
+		walkStmt(v, n.Then)
+		walkStmt(v, n.Else)
+	case *AssertionItem:
+		walkStmt(v, n.Body)
 	case *ParamOverride:
 		walkExpr(v, n.ValueExpr)
 	case *EnumMember:

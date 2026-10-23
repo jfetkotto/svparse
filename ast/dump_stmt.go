@@ -136,6 +136,15 @@ func describeStmt(n Node) (head string, kids []Node, ok bool) {
 		return "final", stmts(n.Body), true
 	case *Always:
 		return n.Kind, stmts(n.Body), true
+	case *ConcurrentAssert:
+		h := n.Kind + flag(n.Sequence, "sequence") + " spec=" + exprText(n.Spec)
+		return h + elseOnly(n.Then, n.Else), stmts(n.Then, n.Else), true
+	case *AssertionItem:
+		return "assertion", stmts(n.Body), true
+	case *PropertyDecl:
+		return "property " + n.Name + " body=" + exprText(n.Body), concat(values(n.Ports), decls(n.Decls)), true
+	case *SequenceDecl:
+		return "sequence " + n.Name + " body=" + exprText(n.Body), concat(values(n.Ports), decls(n.Decls)), true
 	case *GenerateRegion:
 		return "generate", decls(n.Body), true
 	case *GenerateBlock:

@@ -148,6 +148,56 @@ func exprSource(e Expr) string {
 		return exprSource(e.X) + " " + e.Op
 	case *AssignExpr:
 		return exprSource(e.LHS) + " " + e.Op + " " + exprSource(e.RHS)
+	case *SeqDelay:
+		s := "##" + delayBoundSource(e.Min, e.Max, e.Sugar)
+		if e.X != nil {
+			s = exprSource(e.X) + " " + s
+		}
+		return s + " " + exprSource(e.Y)
+	case *SeqRepeat:
+		if e.Sugar == "+" {
+			return exprSource(e.X) + "[+]"
+		}
+		return exprSource(e.X) + "[" + e.Kind + repeatBoundSource(e.Min, e.Max, e.Sugar) + "]"
+	case *PropPrefix:
+		s := e.Op
+		switch e.Op {
+		case "strong", "weak", "first_match":
+			in := exprSource(e.X)
+			if len(e.Items) > 0 {
+				in += ", " + exprListSource(e.Items)
+			}
+			return s + "(" + in + ")"
+		case "accept_on", "reject_on", "sync_accept_on", "sync_reject_on":
+			s += " (" + exprSource(e.Arg) + ")"
+		default:
+			if e.Arg != nil {
+				s += " [" + exprSource(e.Arg)
+				if e.Range {
+					s += ":" + exprSource(e.Max)
+				}
+				s += "]"
+			}
+		}
+		return s + " " + exprSource(e.X)
+	case *PropIf:
+		s := "if (" + exprSource(e.Cond) + ") " + exprSource(e.Then)
+		if e.Else != nil {
+			s += " else " + exprSource(e.Else)
+		}
+		return s
+	case *PropCase:
+		s := "case (" + exprSource(e.Expr) + ")"
+		for i := range e.Items {
+			s += " " + propCaseItemSource(&e.Items[i])
+		}
+		return s + " endcase"
+	case *ClockedProp:
+		return timingSource(e.Event) + " " + exprSource(e.X)
+	case *DisableIff:
+		return "disable iff (" + exprSource(e.Cond) + ") " + exprSource(e.X)
+	case *SeqMatch:
+		return exprSource(e.X) + ", " + exprListSource(e.Items)
 	case *Dist:
 		items := make([]string, len(e.Items))
 		for i := range e.Items {
@@ -321,4 +371,34 @@ func withTrailingSpace(toks []preprocessor.Token, text string) string {
 		return text + " "
 	}
 	return text
+}
+
+// delayBoundSource spells what follows "##": N, (expr), [lo:hi], [*] or [+].
+func delayBoundSource(min, max Expr, sugar string) string {
+	switch {
+	case sugar != "":
+		return "[" + sugar + "]"
+	case max != nil:
+		return "[" + exprSource(min) + ":" + exprSource(max) + "]"
+	}
+	return delaySource(min)
+}
+
+// repeatBoundSource spells what follows the operator in "[*N]", "[*lo:hi]",
+// "[*]"; the caller spells "[+]" itself.
+func repeatBoundSource(min, max Expr, sugar string) string {
+	switch {
+	case sugar == "*":
+		return ""
+	case max != nil:
+		return exprSource(min) + ":" + exprSource(max)
+	}
+	return exprSource(min)
+}
+
+func propCaseItemSource(e *PropCaseItem) string {
+	if e.Default {
+		return "default: " + exprSource(e.Body) + ";"
+	}
+	return exprListSource(e.Exprs) + ": " + exprSource(e.Body) + ";"
 }
