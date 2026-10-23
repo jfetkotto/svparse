@@ -25,6 +25,13 @@ func (l *lexer) scanNumber() {
 		l.scanTickPrefixedLiteral(startLine, startChar, start, sizeText)
 		return
 	}
+	if j := l.afterWhitespace(l.i); j > l.i && l.isBasePrefixAt(j) {
+		// "32 'd 1": LRM 5.7.1 allows white space between the size and the
+		// base. The whole spelling, spaces included, is one token.
+		l.advanceTo(j)
+		l.scanTickPrefixedLiteral(startLine, startChar, start, sizeText)
+		return
+	}
 
 	isReal := l.consumeOptionalFraction()
 	if l.consumeOptionalExponent() {
@@ -93,8 +100,77 @@ func (l *lexer) scanTickPrefixedLiteral(startLine, startChar, start int, sizeTex
 	}
 	base := l.runes[l.i]
 	l.advance()
+	if j := l.afterBlanks(l.i); j > l.i && l.spacedDigitsAt(j, base) {
+		// "'b 0": white space is also allowed between the base and the digits.
+		l.advanceTo(j)
+	}
 	l.consumeBaseDigits(base)
 	l.emit(token.KindIntLiteral, string(l.runes[start:l.i]), startLine, startChar)
+}
+
+// afterWhitespace returns the index of the first non-whitespace rune at or
+// after from (len(l.runes) if there is none).
+func (l *lexer) afterWhitespace(from int) int {
+	for from < len(l.runes) && isWhitespace(l.runes[from]) {
+		from++
+	}
+	return from
+}
+
+// afterBlanks is afterWhitespace limited to spaces and tabs: it stops at a
+// line break. See spacedDigitsAt for why the digits must be on the base's line.
+func (l *lexer) afterBlanks(from int) int {
+	for from < len(l.runes) && (l.runes[from] == ' ' || l.runes[from] == '\t') {
+		from++
+	}
+	return from
+}
+
+// advanceTo advances the lexer to index j, keeping line/column tracking.
+func (l *lexer) advanceTo(j int) {
+	for l.i < j {
+		l.advance()
+	}
+}
+
+// isBasePrefixAt reports whether a based-literal prefix, a tick, an optional
+// s/S, and a base letter, starts at index j. A tick followed by anything else
+// ("8 '(x)", "3 'x") is not one, so the size stays a plain integer.
+func (l *lexer) isBasePrefixAt(j int) bool {
+	if j >= len(l.runes) || l.runes[j] != '\'' {
+		return false
+	}
+	j++
+	if j < len(l.runes) && (l.runes[j] == 's' || l.runes[j] == 'S') {
+		j++
+	}
+	return j < len(l.runes) && isBaseLetter(l.runes[j])
+}
+
+// spacedDigitsAt reports whether the digits of a based literal start at j,
+// after blanks that followed the base letter.
+//
+// This deliberately departs from LRM 5.7.1, which also allows a line break
+// between the base and the digits. Source is routinely read mid-edit, and a
+// bare "'h" at the end of a line followed by a line that starts with valid
+// hex digits ("a = b;", "f(x);", "endmodule") would otherwise have the next
+// line's first token swallowed into the literal; a word made only of digit
+// characters ("a", "bad") cannot be told apart from a value. Requiring the
+// digits on the base's own line costs nothing in practice, since splitting a
+// literal across lines is vanishingly rare, and keeps an unfinished line from
+// damaging the next one.
+//
+// The run of digits must also not be the beginning of a longer identifier
+// ("'h add_item" is not a value).
+func (l *lexer) spacedDigitsAt(j int, base rune) bool {
+	valid := baseDigit(base)
+	if j >= len(l.runes) || l.runes[j] == '_' || !valid(l.runes[j]) {
+		return false
+	}
+	for j < len(l.runes) && (l.runes[j] == '_' || valid(l.runes[j])) {
+		j++
+	}
+	return j >= len(l.runes) || !token.IsIdentChar(l.runes[j])
 }
 
 func (l *lexer) consumeOptionalFraction() bool {

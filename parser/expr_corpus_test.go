@@ -20,9 +20,6 @@ import (
 // fix landed and the line must be removed with it.
 //
 // Every entry is accounted for; none is a defect in the expression grammar:
-//   - spaced based literals: LRM 5.7.1 allows white space between a literal's
-//     size, base and digits ("32 'd 1"), which the lexer does not yet join
-//     into one token. Fix in the lexer, ahead of feature/expr-fields.
 //   - wildcard dimension "[*]" of an associative array: not an expression;
 //     dimension parsing (feature/expr-fields) handles it.
 //   - "virtual x_if" as a "parameter type" default: a data type, handled by
@@ -38,15 +35,6 @@ var knownRejectedSpans = []string{
 	"generic/class/class_test_55.sv [dim] *",
 	"generic/class/class_test_55.sv [dim] *",
 	"generic/class/class_test_55.sv [dim] *",
-	"generic/number/number_test_11.sv [param-default] 1 'b x",
-	"generic/number/number_test_25.sv [param-default] 'd 0",
-	"generic/number/number_test_28.sv [param-default] 32 'd 1",
-	"generic/number/number_test_43.sv [param-default] 'o 0",
-	"generic/number/number_test_47.sv [param-default] 32 'o 7",
-	"generic/number/number_test_5.sv [param-default] 'b 0",
-	"generic/number/number_test_60.sv [param-default] 'h 0",
-	"generic/number/number_test_66.sv [param-default] 32 'h 7",
-	"generic/number/number_test_8.sv [param-default] 1 'b 0",
 }
 
 // TestParseExprOnCorpusSpans runs ParseExpr over every expression the
