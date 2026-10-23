@@ -345,35 +345,11 @@ func (p *parser) parseDecl() ([]ast.Decl, bool) {
 		p.skipEndLabel()
 		return nil, true
 	case "clocking":
-		// A clocking block (LRM 14.3): "clocking [name] @(...); ...
-		// endclocking [: name]" -- skipped wholesale, header (including its
-		// clocking-event expression) and all, same reasoning as
-		// "covergroup"/"property" above. "default clocking name;" -- a
-		// one-line reference to an already-declared clocking block, not a
-		// declaration of its own -- is a different shape entirely, starting
-		// with "default", not "clocking"; see the "default" case below.
-		p.advance()
-		p.skipToKeyword("endclocking", nil)
-		p.skipEndLabel()
-		return nil, true
+		return oneDecl(p.parseClocking(p.pos, false, false))
 	case "default":
-		// "default clocking name;" (LRM 14.3, a reference to an
-		// already-declared clocking block) / "default disable iff expr;"
-		// (LRM 16.15.2) -- both one-line statements ending at ';', not a
-		// body of their own. ("default input|output ...;" skew
-		// declarations exist too, LRM 14.3, but only ever appear nested
-		// inside a clocking block's own body, which "clocking" above
-		// already skips wholesale -- they never reach this dispatch
-		// directly.) Anything else starting with "default" (e.g. a bare
-		// "default:" case-statement label) only occurs inside a
-		// procedural/generate-case construct already skipped before
-		// parseDecl ever sees it, so no other shape reaches here.
-		if p.peekAt(1).Text != "clocking" && p.peekAt(1).Text != "disable" {
-			return nil, false
-		}
-		p.advance()
-		p.skipHeaderToSemi()
-		return nil, true
+		// Module-level "default clocking" / "default disable iff" (LRM 14.12,
+		// 16.15); a bare "default:" label never reaches this dispatch.
+		return p.parseDefaultItem()
 	case "checker":
 		// A checker declaration (LRM 17.2): "checker name [(...)]; ...
 		// endchecker [: name]" -- structurally a lot like a class/module (it
@@ -392,62 +368,21 @@ func (p *parser) parseDecl() ([]ast.Decl, bool) {
 		p.skipToKeyword("endspecify", nil)
 		return nil, true
 	case "defparam":
-		// "defparam u1.WIDTH = 8;" (LRM 23.10, legacy pre-parameter-override
-		// hierarchical parameter assignment) -- never parsed, out of
-		// declaration-grade scope (its target is a hierarchical path, not a
-		// name this package's model resolves), skipped explicitly rather
-		// than falling through to the generic unrecognized-token recovery.
-		p.advance()
-		p.skipHeaderToSemi()
-		return nil, true
+		return p.parseDefparam()
 	case "modport":
 		return p.parseModportDecl()
 	case "bind":
-		// "bind target_scope [#(...)] bind_instantiation ...;" (LRM 23.11) --
-		// a hierarchical binding directive (commonly used to attach
-		// verification checkers to an existing instance), never parsed, out
-		// of declaration-grade scope for the same reason "defparam" is
-		// (its target is a hierarchical reference, not a declaration).
-		// skipHeaderToSemi handles whatever shape follows uniformly: it's
-		// depth-aware, so the bind_instantiation's own port-connection
-		// parens don't confuse it.
-		p.advance()
-		p.skipHeaderToSemi()
-		return nil, true
+		return p.parseBind()
 	case "timeunit", "timeprecision":
-		// "timeunit 1ns [/ 1ps];" / "timeprecision 1ps;" (LRM 3.14.2, a
-		// module/interface/package/program/checker time-unit declaration)
-		// -- never parsed, out of declaration-grade scope (timing metadata,
-		// same reasoning as "'timescale"), skipped like every other
-		// header-only construct here.
-		p.advance()
-		p.skipHeaderToSemi()
-		return nil, true
+		return p.parseTimeUnit()
 	case "export":
-		// "export pkg::name;" / "export pkg::*;" (LRM 26.4, re-exporting an
-		// imported package member) or "export \"DPI-C\" ... ;" (a DPI
-		// export) -- neither introduces a declaration this package models
-		// (the former references an existing import; DPI export's own
-		// name/signature duplicates a function/task already declared
-		// elsewhere), skipped like "import"'s DPI form's own qualifiers are
-		// consumed-but-untracked elsewhere in this parser.
-		p.advance()
-		p.skipHeaderToSemi()
-		return nil, true
+		return p.parseExport()
 	case "let":
-		// "let name(args) = expr;" (LRM 11.12, a macro-like expression
-		// shorthand) -- never parsed, expression grammar out of scope same
-		// as everywhere else in this parser; skipped explicitly rather
-		// than falling through to the generic unrecognized-token recovery.
-		p.advance()
-		p.skipHeaderToSemi()
-		return nil, true
+		return p.parseLet()
 	case "alias":
-		// "alias w1 = w2;" (LRM 10.11, a net alias) -- never parsed, same
-		// reasoning as "let" above.
-		p.advance()
-		p.skipHeaderToSemi()
-		return nil, true
+		return p.parseAlias()
+	case "config":
+		return oneDecl(p.parseConfig())
 	case "global":
 		// "global clocking [name] @(...); ... endclocking" (LRM 14.14) --
 		// only recognized in this specific "global clocking" shape (unlike
@@ -458,11 +393,9 @@ func (p *parser) parseDecl() ([]ast.Decl, bool) {
 		if p.peekAt(1).Text != "clocking" {
 			return nil, false
 		}
+		start := p.pos
 		p.advance() // "global"
-		p.advance() // "clocking"
-		p.skipToKeyword("endclocking", nil)
-		p.skipEndLabel()
-		return nil, true
+		return oneDecl(p.parseClocking(start, false, true))
 	case "generate":
 		return p.parseGenerateRegion()
 	case "endgenerate", "end":

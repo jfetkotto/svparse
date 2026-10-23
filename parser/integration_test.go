@@ -261,6 +261,14 @@ func FuzzParseNeverPanics(f *testing.F) {
 		"primitive p (o); table 0 :",
 		"and #(1,2) (strong0, weak1) g1 (o, a), (o2, a2);",
 		"nand (",
+		"bind top.u1 : a.b chk c (.x(x));",
+		"clocking cb @(posedge clk); default input #1step output #0; input a; endclocking",
+		"config c; design lib.top; default liblist l; endconfig",
+		"export \"DPI-C\" c = function f;",
+		"let f(a, b = 1) = a + b;",
+		"alias a = b = c;",
+		"default disable iff (",
+		"timeunit 1ns / ",
 	}
 	for _, s := range seeds {
 		f.Add(s)
