@@ -558,3 +558,4 @@ into `devel`; `main` stays at the released `v0.1.9` until a `v2.0.0` release.
 | elab-conformance (elaboration stage enabled) | 157 (61 undetected negatives, 7 parser gaps, 89 need UVM) |
 | expr-diagnostics (body errors reported) | 156 (58 undetected negatives, 9 parser gaps, 89 need UVM) |
 | undeclared-names (`CheckNames`) | 155 (57 undetected negatives, 9 parser gaps, 89 need UVM) |
+| conformance-valid-rejects (escaped quote, `__FILE__`/`__LINE__`, macro `include`, `begin_keywords`, `SV_COV_*`, implicit constraints) | 146 (57 undetected negatives, 0 parser gaps, 89 need UVM) |

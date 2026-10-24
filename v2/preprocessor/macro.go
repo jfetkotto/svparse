@@ -301,9 +301,9 @@ func mergeTokenPaste(toks []Token) []Token {
 // mergeStringize resolves every matched “ `" “ (KindMacroQuote) pair in
 // toks into a single KindStringLiteral token positioned at the opening
 // quote, whose text is a double-quoted, space-joined rendering of
-// whatever tokens fell between the pair (an approximation, not exact
-// whitespace fidelity -- the same simplification joinTokenText/formatType
-// already make elsewhere for a re-rendered token span). An unmatched
+// whatever tokens fell between the pair (an approximation: a gap between
+// tokens becomes one space, and tokens that touch in the source stay
+// together). An unmatched
 // trailing KindMacroQuote (no closing partner before the body ends) is
 // treated as closing at end of input, same tolerant spirit as the rest of
 // this package.
@@ -326,8 +326,12 @@ func mergeStringize(toks []Token) []Token {
 		var text strings.Builder
 		text.WriteByte('"')
 		for k, t := range inner {
-			if k > 0 {
-				text.WriteByte(' ')
+			if k > 0 && !(inner[k-1].File == t.File && isAdjacent(inner[k-1], t)) {
+				text.WriteByte(' ') // tokens written without a gap stay together ("dummy_include.sv")
+			}
+			if t.Kind == token.KindMacroEscQuote {
+				text.WriteString(`\"`) // LRM 22.5.1: `\`" stands for \" in the string
+				continue
 			}
 			text.WriteString(t.Text)
 		}

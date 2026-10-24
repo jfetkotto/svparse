@@ -143,6 +143,12 @@ const (
 	// Appended after the length groups above rather than inserted into
 	// the 3-character group, so no existing Kind value shifts.
 	KindEquiv // <-> (logical equivalence, LRM 11.4.7)
+
+	// Macro escaped quote: a backtick, a backslash, a backtick and a double
+	// quote. Inside a stringized macro argument it stands for a literal
+	// backslash-quote pair in the string (LRM 22.5.1). Meaningless outside a
+	// `define body, like KindPaste.
+	KindMacroEscQuote
 )
 
 var kindNames = map[Kind]string{
@@ -153,7 +159,7 @@ var kindNames = map[Kind]string{
 	KindUnbasedUnsizedLiteral: "UnbasedUnsizedLiteral", KindStringLiteral: "StringLiteral",
 
 	KindDirective: "Directive", KindLineContinuation: "LineContinuation",
-	KindPaste: "``", KindMacroQuote: "`\"",
+	KindPaste: "``", KindMacroQuote: "`\"", KindMacroEscQuote: "`\\`\"",
 	KindAttrOpen: "AttrOpen", KindAttrClose: "AttrClose",
 
 	KindAdd: "+", KindSub: "-", KindMul: "*", KindQuo: "/", KindRem: "%",

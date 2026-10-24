@@ -18,6 +18,7 @@ package preprocessor
 
 import (
 	"fmt"
+	"strconv"
 
 	"github.com/jfetkotto/svparse/v2/lexer"
 	"github.com/jfetkotto/svparse/v2/token"
@@ -79,6 +80,7 @@ type preprocessor struct {
 	including map[string]bool // resolved paths currently on the active include stack -- see handleInclude
 	cond      []condFrame
 	resolver  IncludeResolver
+	keywords  []map[string]bool // open `begin_keywords regions; nil = all SystemVerilog keywords
 
 	out  []Token
 	errs []Error
@@ -273,7 +275,7 @@ func (p *preprocessor) run() {
 			// (lexer.Lex always appends one) -- never emitted.
 		case tok.Kind == token.KindDirective:
 			p.handleDirective(tok, src)
-		case tok.Kind == token.KindPaste || tok.Kind == token.KindMacroQuote:
+		case tok.Kind == token.KindPaste || tok.Kind == token.KindMacroQuote || tok.Kind == token.KindMacroEscQuote:
 			// A “ `` “/“ `" “ reaching the main loop directly (rather than
 			// via expandMacro pushing a macroDef.body -- see substitute,
 			// which always resolves these away before the result is
@@ -287,7 +289,7 @@ func (p *preprocessor) run() {
 				p.errorf(tok.File, tok.Line, tok.Character, "%q is only meaningful inside a `define body", tok.Text)
 			}
 		case p.active():
-			p.out = append(p.out, tok)
+			p.emit(tok)
 		}
 	}
 }
@@ -313,8 +315,6 @@ var knownArgumentDirectives = map[string]bool{
 	"celldefine":          true,
 	"endcelldefine":       true,
 	"resetall":            true,
-	"begin_keywords":      true,
-	"end_keywords":        true,
 }
 
 // handleDirective dispatches a KindDirective token by name. Every SV
@@ -348,6 +348,20 @@ func (p *preprocessor) handleDirective(tok Token, src *tokenSource) {
 			p.macros = make(map[string]*macroDef)
 		case "include":
 			p.handleInclude(tok, src)
+		case "begin_keywords":
+			p.handleBeginKeywords(tok, src)
+		case "end_keywords":
+			p.handleEndKeywords(tok, src)
+		case "__FILE__":
+			// LRM 22.13: the name of the file being compiled, as a string.
+			t := tok
+			t.Kind, t.Text = token.KindStringLiteral, `"`+tok.File+`"`
+			p.emit(t)
+		case "__LINE__":
+			// LRM 22.13: the line number, counted from 1.
+			t := tok
+			t.Kind, t.Text = token.KindIntLiteral, strconv.Itoa(tok.Line+1)
+			p.emit(t)
 		default:
 			if def, ok := p.macros[tok.Text]; ok && !p.expanding[tok.Text] {
 				p.expandMacro(def, tok, src)
@@ -364,6 +378,21 @@ func (p *preprocessor) handleDirective(tok Token, src *tokenSource) {
 				// conditional/macro-handled directive above, none of which
 				// produce output tokens of their own either.
 				p.collectLogicalLine(src, tok.Line)
+				return
+			}
+			if v, ok := coverageConstants[tok.Text]; ok {
+				// LRM 20.14 predefines these; emitted at the reference's own
+				// position, as a literal, so the tokens sit inside whatever
+				// expression holds them. A macro of the same name wins (above).
+				if v < 0 {
+					minus := tok
+					minus.Kind, minus.Text = token.KindSub, "-"
+					p.emit(minus)
+					v = -v
+				}
+				num := tok
+				num.Kind, num.Text = token.KindIntLiteral, strconv.Itoa(v)
+				p.emit(num)
 				return
 			}
 			// A truly unrecognized directive, or a bare reference to an
@@ -404,4 +433,13 @@ func (p *preprocessor) peek(src *tokenSource) (tok Token, ok bool) {
 
 func (p *preprocessor) errorf(file string, line, char int, format string, args ...any) {
 	p.errs = append(p.errs, Error{File: file, Line: line, Character: char, Message: fmt.Sprintf(format, args...)})
+}
+
+// coverageConstants are the constants of the coverage control system functions
+// (LRM 20.14, "Coverage system functions").
+var coverageConstants = map[string]int{
+	"SV_COV_START": 0, "SV_COV_STOP": 1, "SV_COV_RESET": 2, "SV_COV_CHECK": 3,
+	"SV_COV_MODULE": 10, "SV_COV_HIER": 11,
+	"SV_COV_ASSERTION": 20, "SV_COV_FSM_STATE": 21, "SV_COV_STATEMENT": 22, "SV_COV_TOGGLE": 23,
+	"SV_COV_ERROR": -2, "SV_COV_NOCOV": -1, "SV_COV_OK": 0, "SV_COV_PARTIAL": 2,
 }

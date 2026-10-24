@@ -143,3 +143,13 @@ func TestSourceMapThroughIncludeAndMacro(t *testing.T) {
 		t.Fatalf("expected InvokedFrom to point at the invocation in root.sv, got %+v", widthTok.InvokedFrom)
 	}
 }
+
+func TestIncludePathFromMacro(t *testing.T) {
+	r := &fakeResolver{files: map[string]string{"leaf.svh": "module leaf; endmodule"}}
+	src := "`define F(n) `\"n`\"\n`include `F(leaf.svh)\n"
+	toks, errs := Preprocess("root.sv", src, r)
+	if len(errs) != 0 {
+		t.Fatalf("unexpected errors: %+v", errs)
+	}
+	assertTexts(t, toks, "module", "leaf", ";", "endmodule")
+}

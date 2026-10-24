@@ -23,18 +23,14 @@ chapter-22/22.5.1--define-expansion_8.sv 1 # should_fail_because: more actual th
 chapter-5/5.6--wrong-identifiers.sv 2 # should_fail_because: identifiers starting with a digit or $
 chapter-5/5.7.1--integers-unsized-illegal.sv 1 # should_fail_because: hexadecimal format requires 'h; reported from the statement body (feature/expr-diagnostics)
 chapter-5/5.7.2-real-constants-illegal.sv 5 # should_fail_because: real literals need a digit on each side of the point; reported from the statement body (feature/expr-diagnostics)
-chapter-5/5.6.4--compiler-directives-debug.sv 2 # `__FILE__ and `__LINE__ (LRM 22.13) are not expanded by the preprocessor; the unexpanded names are now reported from the statement body
 chapter-8/8.26.4--illegal_forward_def_implements.sv 3 # should_fail_because: illegal forward-typedef interface-class implements
 
 # --- Out of scope: preprocessor macro operators this preprocessor doesn't implement ---
-chapter-22/22.5.1--define-expansion_25.sv 1 # escaped-quote-within-stringify operator (`\`") not implemented -- the `" / `" stringize delimiters themselves are supported
 
 # --- Out of scope: `include forms this preprocessor doesn't resolve ---
-chapter-22/22.5.1--include-define-expansion.sv 2 # `include argument built via a macro invocation (stringize-expanded to a path) -- handleInclude doesn't macro-expand its argument before checking it's a quoted literal
 chapter-5/5.6.4--compiler-directives-include.sv 1 # `include "/dev/null" -- absolute path outside the vendored corpus, platform-specific, not resolved by this harness's relative resolver
 
 # --- Out of scope: `begin_keywords/`end_keywords dynamic keyword-set switching (LRM 22.11) ---
-chapter-5/5.6.4--compiler-directives-begin-keywords.sv 3 # relies on `begin_keywords changing which identifiers are keywords; not implemented
 
 # --- Out of scope: this harness has no :defines: metadata support ---
 chapter-5/5.6.4--compiler-directives-preprocessor-macro_0.sv 2 # requires :defines: TEST_VAR (an external +define+, not something in the source itself); without it the file's own `else branch is (intentionally) invalid placeholder text

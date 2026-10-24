@@ -104,6 +104,10 @@ type includeResolver struct {
 }
 
 func (r includeResolver) Resolve(includedPath, fromFile string) (text, resolvedPath string, err error) {
+	if filepath.IsAbs(includedPath) {
+		data, err := os.ReadFile(includedPath)
+		return string(data), includedPath, err
+	}
 	candidates := []string{filepath.Join(filepath.Dir(fromFile), includedPath)}
 	for _, d := range r.incDirs {
 		candidates = append(candidates, filepath.Join(d, includedPath))

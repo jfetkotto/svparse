@@ -30,9 +30,7 @@ var knownRejectedBlocks = []string{
 	"chapter-11/11.3.6--assign_in_expr_inv.sv:22 expected ';', found \"=\"",
 	"chapter-16/16.17--expect-uvm.sv:111 expected a statement, found \"uvm_error\"",
 	"chapter-16/16.2--assert-final-uvm.sv:61 expected ';', found \"else\"",
-	"chapter-20/20.14--coverage.sv:27 expected an expression, found \"SV_COV_CHECK\"",
 	"chapter-22/22.5.1--define-expansion_21.sv:19 expected ')' to close the argument list, found \"end\"",
-	"chapter-5/5.6.4--compiler-directives-debug.sv:17 expected an expression, found \"__FILE__\"",
 	"chapter-5/5.7.1--integers-unsized-illegal.sv:19 expected ';', found \"af\"",
 	"chapter-5/5.7.2-real-constants-illegal.sv:19 expected an expression, found \".\"",
 }

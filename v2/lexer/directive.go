@@ -6,7 +6,8 @@ import "github.com/jfetkotto/svparse/v2/token"
 // (a backtick immediately followed by an identifier -- “ `define“,
 // “ `ifdef“, “ `include“, “ `timescale“, ...; Text excludes the
 // backtick), the macro token-paste operator (two adjacent backticks,
-// KindPaste), or a macro stringize delimiter (“ `" “, KindMacroQuote).
+// KindPaste), a macro stringize delimiter (“ `" “, KindMacroQuote), or an
+// escaped quote inside one (“ `\`" “, KindMacroEscQuote, LRM 22.5.1).
 // None of these is
 // interpreted here -- a preprocessor consumes them from the token stream
 // this lexer produces (expanding a directive/macro reference, or
@@ -19,6 +20,13 @@ func (l *lexer) scanDirective() {
 	if l.i < len(l.runes) && l.runes[l.i] == '`' {
 		l.advance()
 		l.emit(token.KindPaste, "``", startLine, startChar)
+		return
+	}
+	if l.i+2 < len(l.runes) && l.runes[l.i] == '\\' && l.runes[l.i+1] == '`' && l.runes[l.i+2] == '"' {
+		l.advance()
+		l.advance()
+		l.advance()
+		l.emit(token.KindMacroEscQuote, "`\\`\"", startLine, startChar)
 		return
 	}
 	if l.i < len(l.runes) && l.runes[l.i] == '"' {

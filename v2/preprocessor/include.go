@@ -15,6 +15,21 @@ import "github.com/jfetkotto/svparse/v2/token"
 // filelist-style paths exclusively.
 func (p *preprocessor) handleInclude(directiveTok Token, src *tokenSource) {
 	pathTok, ok := p.next(src)
+	if ok && pathTok.Kind == token.KindDirective {
+		// The path may come from a macro (LRM 22.4): expand it, then read the
+		// first token of the expansion.
+		if def, defined := p.macros[pathTok.Text]; defined && !p.expanding[pathTok.Text] {
+			depth := len(p.stack)
+			p.expandMacro(def, pathTok, src)
+			if len(p.stack) > depth {
+				exp := p.stack[len(p.stack)-1]
+				if exp.pos < len(exp.toks) {
+					pathTok = exp.toks[exp.pos]
+					exp.pos++
+				}
+			}
+		}
+	}
 	if !ok || pathTok.Kind != token.KindStringLiteral {
 		p.errorf(directiveTok.File, directiveTok.Line, directiveTok.Character,
 			"`include requires a quoted path (the <path> form is not supported)")
