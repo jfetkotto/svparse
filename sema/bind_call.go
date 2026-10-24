@@ -71,11 +71,11 @@ func (b *binder) userCall(e *ast.Call, sym *Symbol) BoundExpr {
 		return bad(e)
 	}
 	n := &BCall{exprInfo: exprInfo{b.returnType(sym), e}, Name: sym.Name, Sym: sym}
-	n.Args = b.bindActuals(e.Args, sym)
+	n.Args, n.Formals = b.bindActuals(e.Args, sym)
 	return n
 }
 
-func (b *binder) bindActuals(args []ast.Expr, sym *Symbol) []BoundExpr {
+func (b *binder) bindActuals(args []ast.Expr, sym *Symbol) ([]BoundExpr, []int) {
 	var formals []ast.Arg
 	switch fn := sym.Decl.(type) {
 	case *ast.Function:
@@ -84,8 +84,10 @@ func (b *binder) bindActuals(args []ast.Expr, sym *Symbol) []BoundExpr {
 		formals = fn.Args
 	}
 	var out []BoundExpr
+	var idx []int
 	for i, a := range args {
 		var formal *ast.Arg
+		fi := -1
 		value := a
 		switch a := a.(type) {
 		case *ast.Empty:
@@ -94,12 +96,12 @@ func (b *binder) bindActuals(args []ast.Expr, sym *Symbol) []BoundExpr {
 			value = a.Value
 			for k := range formals {
 				if formals[k].Name == a.Name {
-					formal = &formals[k]
+					formal, fi = &formals[k], k
 				}
 			}
 		default:
 			if i < len(formals) {
-				formal = &formals[i]
+				formal, fi = &formals[i], i
 			}
 		}
 		if value == nil {
@@ -115,9 +117,10 @@ func (b *binder) bindActuals(args []ast.Expr, sym *Symbol) []BoundExpr {
 		}
 		if be != nil {
 			out = append(out, be)
+			idx = append(idx, fi)
 		}
 	}
-	return out
+	return out, idx
 }
 
 // methodCall binds "obj.method(args)", "arr.size()", "u.f(x)" and the like.
@@ -146,7 +149,7 @@ func (b *binder) methodCall(e *ast.Call, f *ast.MemberSelect) BoundExpr {
 			if found && sym.Kind == SymFunction {
 				n.Sym = sym
 				n.typ = b.returnType(sym)
-				n.Args = b.bindActuals(e.Args, sym)
+				n.Args, n.Formals = b.bindActuals(e.Args, sym)
 				return n
 			}
 			if found && sym.Kind == SymTask {

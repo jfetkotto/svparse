@@ -167,6 +167,12 @@ type Model struct {
 	pending []pendingMethod
 	tc      *typeCache
 	params  map[*Symbol]*paramInfo
+
+	// boundExprs and synthetic cache what the constant function interpreter
+	// binds, so loops bind their bodies once.
+	boundExprs   map[boundKey]BoundExpr
+	synthetic    map[ast.Node]ast.Expr // the 1 of ++ and --, by statement
+	syntheticOps map[ast.Node]ast.Expr // "lhs op rhs" of a compound assignment, by statement
 }
 
 // pendingMethod is an out-of-block method definition "function C::m", whose

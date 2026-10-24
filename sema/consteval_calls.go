@@ -10,6 +10,9 @@ import (
 // LRM 20.8-20.10 (math, conversion and array queries). A user function needs
 // the statement interpreter and is not constant here.
 func (b *binder) evalCall(n *BCall) (Const, bool) {
+	if n.Sym != nil && n.Sym.Kind == SymFunction && n.Method == "" && n.Recv == nil {
+		return b.callFunction(n)
+	}
 	if n.Sym != nil || n.Method != "" || len(n.Name) == 0 || n.Name[0] != '$' {
 		return b.notConst(n.src, "a call of %q is not a constant expression", n.Name)
 	}
