@@ -78,6 +78,7 @@ func elaborate(file *ast.File, meta Metadata) []string {
 	all = append(all, comp.Diagnostics()...)
 	all = append(all, model.Diagnostics()...)
 	all = append(all, model.CheckStatements()...)
+	all = append(all, model.CheckNames()...)
 	opts := elab.Options{MaxInstances: 100000, MaxSteps: 1_000_000}
 	if meta.TopModule != "" {
 		opts.Tops = []string{meta.TopModule}

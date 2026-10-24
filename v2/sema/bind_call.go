@@ -26,6 +26,10 @@ func (b *binder) bindCall(e *ast.Call) BoundExpr {
 			return bad(e)
 		}
 		res := b.scope.LookupQualified(path)
+		if res.Symbol == nil && builtinScope(path) {
+			b.bindArgsSelf(e.Args)
+			return bad(e)
+		}
 		if res.Symbol == nil {
 			b.errorf(diag.CodeUndeclared, f.Pos(), "function %q is not declared", strings.Join(path, "::"))
 			b.bindArgsSelf(e.Args)

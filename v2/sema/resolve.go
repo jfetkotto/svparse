@@ -339,6 +339,17 @@ var builtinClasses = map[string]*Class{
 	"semaphore": {Name: "semaphore"},
 }
 
+// builtinScope reports whether a scoped name starts in the built-in std
+// package or one of its classes (process::self, std::randomize, ...), whose
+// members are not modelled.
+func builtinScope(path []string) bool {
+	if len(path) < 2 {
+		return false
+	}
+	_, class := builtinClasses[path[0]]
+	return class || path[0] == "std"
+}
+
 func splitQual(q string) []string {
 	var out []string
 	start := 0

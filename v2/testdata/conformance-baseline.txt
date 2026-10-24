@@ -71,7 +71,6 @@ chapter-8/8.26.6.2--parameter_type_conflict_unresolved.sv pass # undetected: sup
 chapter-8/8.26.6.3--diamond_relationship_parametrized.sv pass # undetected: different specializations of an interface class are treated as unique interface class types
 chapter-9/9.3.3--fork_return.sv pass # undetected: illegal return from fork
 generic/member/class_member_test_5.sv pass # undetected: pure virtual methods can only be declared in virtual classes
-generic/typedef/typedef_test_25__bad.sv pass # undetected: Using undefined parameters
 generic/typedef/typedef_test_28__bad.sv pass # undetected: missing forward typedef declaration, type_identifier does not resolve to a data type.
 generic/typedef/typedef_test_8__bad.sv pass # undetected: defining a type using an undefined type
 

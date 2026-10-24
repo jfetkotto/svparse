@@ -137,7 +137,7 @@ func (s *Scope) Own(name string) (*Symbol, bool) {
 	if s == nil {
 		return nil, false
 	}
-	sym, ok := s.syms[name]
+	sym, ok := s.syms[canonName(name)]
 	return sym, ok
 }
 
@@ -322,7 +322,8 @@ func (m *Model) declare(s *Scope, kind SymKind, name string, decl ast.Node, chil
 	if name == "" {
 		return nil
 	}
-	if prev, dup := s.syms[name]; dup {
+	key := canonName(name)
+	if prev, dup := s.syms[key]; dup {
 		if prev.Kind == SymPort && prev.Redeclared == nil && (kind == SymVariable || kind == SymNet) {
 			prev.Redeclared = decl
 			return prev
@@ -337,7 +338,7 @@ func (m *Model) declare(s *Scope, kind SymKind, name string, decl ast.Node, chil
 		return nil
 	}
 	sym := &Symbol{Name: name, Kind: kind, Decl: decl, Scope: s, Child: child}
-	s.syms[name] = sym
+	s.syms[key] = sym
 	s.order = append(s.order, sym)
 	return sym
 }
@@ -633,4 +634,14 @@ func (m *Model) resolvePending() {
 		}
 	}
 	m.pending = nil
+}
+
+// canonName is the name an identifier is looked up by. An escaped identifier
+// names the same thing as the plain one spelled without the backslash (LRM
+// 5.6.1: "\cpu3 " and "cpu3" are identical).
+func canonName(name string) string {
+	if len(name) > 1 && name[0] == '\\' {
+		return name[1:]
+	}
+	return name
 }
