@@ -16,7 +16,6 @@
 # enabled stage; fix or explain each one.
 
 # --- Negative tests whose error needs a semantic or lint rule that is not implemented yet (61) ---
-chapter-11/11.3.6--assign_in_expr_inv.sv pass # undetected: blocking assignments within expression must be enclosed in parentheses
 chapter-11/11.4.14.3--unpack_stream_inv.sv pass # undetected: stream is wider than assignment target
 chapter-11/11.9--tagged_union_member_access_inv.sv pass # undetected: accessing wrong member should result in run-time error
 chapter-13/13.4.4--fork-invalid.sv pass # undetected: only fork-join_none is permitted inside a function
@@ -50,8 +49,6 @@ chapter-22/22.9--unconnected_drive-invalid-2.sv pass # undetected: The directive
 chapter-22/22.9--unconnected_drive-invalid-3.sv pass # undetected: use a strength keyword with `nounconnected_drive macro
 chapter-5/5.10-structure-arrays-illegal.sv pass # undetected: C-like assignment is illegal
 chapter-5/5.7.1--integers-signed-illegal.sv pass # undetected: illegal negative decimal syntax, proper one is -8'd6
-chapter-5/5.7.1--integers-unsized-illegal.sv pass # undetected: hexadecimal format requires 'h
-chapter-5/5.7.2-real-constants-illegal.sv pass # undetected: Real literal constants must have at least one digit on each side of the decimal point
 chapter-6/6.12--real_bit_select.sv pass # undetected: it is illegal to do bit select on real data type
 chapter-6/6.12--real_bit_select_idx.sv pass # undetected: it is illegal to do bit select on real data type
 chapter-6/6.12--real_edge.sv pass # undetected: it is illegal to use edge event controls on real type
@@ -85,6 +82,7 @@ chapter-18/18.5.14.1--soft-constraint-priorities_2.sv fail # parse error: expect
 chapter-22/22.5.1--define-expansion_25.sv fail # preprocess error: '`' not followed by a directive name
 chapter-22/22.5.1--include-define-expansion.sv fail # preprocess error: `include requires a quoted path (the <path> form is not supported)
 chapter-5/5.6.4--compiler-directives-begin-keywords.sv fail # parse error: unterminated variable declaration, expected ';'
+chapter-5/5.6.4--compiler-directives-debug.sv fail # `__FILE__ and `__LINE__ (LRM 22.13) are not expanded by the preprocessor
 chapter-5/5.6.4--compiler-directives-include.sv fail # preprocess error: `include "/dev/null": open ../../testdata/sv-tests/chapter-5/dev/null: no such file or directory
 
 # --- Needs the UVM library, which is not vendored (89) ---
@@ -177,3 +175,4 @@ chapter-18/18.8--disabling-random-variables-with-rand_mode_1.sv fail # needs the
 chapter-18/18.8--disabling-random-variables-with-rand_mode_2.sv fail # needs the UVM library (tag uvm; a git submodule upstream, not vendored): `include "uvm_macros.svh" unresolved
 chapter-18/18.8--disabling-random-variables-with-rand_mode_3.sv fail # needs the UVM library (tag uvm; a git submodule upstream, not vendored): `include "uvm_macros.svh" unresolved
 chapter-18/18.9--controlling-constraints-with-constraint_mode_0.sv fail # needs the UVM library (tag uvm; a git submodule upstream, not vendored): `include "uvm_macros.svh" unresolved
+chapter-20/20.14--coverage.sv fail # the SV_COV_* constants are macros a tool predefines (LRM 20.14); not defined here, so the arguments do not parse

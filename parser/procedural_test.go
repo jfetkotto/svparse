@@ -64,17 +64,12 @@ func TestAlwaysBodyIsTimedStatement(t *testing.T) {
 	}
 }
 
-// Statement errors inside an item are held back like those in subroutine
-// bodies: the file reports nothing the skip itself would not have.
-func TestProceduralItemBodyErrorsAreSuppressed(t *testing.T) {
+// Statement errors inside an item are reported by Parse, once each.
+func TestProceduralItemBodyErrorsAreReported(t *testing.T) {
 	toks, _ := preprocessor.Preprocess("t.sv", "module m;\ninitial begin x = ; end\nendmodule", nil)
-	p := &parser{toks: toks}
-	p.parseBody("")
-	if len(p.errs) != 0 {
-		t.Fatalf("reported: %+v", p.errs)
-	}
-	if len(p.suppressed) == 0 {
-		t.Fatal("expected a suppressed error")
+	_, errs := Parse("t.sv", toks)
+	if len(errs) != 1 || errs[0].Line != 1 {
+		t.Fatalf("reported: %+v", errs)
 	}
 }
 

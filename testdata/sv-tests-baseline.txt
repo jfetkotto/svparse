@@ -16,11 +16,14 @@
 # --- Intentional sv-tests negative tests (:should_fail_because:) ---
 chapter-22/22.5.1--define-expansion_12.sv 1 # should_fail_because: fewer actual than formal macro args with no default for the rest
 chapter-22/22.5.1--define-expansion_18.sv 2 # should_fail_because: function-like macro invoked without parentheses
-chapter-22/22.5.1--define-expansion_21.sv 3 # should_fail_because: macro text split across string literals; the unterminated string corrupts the initial statement's own token stream too, reported as "expected ';' before \"endmodule\"" -- was 4 while the statement skip ran to EOF (taking endmodule with it, so the container reported its own unexpected-EOF as well)
+chapter-22/22.5.1--define-expansion_21.sv 5 # should_fail_because: macro text split across string literals; the unterminated string corrupts the initial statement's own token stream too, reported as "expected ';' before \"endmodule\"" -- was 4 while the statement skip ran to EOF (taking endmodule with it, so the container reported its own unexpected-EOF as well); now 5 with the two body errors the statement parser reports at the corrupted line
 chapter-22/22.5.1--define-expansion_6.sv 1 # should_fail_because: fewer actual than formal macro args with no default for the rest
 chapter-22/22.5.1--define-expansion_7.sv 1 # should_fail_because: function-like macro invoked without parentheses
 chapter-22/22.5.1--define-expansion_8.sv 1 # should_fail_because: more actual than formal macro args -- newly detected; svparse used to drop the surplus silently, so this file sat outside the baseline entirely
 chapter-5/5.6--wrong-identifiers.sv 2 # should_fail_because: identifiers starting with a digit or $
+chapter-5/5.7.1--integers-unsized-illegal.sv 1 # should_fail_because: hexadecimal format requires 'h; reported from the statement body (feature/expr-diagnostics)
+chapter-5/5.7.2-real-constants-illegal.sv 5 # should_fail_because: real literals need a digit on each side of the point; reported from the statement body (feature/expr-diagnostics)
+chapter-5/5.6.4--compiler-directives-debug.sv 2 # `__FILE__ and `__LINE__ (LRM 22.13) are not expanded by the preprocessor; the unexpanded names are now reported from the statement body
 chapter-8/8.26.4--illegal_forward_def_implements.sv 3 # should_fail_because: illegal forward-typedef interface-class implements
 
 # --- Out of scope: preprocessor macro operators this preprocessor doesn't implement ---

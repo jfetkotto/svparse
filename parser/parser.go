@@ -57,11 +57,11 @@ type parser struct {
 	inProp int
 
 	// suppressed holds errors found while parsing a construct for its
-	// structure only, which are deliberately not reported: the body of a
-	// function or task, whose extent the declaration parser has always
-	// found without looking inside. Reporting them is a separate, deliberate
-	// change (the roadmap's feature/expr-diagnostics) with its own baseline
-	// update; until then they are kept here so a test can see them.
+	// structure only: the body of a function or task, a procedural item,
+	// a generate header and so on, whose extent the declaration parser
+	// finds without looking inside. They are kept apart so that scan is
+	// unchanged, and Parse reports them after the declaration errors
+	// (see reported).
 	suppressed []Error
 
 	// zeroWidth* remember the most recent zero-width expression node (a
@@ -92,7 +92,25 @@ func Parse(path string, toks []preprocessor.Token) (*ast.File, []Error) {
 	f.Decls, _, _ = p.parseBody("")
 	ownTypes(f)
 	fillExprs(f)
-	return f, p.errs
+	return f, p.reported()
+}
+
+// reported returns the parse errors: the declaration errors, then those found inside bodies, procedural items and other constructs parsed
+// for their structure (LRM Annex A.6, A.8). A body parsed twice, or an error
+// seen by both the extent scan and the body parser, is reported once.
+func (p *parser) reported() []Error {
+	if len(p.suppressed) == 0 {
+		return p.errs
+	}
+	all := make([]Error, 0, len(p.errs)+len(p.suppressed))
+	seen := make(map[Error]bool, cap(all))
+	for _, e := range append(append(all, p.errs...), p.suppressed...) {
+		if !seen[e] {
+			seen[e] = true
+			all = append(all, e)
+		}
+	}
+	return all
 }
 
 // ParseTokens is a convenience entry point for callers that skip

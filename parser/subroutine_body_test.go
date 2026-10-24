@@ -97,19 +97,22 @@ endmodule`)
 	}
 }
 
-func TestBodyErrorsAreSuppressedNotReported(t *testing.T) {
+func TestBodyErrorsAreReported(t *testing.T) {
 	// A malformed statement in a body used to be invisible (the body was
-	// skipped), so it must not start producing diagnostics now. The errors are
-	// kept on the parser for a later change to report.
+	// skipped); Parse now reports it, after the declaration errors. The
+	// parser keeps them apart until then so the declaration scan is unchanged.
 	toks, _ := lexExpr("module m; function int f(); x = ; y = 2 z = 3; return ); endfunction logic after; endmodule")
 	p := &parser{toks: toks}
 	f := &ast.File{}
 	f.Decls, _, _ = p.parseBody("")
 	if len(p.errs) != 0 {
-		t.Errorf("body errors leaked into the reported errors: %+v", p.errs)
+		t.Errorf("body errors leaked into the declaration errors: %+v", p.errs)
 	}
 	if len(p.suppressed) == 0 {
-		t.Error("expected the body's errors to be kept as suppressed")
+		t.Error("expected the body's errors to be kept apart from the declaration errors")
+	}
+	if got := p.reported(); len(got) != len(p.suppressed) {
+		t.Errorf("reported %d errors, want the %d body errors", len(got), len(p.suppressed))
 	}
 	// And the declarations after the function are untouched.
 	found := false

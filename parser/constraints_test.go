@@ -90,10 +90,10 @@ endclass`)
 	}
 }
 
-func TestConstraintErrorsAreSuppressedAndRecover(t *testing.T) {
+func TestConstraintErrorsAreReportedAndRecover(t *testing.T) {
 	f, errs := parseSrc(t, "class C;\nconstraint c { x > ; y < 3; solve a; }\nint after;\nendclass")
-	if len(errs) != 0 {
-		t.Fatalf("reported: %+v", errs)
+	if len(errs) == 0 {
+		t.Fatal("expected the malformed items to be reported")
 	}
 	var con *ast.Constraint
 	ast.Inspect(f, func(n ast.Node) bool {
