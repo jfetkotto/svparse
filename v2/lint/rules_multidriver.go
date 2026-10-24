@@ -68,7 +68,7 @@ func checkMultipleDrivers(c *Context) {
 		for owner.Def == nil && owner.Parent != nil {
 			owner = owner.Parent
 		}
-		col := &driverCollector{c: c, node: n, owner: owner, out: drivers, order: &order}
+		col := &driverCollector{c: c, node: n, inst: c.Model.NewInstance(n.Env), owner: owner, out: drivers, order: &order}
 		for _, d := range body {
 			ast.Walk(col, d)
 		}
@@ -136,6 +136,7 @@ func overlaps(a, b []selLevel) bool {
 type driverCollector struct {
 	c     *Context
 	node  *elab.Node
+	inst  *sema.Instance
 	owner *elab.Node
 	out   map[driverKey][]driver
 	order *[]driverKey
@@ -237,7 +238,7 @@ func (w *driverCollector) target(e ast.Expr) (string, []selLevel, bool) {
 }
 
 func (w *driverCollector) constant(e ast.Expr) (int64, bool) {
-	c, ds := w.c.Model.Eval(w.node.Scope, e, w.node.Env)
+	c, ds := w.inst.Eval(w.node.Scope, e)
 	if len(ds) != 0 {
 		return 0, false
 	}

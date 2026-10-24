@@ -52,7 +52,7 @@ func checkWidths(c *Context, truncation bool) {
 				}
 			}
 		}
-		w := &widthWalker{c: c, env: n.Env, scope: n.Scope, truncation: truncation, seen: seen}
+		w := &widthWalker{c: c, inst: c.Model.NewInstance(n.Env), scope: n.Scope, truncation: truncation, seen: seen}
 		for _, d := range body {
 			ast.Walk(w, d)
 		}
@@ -62,7 +62,7 @@ func checkWidths(c *Context, truncation bool) {
 
 type widthWalker struct {
 	c          *Context
-	env        *sema.Env
+	inst       *sema.Instance // the node's parameter values and type cache
 	scope      *sema.Scope
 	truncation bool
 	seen       map[ast.Position]bool
@@ -102,8 +102,8 @@ func (w *widthWalker) assignment(lhs, rhs ast.Expr, at ast.Position) {
 	if w.seen[at] {
 		return
 	}
-	lb, _ := w.c.Model.BindIn(w.scope, lhs, w.env)
-	rb, _ := w.c.Model.BindIn(w.scope, rhs, w.env)
+	lb, _ := w.inst.Bind(w.scope, lhs)
+	rb, _ := w.inst.Bind(w.scope, rhs)
 	if lb == nil || rb == nil || !sema.IsIntegral(lb.Type()) || !sema.IsIntegral(rb.Type()) {
 		return
 	}
@@ -180,7 +180,7 @@ func isStateKind(k sema.SymKind) bool {
 // bits are really present.
 func (w *widthWalker) effectiveWidth(be sema.BoundExpr, fit bool) (int, bool) {
 	if fit && isLiteralLike(be) {
-		if c, ds := w.c.Model.EvalBound(be, w.env); len(ds) == 0 && c.Kind == sema.ConstInt && c.Int.IsKnown() {
+		if c, ds := w.inst.EvalBound(be); len(ds) == 0 && c.Kind == sema.ConstInt && c.Int.IsKnown() {
 			return bitLen(c.Int), true
 		}
 	}
@@ -232,7 +232,7 @@ func (w *widthWalker) constInt(be sema.BoundExpr) (int64, bool) {
 	if !isLiteralLike(be) {
 		return 0, false
 	}
-	c, ds := w.c.Model.EvalBound(be, w.env)
+	c, ds := w.inst.EvalBound(be)
 	if len(ds) != 0 {
 		return 0, false
 	}

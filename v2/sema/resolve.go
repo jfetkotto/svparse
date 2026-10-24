@@ -101,22 +101,15 @@ func (m *Model) TypeOf(sym *Symbol) (Type, []diag.Diagnostic) {
 // depends on a parameter use the values in env (overrides and defparams)
 // instead of the defaults. Nothing it resolves is cached for other callers.
 func (m *Model) TypeOfIn(sym *Symbol, env *Env) (Type, []diag.Diagnostic) {
-	b := m.newBinder(sym.Scope)
-	b.env, b.tc = env, newTypeCache()
-	r := b.typeOfSymbol(sym)
-	return r, b.diags()
+	return m.NewInstance(env).TypeOf(sym)
 }
 
 // BindIn is Bind for one instance: parameters take their values from env, and
-// the result's types are resolved privately.
+// the result's types are resolved privately. A caller binding many expressions
+// of one instance should hold an Instance instead (see NewInstance), so the
+// types are resolved once.
 func (m *Model) BindIn(s *Scope, e ast.Expr, env *Env) (BoundExpr, []diag.Diagnostic) {
-	b := m.newBinder(s)
-	b.env, b.tc = env, newTypeCache()
-	r := b.bindSelf(e)
-	if r == nil {
-		r = &BBad{exprInfo{Invalid, e}}
-	}
-	return r, b.diags()
+	return m.NewInstance(env).Bind(s, e)
 }
 
 func intT(width int, signed, four bool) Type {
