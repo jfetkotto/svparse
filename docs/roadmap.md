@@ -379,9 +379,18 @@ partway through an item, leave a short "Status:" note under it.
       `undriven-port`, `unused-parameter`. Names starting with `_`, `unused` or
       `dummy` are skipped; interfaces, packages and classes are not checked.
       On Chipview's SoC it reports five real findings and no false ones.
-- [ ] Remaining rule families (one branch each): width, multi-driver,
-      always_comb/latch, blocking/nonblocking misuse, case default,
-      unreachable/shadowing/sign mixing (implicit nets: done with the framework)
+- [x] `feature/lint-procedural`: `blocking-in-sequential`,
+      `nonblocking-in-combinational`, `case-no-default` (plain case/casez/casex
+      only; unique and priority are accepted), `latch-inferred` (a per-signal
+      definite-assignment analysis of combinational blocks: if/else and case
+      joins, `for` bodies assumed to run, `while`/`forever` not, part-selects
+      count as the signal, block locals ignored) and `incomplete-sensitivity`
+      (explicit `always @(list)` only), over a new always-procedure
+      classifier (`lint/procs.go`). Corpus: 11 blocking-in-sequential, 6
+      latches, 2 sensitivity findings; Chipview reports one `case-no-default`.
+- [ ] Remaining rule families (one branch each): width, multi-driver (a
+      per-bit overlap rule beyond the LRM driver errors),
+      unreachable/shadowing/sign mixing
 - [x] `cmd/svparse` CLI: `check`, `lint`, `elab`, `dump-ast` over
       `internal/driver` (preprocess, parse, semantic checks, elaboration, lint)
       with `-I`, `-D`, `--top`, `-f`, `--config` (default `.svparse.json`),

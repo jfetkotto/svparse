@@ -37,6 +37,19 @@ func analyze(t testing.TB, path, src string, cfg Config) []diag.Diagnostic {
 // every other rule is switched off.
 func implicitOnly() Config { return only("implicit-net") }
 
+// analyzeAST runs the front end and returns a Context for rules' helpers.
+func analyzeAST(t testing.TB, src string) *Context {
+	t.Helper()
+	res := preprocessor.PreprocessDetailed("t.sv", src, nil, preprocessor.Options{KeepComments: true})
+	file, errs := parser.Parse("t.sv", res.Tokens)
+	if len(errs) != 0 {
+		t.Fatalf("parse errors %+v", errs)
+	}
+	comp := sema.NewCompilation(sema.Options{})
+	comp.AddFile(file)
+	return &Context{Comp: comp, Model: comp.Model()}
+}
+
 func only(rules ...string) Config {
 	keep := map[string]bool{}
 	for _, r := range rules {
