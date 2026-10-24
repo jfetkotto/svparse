@@ -15,25 +15,69 @@ func init() {
 		Name:     "width-truncation",
 		Doc:      "an assignment drops the upper bits of a wider value (LRM 10.7)",
 		Severity: diag.Warning,
-		Check:    func(c *Context) { checkWidths(c, true) },
+		Check:    func(c *Context) { reportWidths(c, true) },
 	})
 	Register(Rule{
 		Name:     "width-extension",
 		Doc:      "an assignment pads a narrower signal to a wider target",
 		Severity: diag.Info,
-		Check:    func(c *Context) { checkWidths(c, false) },
+		Check:    func(c *Context) { reportWidths(c, false) },
 	})
 }
 
-// checkWidths compares the width of each assignment's right side with its
-// target, for every instance and generate block of the elaborated design (so
-// widths that depend on parameters are the instance's own). A finding is
-// reported once per source position.
-func checkWidths(c *Context, truncation bool) {
+// widthFinding is one assignment whose two sides differ in width.
+type widthFinding struct{ lw, rw int }
+
+// widthFact is what the elaborated design says about one assignment: the first
+// instance in which it truncates and the first in which it pads. Most are
+// neither.
+type widthFact struct {
+	trunc, ext *widthFinding
+}
+
+// widthFacts holds the assignments of the design that have a finding, by
+// source position. Both width rules read it: computing it is the expensive
+// part (every assignment is bound in every instance), and it is the same work
+// for both, so it is done once per run (see Context.widths).
+type widthFacts struct {
+	at    map[ast.Position]*widthFact
+	order []ast.Position
+}
+
+// widths returns the width analysis of the design, computed on first use.
+func (c *Context) widths() *widthFacts {
+	if c.sh.widths == nil {
+		c.sh.widths = computeWidths(c)
+	}
+	return c.sh.widths
+}
+
+// reportWidths reports the truncations (or the paddings) of the design.
+func reportWidths(c *Context, truncation bool) {
 	if c.Design == nil {
 		return
 	}
-	seen := map[ast.Position]bool{}
+	facts := c.widths()
+	for _, at := range facts.order {
+		f := facts.at[at]
+		switch {
+		case truncation && f.trunc != nil:
+			c.Report(at, "%d-bit value assigned to a %d-bit target: the upper %d bit(s) are lost", f.trunc.rw, f.trunc.lw, f.trunc.rw-f.trunc.lw)
+		case !truncation && f.ext != nil:
+			c.Report(at, "%d-bit value assigned to a %d-bit target: padded with %d bit(s)", f.ext.rw, f.ext.lw, f.ext.lw-f.ext.rw)
+		}
+	}
+}
+
+// computeWidths compares the width of each assignment's right side with its
+// target, for every instance and generate block of the elaborated design (so
+// widths that depend on parameters are the instance's own). An assignment is
+// recorded under its source position, once per kind of finding.
+func computeWidths(c *Context) *widthFacts {
+	facts := &widthFacts{at: map[ast.Position]*widthFact{}}
+	if c.Design == nil {
+		return facts
+	}
 	c.Design.Walk(func(n *elab.Node) bool {
 		if c.Cancelled() {
 			return false
@@ -52,20 +96,20 @@ func checkWidths(c *Context, truncation bool) {
 				}
 			}
 		}
-		w := &widthWalker{c: c, inst: c.Model.NewInstance(n.Env), scope: n.Scope, truncation: truncation, seen: seen}
+		w := &widthWalker{c: c, inst: c.Model.NewInstance(n.Env), scope: n.Scope, facts: facts}
 		for _, d := range body {
 			ast.Walk(w, d)
 		}
 		return true
 	})
+	return facts
 }
 
 type widthWalker struct {
-	c          *Context
-	inst       *sema.Instance // the node's parameter values and type cache
-	scope      *sema.Scope
-	truncation bool
-	seen       map[ast.Position]bool
+	c     *Context
+	inst  *sema.Instance // the node's parameter values and type cache
+	scope *sema.Scope
+	facts *widthFacts
 }
 
 func (w *widthWalker) Visit(n ast.Node) ast.Visitor {
@@ -99,8 +143,9 @@ func (w *widthWalker) Visit(n ast.Node) ast.Visitor {
 }
 
 func (w *widthWalker) assignment(lhs, rhs ast.Expr, at ast.Position) {
-	if w.seen[at] {
-		return
+	f := w.facts.at[at]
+	if f != nil && f.trunc != nil && f.ext != nil {
+		return // both kinds already found
 	}
 	lb, _ := w.inst.Bind(w.scope, lhs)
 	rb, _ := w.inst.Bind(w.scope, rhs)
@@ -115,13 +160,27 @@ func (w *widthWalker) assignment(lhs, rhs ast.Expr, at ast.Position) {
 	if !ok {
 		return
 	}
+	record := func(trunc bool) {
+		if f == nil {
+			f = &widthFact{}
+			w.facts.at[at] = f
+			w.facts.order = append(w.facts.order, at)
+		}
+		if trunc {
+			f.trunc = &widthFinding{lw, rw}
+		} else {
+			f.ext = &widthFinding{lw, rw}
+		}
+	}
 	switch {
-	case w.truncation && rw > lw:
-		w.seen[at] = true
-		w.c.Report(at, "%d-bit value assigned to a %d-bit target: the upper %d bit(s) are lost", rw, lw, rw-lw)
-	case !w.truncation && rw < lw && !constantValue(rb) && !grows(rb):
-		w.seen[at] = true
-		w.c.Report(at, "%d-bit value assigned to a %d-bit target: padded with %d bit(s)", rw, lw, lw-rw)
+	case rw > lw:
+		if f == nil || f.trunc == nil {
+			record(true)
+		}
+	case rw < lw && !constantValue(rb) && !grows(rb):
+		if f == nil || f.ext == nil {
+			record(false)
+		}
 	}
 }
 

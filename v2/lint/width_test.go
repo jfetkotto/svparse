@@ -89,5 +89,5 @@ endmodule`
 
 func TestWidthNeedsAnElaboratedDesign(t *testing.T) {
 	ctx := analyzeAST(t, "module top(input [15:0] a, output [7:0] q); assign q = a; endmodule")
-	checkWidths(ctx, true) // no Design: nothing to do, and no panic
+	reportWidths(ctx, true) // no Design: nothing to do, and no panic
 }
