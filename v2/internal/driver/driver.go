@@ -9,6 +9,8 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"runtime"
+	"sync"
 
 	"github.com/jfetkotto/svparse/v2/ast"
 	"github.com/jfetkotto/svparse/v2/diag"
@@ -72,21 +74,20 @@ func Analyze(ctx context.Context, opts Options) (*Result, error) {
 	var set diag.Set
 	res.Comp = sema.NewCompilation(sema.Options{SingleUnit: opts.SingleUnit})
 
-	for _, path := range opts.Files {
-		data, err := os.ReadFile(path)
-		if err != nil {
-			return nil, err
+	// Each file is read, preprocessed and parsed on its own (macros do not
+	// carry from one file to the next), so the files are handled by a pool of
+	// workers. The results are taken in the order the files were given, which
+	// is the order the compilation sees them in.
+	parsed := parseFiles(opts)
+	for i, p := range parsed {
+		if p.err != nil {
+			return nil, p.err
 		}
-		pre := preprocessor.PreprocessDetailed(path, string(data),
-			includeResolver{dirs: opts.IncludeDirs},
-			preprocessor.Options{InitialMacros: opts.Defines, KeepComments: true})
-		set.AddAll(diag.FromPreprocessor(pre.Errors))
-		res.Comments = append(res.Comments, pre.Comments...)
-
-		file, perrs := parser.Parse(path, pre.Tokens)
-		set.AddAll(diag.FromParser(perrs))
-		res.Files = append(res.Files, file)
-		res.Comp.AddFile(file)
+		set.AddAll(p.diags)
+		res.Comments = append(res.Comments, p.comments...)
+		res.Files = append(res.Files, p.file)
+		res.Comp.AddFile(p.file)
+		parsed[i] = parsedFile{} // let the rest of the file's data go
 	}
 
 	set.AddAll(res.Comp.Diagnostics())
@@ -133,4 +134,51 @@ func (r includeResolver) Resolve(includedPath, fromFile string) (text, resolvedP
 		first = fmt.Errorf("no candidates for %q", includedPath)
 	}
 	return "", "", first
+}
+
+// parsedFile is what handling one source file produces.
+type parsedFile struct {
+	file     *ast.File
+	diags    []diag.Diagnostic
+	comments []preprocessor.Comment
+	err      error
+}
+
+// parseFiles reads, preprocesses and parses opts.Files in parallel, returning
+// one result per file in the same order.
+func parseFiles(opts Options) []parsedFile {
+	out := make([]parsedFile, len(opts.Files))
+	var wg sync.WaitGroup
+	next := make(chan int)
+	workers := min(runtime.GOMAXPROCS(0), len(opts.Files))
+	for w := 0; w < workers; w++ {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			for i := range next {
+				out[i] = parseFile(opts, opts.Files[i])
+			}
+		}()
+	}
+	for i := range opts.Files {
+		next <- i
+	}
+	close(next)
+	wg.Wait()
+	return out
+}
+
+func parseFile(opts Options, path string) parsedFile {
+	data, err := os.ReadFile(path)
+	if err != nil {
+		return parsedFile{err: err}
+	}
+	pre := preprocessor.PreprocessDetailed(path, string(data),
+		includeResolver{dirs: opts.IncludeDirs},
+		preprocessor.Options{InitialMacros: opts.Defines, KeepComments: true})
+	file, perrs := parser.Parse(path, pre.Tokens)
+	var set diag.Set
+	set.AddAll(diag.FromPreprocessor(pre.Errors))
+	set.AddAll(diag.FromParser(perrs))
+	return parsedFile{file: file, diags: set.Sorted(), comments: pre.Comments}
 }
