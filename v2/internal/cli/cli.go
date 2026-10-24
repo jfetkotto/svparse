@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"path/filepath"
 	"strings"
 
 	"github.com/jfetkotto/svparse/v2/ast"
@@ -30,7 +31,8 @@ flags:
   -I dir              add an include directory (repeatable)
   -D name[=value]     define a macro (repeatable)
   --top name          elaborate this module as a root (repeatable)
-  -f listfile         read file names from a file, one per line
+  -f listfile         read a file list: sources, -f lists, +incdir+, +define+;
+                      paths are relative to the list
   --config file       lint configuration (default: .svparse.json if present)
   --format text|json  output format (default text)
   --werror            warnings fail the run
@@ -92,7 +94,9 @@ func Run(args []string, stdout, stderr io.Writer) int {
 			fmt.Fprintf(stderr, "svparse: %v\n", err)
 			return 2
 		}
-		s.files = append(s.files, more...)
+		s.files = append(s.files, more.files...)
+		s.includes = append(s.includes, more.incdirs...)
+		s.defines = append(s.defines, more.defines...)
 	}
 	if len(s.files) == 0 {
 		fmt.Fprintf(stderr, "svparse %s: no input files\n", cmd)
@@ -193,22 +197,95 @@ func defineMap(defs []string) map[string]string {
 	return m
 }
 
-func readList(path string) ([]string, error) {
+// fileList is what a "-f" file contributes: source files, include directories
+// and macro definitions, from the file and from the lists it names.
+type fileList struct {
+	files, incdirs, defines []string
+}
+
+// maxListDepth bounds nesting of "-f" lists, so a list that names itself ends
+// in an error rather than a stack overflow.
+const maxListDepth = 32
+
+// readList reads a simulator-style file list, the kind a design keeps next to
+// its sources:
+//
+//	// comment            (also # at the start of a line, and " //" after text)
+//	+incdir+a/inc+b/inc   include directories
+//	+define+W=8+DEBUG     macro definitions
+//	-f other.f            another list, read in place (-F too)
+//	-v lib.v              a library source file
+//	rtl/top.sv            a source file
+//
+// Relative paths are relative to the directory of the list that names them,
+// so a list works from wherever svparse is run. Other "+" and "-" options
+// are ignored: a list written for a simulator carries flags that mean nothing
+// here.
+func readList(path string) (fileList, error) {
+	var out fileList
+	err := readListInto(path, &out, map[string]bool{}, 0)
+	return out, err
+}
+
+func readListInto(path string, out *fileList, active map[string]bool, depth int) error {
+	abs, err := filepath.Abs(path)
+	if err != nil {
+		return err
+	}
+	if depth > maxListDepth || active[abs] {
+		return fmt.Errorf("file list %s includes itself", path)
+	}
+	active[abs] = true
+	defer delete(active, abs)
+
 	f, err := os.Open(path)
 	if err != nil {
-		return nil, err
+		return err
 	}
 	defer f.Close()
-	var out []string
+	dir := filepath.Dir(path)
+	relTo := func(p string) string {
+		if filepath.IsAbs(p) {
+			return p
+		}
+		return filepath.Join(dir, p)
+	}
 	sc := bufio.NewScanner(f)
+	sc.Buffer(make([]byte, 0, 64<<10), 1<<20)
 	for sc.Scan() {
 		line := strings.TrimSpace(sc.Text())
+		if i := strings.Index(line, " //"); i >= 0 {
+			line = strings.TrimSpace(line[:i])
+		}
 		if line == "" || strings.HasPrefix(line, "#") || strings.HasPrefix(line, "//") {
 			continue
 		}
-		out = append(out, line)
+		switch {
+		case strings.HasPrefix(line, "+incdir+"):
+			for _, d := range strings.Split(strings.TrimPrefix(line, "+incdir+"), "+") {
+				if d != "" {
+					out.incdirs = append(out.incdirs, relTo(d))
+				}
+			}
+		case strings.HasPrefix(line, "+define+"):
+			for _, d := range strings.Split(strings.TrimPrefix(line, "+define+"), "+") {
+				if d != "" {
+					out.defines = append(out.defines, d)
+				}
+			}
+		case strings.HasPrefix(line, "-f ") || strings.HasPrefix(line, "-F "):
+			if err := readListInto(relTo(strings.TrimSpace(line[3:])), out, active, depth+1); err != nil {
+				return err
+			}
+		case strings.HasPrefix(line, "-v "):
+			out.files = append(out.files, relTo(strings.TrimSpace(line[3:])))
+		case strings.HasPrefix(line, "+") || strings.HasPrefix(line, "-"):
+			// A simulator option with no meaning here.
+		default:
+			out.files = append(out.files, relTo(line))
+		}
 	}
-	return out, sc.Err()
+	return sc.Err()
 }
 
 // loadConfig reads the named lint configuration, or .svparse.json in the

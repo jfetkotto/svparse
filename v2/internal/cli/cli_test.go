@@ -250,3 +250,42 @@ func TestMFCU(t *testing.T) {
 func TestMain(m *testing.M) {
 	os.Exit(m.Run())
 }
+
+func TestFileListsNestIncludeDirsAndDefines(t *testing.T) {
+	dir := t.TempDir()
+	write(t, dir, "inc/defs.svh", "`define WIDTH 8\n")
+	write(t, dir, "rtl/top.sv", "`include \"defs.svh\"\nmodule top; leaf #(.W(`WIDTH)) u(); logic x; `ifdef EXTRA assign x = 1; `endif endmodule\n")
+	write(t, dir, "rtl/sub/leaf.sv", "module leaf #(parameter W = 1)(); endmodule\n")
+	write(t, dir, "lists/sub.f", "../rtl/sub/leaf.sv // trailing comment\n")
+	list := write(t, dir, "lists/all.f", "// top list\n+incdir+../inc\n+define+EXTRA+OTHER=2\n+libext+.v\n-f sub.f\n../rtl/top.sv\n")
+	if code, out, _ := run(t, "check", "-f", list); code != 0 {
+		t.Fatalf("nested list: %d\n%s", code, out)
+	}
+	// Run from elsewhere: paths follow the list, not the working directory.
+	t.Chdir(t.TempDir())
+	if code, out, _ := run(t, "check", "-f", list); code != 0 {
+		t.Fatalf("from another directory: %d\n%s", code, out)
+	}
+}
+
+func TestFileListThatNamesItselfIsAnError(t *testing.T) {
+	dir := t.TempDir()
+	a := filepath.Join(dir, "a.f")
+	write(t, dir, "a.f", "-f "+a+"\n")
+	if code, _, errOut := run(t, "check", "-f", a); code != 2 || !strings.Contains(errOut, "includes itself") {
+		t.Fatalf("got %d %q", code, errOut)
+	}
+}
+
+func FuzzReadList(f *testing.F) {
+	f.Add("// c\n+incdir+a+b\n+define+X=1+Y\n-f self.f\n-v lib.v\nrtl/a.sv // t\n+libext+.v\n")
+	f.Add("-f \n-F\n+incdir+\n+define+\n\x00\n")
+	f.Fuzz(func(t *testing.T, text string) {
+		dir := t.TempDir()
+		path := filepath.Join(dir, "self.f")
+		if err := os.WriteFile(path, []byte(text), 0o644); err != nil {
+			t.Skip()
+		}
+		_, _ = readList(path) // must return, not panic or recurse forever
+	})
+}
