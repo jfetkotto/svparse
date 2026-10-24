@@ -336,3 +336,28 @@ module bit1(input d, output q); endmodule`
 		t.Errorf("only the 4-bit bus on 8 instances is a mismatch: %v", ds)
 	}
 }
+
+func TestOmittedPortsAreToldFromOpenOnes(t *testing.T) {
+	d := mustElab(t, `module top(input a, output y);
+  logic o;
+  leaf named (.d(a), .q(y));
+  leaf open (.d(a), .q(y), .dbg());
+  leaf pos (a, y);
+  leaf wild (.*);
+endmodule
+module leaf(input d, output q, output dbg); endmodule`, Options{})
+	omitted := func(path string) string {
+		var names []string
+		for _, b := range d.Find(path).Ports {
+			if b.Omitted {
+				names = append(names, b.Name)
+			}
+		}
+		return strings.Join(names, ",")
+	}
+	for path, want := range map[string]string{"top.named": "dbg", "top.open": "", "top.pos": "dbg", "top.wild": "d,q,dbg"} {
+		if got := omitted(path); got != want {
+			t.Errorf("%s: omitted [%s], want [%s]", path, got, want)
+		}
+	}
+}
