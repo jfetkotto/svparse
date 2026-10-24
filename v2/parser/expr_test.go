@@ -289,6 +289,18 @@ func nameOnlyPosition(n ast.Node) bool {
 	return false
 }
 
+// longFileString reports whether n is the string a `__FILE__ expands to: it is
+// as long as the file name, not as long as the directive it replaces, so it can
+// run past the end of its parent (the preprocessor has no way to say otherwise).
+func longFileString(n, parent ast.Node) bool {
+	lit, ok := n.(*ast.Literal)
+	if !ok || lit.Kind != ast.LitString {
+		return false
+	}
+	p, q := lit.Pos(), parent.Pos()
+	return within(ast.Position{Line: p.Line, Character: p.Character, EndLine: p.Line, EndCharacter: p.Character}, q)
+}
+
 // within reports whether inner lies inside outer (inclusive).
 func within(inner, outer ast.Position) bool {
 	before := func(l1, c1, l2, c2 int) bool { return l1 < l2 || (l1 == l2 && c1 <= c2) }
@@ -315,7 +327,7 @@ func checkSpans(t *testing.T, src string, e ast.Node) {
 		}
 		if len(stack) > 0 {
 			parent := stack[len(stack)-1]
-			if !nameOnlyPosition(parent) && !within(p, parent.Pos()) {
+			if !nameOnlyPosition(parent) && !within(p, parent.Pos()) && !longFileString(n, parent) {
 				t.Errorf("%q: %T %+v escapes its parent %T %+v", src, n, p, parent, parent.Pos())
 			}
 		}

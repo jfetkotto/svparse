@@ -131,7 +131,8 @@ func (p *parser) parseClassTypeRef() (ast.Type, bool) {
 // see resolveQualifiedName). The body is recognized and skipped
 // (balanced braces), never parsed -- constraint-expression grammar is
 // entirely out of scope for this parser. The cursor is expected to be at
-// "constraint" itself -- any qualifier ("static", or "extern"/"pure" for
+// "constraint" itself (a name followed by ';' instead of a body is an
+// implicit prototype, LRM 18.5.1) -- any qualifier ("static", or "extern"/"pure" for
 // a prototype, see parseConstraintPrototype) is the caller's
 // responsibility to consume first, mirroring how parseFunction/parseTask
 // expect to start at "function"/"task".
@@ -145,6 +146,15 @@ func (p *parser) parseConstraint() (ast.Decl, bool) {
 	nameTok, scope := p.resolveQualifiedName(nameTok)
 	c := &ast.Constraint{Scope: scope, Name: nameTok.Text}
 	c.Position = namePosition(nameTok)
+
+	if scope == "" && p.peek().Kind == token.KindSemi {
+		// "constraint name;" is an implicit external constraint: the same
+		// prototype as "extern constraint name;", defined later (LRM 18.5.1).
+		c.Prototype = true
+		c.EndLine, c.EndCharacter = endOfName(nameTok)
+		p.advance()
+		return c, true
+	}
 
 	open := p.pos
 	opens := p.peek().Kind == token.KindLBrace // peek, not p.toks[open]: the block can start at the end of input

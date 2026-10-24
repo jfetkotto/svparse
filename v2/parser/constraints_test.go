@@ -184,3 +184,22 @@ func TestConstraintsOnCorpus(t *testing.T) {
 		t.Fatalf("too few found: %v", counts)
 	}
 }
+
+func TestImplicitExternalConstraint(t *testing.T) {
+	src := "class a;\n rand int b;\n constraint c;\nendclass\nconstraint a::c { b == 0; }\n"
+	toks, _ := preprocessor.Preprocess("c.sv", src, nil)
+	f, errs := Parse("c.sv", toks)
+	if len(errs) != 0 {
+		t.Fatalf("errors: %v", errs)
+	}
+	var protos []*ast.Constraint
+	ast.Inspect(f, func(n ast.Node) bool {
+		if c, ok := n.(*ast.Constraint); ok {
+			protos = append(protos, c)
+		}
+		return true
+	})
+	if len(protos) != 2 || !protos[0].Prototype || protos[0].Name != "c" || protos[1].Prototype || protos[1].Scope != "a" {
+		t.Fatalf("constraints: %+v", protos)
+	}
+}

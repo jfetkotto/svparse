@@ -75,14 +75,6 @@ generic/typedef/typedef_test_28__bad.sv pass # undetected: missing forward typed
 generic/typedef/typedef_test_8__bad.sv pass # undetected: defining a type using an undefined type
 
 # --- Parser gaps: valid code the declaration-grade parser rejects (statements, expressions, assertions, constraints, ...) (7) ---
-chapter-18/18.5.1--implicit-external-constraint_0.sv fail # parse error: expected '{' to start block
-chapter-18/18.5.1--implicit-external-constraint_1.sv fail # parse error: expected '{' to start block
-chapter-18/18.5.14.1--soft-constraint-priorities_2.sv fail # parse error: expected '{' to start block
-chapter-22/22.5.1--define-expansion_25.sv fail # preprocess error: '`' not followed by a directive name
-chapter-22/22.5.1--include-define-expansion.sv fail # preprocess error: `include requires a quoted path (the <path> form is not supported)
-chapter-5/5.6.4--compiler-directives-begin-keywords.sv fail # parse error: unterminated variable declaration, expected ';'
-chapter-5/5.6.4--compiler-directives-debug.sv fail # `__FILE__ and `__LINE__ (LRM 22.13) are not expanded by the preprocessor
-chapter-5/5.6.4--compiler-directives-include.sv fail # preprocess error: `include "/dev/null": open ../../testdata/sv-tests/chapter-5/dev/null: no such file or directory
 
 # --- Needs the UVM library, which is not vendored (89) ---
 chapter-16/16.10--property-local-var-uvm.sv fail # needs the UVM library (tag uvm; a git submodule upstream, not vendored): `include "uvm_macros.svh" unresolved
@@ -174,4 +166,3 @@ chapter-18/18.8--disabling-random-variables-with-rand_mode_1.sv fail # needs the
 chapter-18/18.8--disabling-random-variables-with-rand_mode_2.sv fail # needs the UVM library (tag uvm; a git submodule upstream, not vendored): `include "uvm_macros.svh" unresolved
 chapter-18/18.8--disabling-random-variables-with-rand_mode_3.sv fail # needs the UVM library (tag uvm; a git submodule upstream, not vendored): `include "uvm_macros.svh" unresolved
 chapter-18/18.9--controlling-constraints-with-constraint_mode_0.sv fail # needs the UVM library (tag uvm; a git submodule upstream, not vendored): `include "uvm_macros.svh" unresolved
-chapter-20/20.14--coverage.sv fail # the SV_COV_* constants are macros a tool predefines (LRM 20.14); not defined here, so the arguments do not parse
