@@ -412,7 +412,8 @@ func (p *parser) skipProceduralConstruct() {
 					continue
 				}
 			} else if !atStatementStart && blockDepth == 0 && parenDepth == 0 &&
-				isDeclBoundaryKeyword(tok.Text) && !isTypeCastKeyword(tok, p.peekAt(1)) {
+				isDeclBoundaryKeyword(tok.Text) && !isTypeCastKeyword(tok, p.peekAt(1)) &&
+				!p.isProceduralAssign(tok) {
 				p.errorf(tok, "expected ';' before %q", tok.Text)
 				return
 			}
@@ -429,6 +430,61 @@ func (p *parser) skipProceduralConstruct() {
 		atStatementStart = false
 		p.advance()
 	}
+}
+
+// isProceduralAssign reports whether the "assign" under the cursor is a
+// procedural continuous assignment (LRM 10.6.1) rather than the start of the
+// next module item. It is one when it follows a token that can only introduce a
+// statement: the "else" of an if, the ")" of an if, while or event control, a
+// ":" of a case item or block label, or a "begin"/"fork". After a missing ';'
+// the token before the next item is a name or a literal, never these.
+func (p *parser) isProceduralAssign(tok preprocessor.Token) bool {
+	if tok.Text != "assign" || p.pos == 0 {
+		return false
+	}
+	prev := p.toks[p.pos-1]
+	switch prev.Kind {
+	case token.KindColon:
+		return true
+	case token.KindRParen:
+		return p.closesStatementHeader()
+	case token.KindKeyword:
+		return prev.Text == "else" || prev.Text == "begin" || prev.Text == "fork"
+	}
+	return false
+}
+
+// closesStatementHeader reports whether the ")" just consumed ends the header
+// of an if, while, for, repeat, foreach or wait, or an event control: the
+// parenthesis whose matching "(" follows one of those.
+func (p *parser) closesStatementHeader() bool {
+	depth := 0
+	for i := p.pos - 1; i >= 0; i-- {
+		switch p.toks[i].Kind {
+		case token.KindRParen:
+			depth++
+		case token.KindLParen:
+			depth--
+			if depth == 0 {
+				if i == 0 {
+					return false
+				}
+				before := p.toks[i-1]
+				if before.Kind == token.KindAt {
+					return true
+				}
+				if before.Kind != token.KindKeyword {
+					return false
+				}
+				switch before.Text {
+				case "if", "while", "for", "repeat", "foreach", "wait":
+					return true
+				}
+				return false
+			}
+		}
+	}
+	return false
 }
 
 // continueAfterStatement is called by skipProceduralConstruct once a

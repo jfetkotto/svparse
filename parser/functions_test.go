@@ -735,3 +735,40 @@ func hasErrorContaining(errs []Error, substr string) bool {
 	}
 	return false
 }
+
+// A procedural continuous assignment (LRM 10.6.1) inside an if/else is part of
+// the always block, not the start of the next module item: no error, and the
+// declaration after the block is still found.
+func TestProceduralAssignInsideIfElseStaysInTheBlock(t *testing.T) {
+	f, errs := parseSrc(t, `module top;
+logic q, clr, set;
+always @(clr or set)
+	if (clr)
+		assign q = 0;
+	else if (set)
+		assign q = 1;
+	else
+		deassign q;
+logic done;
+endmodule`)
+	if len(errs) != 0 {
+		t.Fatalf("errors: %+v", errs)
+	}
+	var names []string
+	for _, d := range f.Decls[0].(*ast.Container).Body {
+		if v, ok := d.(*ast.Variable); ok {
+			names = append(names, v.Name)
+		}
+	}
+	if got := strings.Join(names, ","); got != "q,clr,set,done" {
+		t.Fatalf("variables = %s, want q,clr,set,done", got)
+	}
+}
+
+// ... while after a missing ';' an assign is still the start of the next item.
+func TestAssignAfterMissingSemicolonStillStartsAnItem(t *testing.T) {
+	_, errs := parseSrc(t, "module top;\nlogic a, b;\nassign a = (b)\nassign b = 1;\nendmodule")
+	if len(errs) != 1 || !strings.Contains(errs[0].Message, `"assign"`) {
+		t.Fatalf("want one error about the missing ';' before assign, got %+v", errs)
+	}
+}
