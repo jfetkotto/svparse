@@ -1,6 +1,7 @@
 # svparse
 
-> The v0/v1 module in this directory is frozen at `v0.1.9`. Development
+> The v0/v1 module in this directory is the v0.1 line: `v0.1.10` is its latest release and it only takes bug
+> fixes. Development
 > continues in [`v2/`](v2/) (`github.com/jfetkotto/svparse/v2`), a full front
 > end with a semantic model, elaboration and lint.
 
@@ -70,6 +71,18 @@ asserting the lexer/preprocessor/parser never panic on arbitrary input,
 and a corpus test (`parser/corpus_test.go`) that runs the parser over a
 vendored real-world SystemVerilog corpus under `testdata/sv-tests/`
 against a checked-in baseline.
+
+## Releases
+
+`v0.1.10` is a bug-fix release of the declaration-grade parser; development of
+the full front end continues in the `v2` module (`github.com/jfetkotto/svparse/v2`).
+
+- Size casts such as `16'(a)` and `8'(N)` lex as a size literal and a cast tick
+  instead of a "malformed numeric literal" error.
+- `ast.ParamOverride` and `ast.PortConnection` have real spans: they used to end
+  at 0:0, before their start.
+- A procedural `assign` after `else`, an `if`/`while` header, a label or `begin`
+  stays in its `always` block instead of reporting "expected ';' before assign".
 
 ## License
 
