@@ -120,3 +120,29 @@ func TestSyntheticDesignFindings(t *testing.T) {
 		t.Fatalf("the synthetic design should trigger both width rules: %v", counts)
 	}
 }
+
+// The same module instantiated with different parameters is analysed once per
+// parameterisation: a width problem that only one of them has must still be
+// found, and one that all of them have must be reported once.
+func TestWidthFindingsFollowTheParameterisation(t *testing.T) {
+	src := `module leaf #(parameter int W = 8) (input logic [7:0] a, output logic [W-1:0] y, output logic [3:0] n);
+  assign y = a;       // pads when W > 8, truncates when W < 8
+  assign n = a;       // always truncates
+endmodule
+module top (input logic [7:0] a, output logic [7:0] y0, y1, output logic [3:0] y2, output logic [15:0] y3, output logic [3:0] n0, n1, n2, n3);
+  leaf #(.W(8)) u0 (.a(a), .y(y0), .n(n0));
+  leaf #(.W(8)) u1 (.a(a), .y(y1), .n(n1));  // same as u0
+  leaf #(.W(4)) u2 (.a(a), .y(y2), .n(n2));  // truncates y
+  leaf #(.W(16)) u3 (.a(a), .y(y3), .n(n3)); // pads y
+endmodule`
+	in := buildInput(t, src)
+	counts := map[string]int{}
+	for _, d := range Run(context.Background(), in, only("width-truncation", "width-extension")) {
+		counts[d.Code]++
+	}
+	// "assign y = a" is reported once for truncation (W=4) and once for
+	// extension (W=16); "assign n = a" truncates, once.
+	if counts["width-truncation"] != 2 || counts["width-extension"] != 1 {
+		t.Fatalf("got %v", counts)
+	}
+}
