@@ -7,8 +7,10 @@
 // override's value, a port-connection expression -- are kept as raw
 // []preprocessor.Token spans exactly as written, and each also has a parsed
 // sibling field (InitialExpr, DefaultExpr, LeftExpr, ...) holding the
-// expression tree. The raw span stays populated alongside it: capture what's
-// written, and interpret it separately. A parsed sibling is nil when its span
+// expression tree. The raw spans are deprecated; use the parsed sibling (and
+// ExprString to print it). They stay populated, since removing them would
+// break module versions that read them, and the parser's own recovery uses
+// them. Capture what's written, and interpret it separately. A parsed sibling is nil when its span
 // is empty, and a *BadExpr over the whole span when the span did not parse.
 //
 // Walk and Inspect traverse a tree in source order (go/ast style), and Dump
@@ -120,6 +122,7 @@ type Type struct {
 // Wildcard marks the "[*]" index of a wildcard associative array (LRM 7.8.1),
 // which is not an expression; Left holds its "*" token and LeftExpr is nil.
 type Dim struct {
+	// Deprecated: use LeftExpr and RightExpr (and Wildcard for "[*]").
 	Left, Right []preprocessor.Token
 
 	LeftExpr, RightExpr Expr

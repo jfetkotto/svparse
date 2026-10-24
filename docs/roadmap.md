@@ -481,7 +481,14 @@ into `devel`; `main` stays at the released `v0.1.9` until a `v2.0.0` release.
       `.sigils.json` (rules, ignore globs, enabled) validated against the rule
       names, and the same skip for files that do not parse. Indexing and
       didChange benchmarks unchanged.
-- [ ] Mark raw-span AST fields `Deprecated`
+- [x] Mark raw-span AST fields `Deprecated` (`chore/deprecate-raw-spans`):
+      sigilsv2 first stopped reading them (`chore/parsed-expressions`: hover
+      and completion text now print the parsed expressions with
+      `ast.ExprString`, so `[W - 1:0]` rather than the token-joined `[W-1:0]`,
+      which also mangled keyword operators). `Dim.Left/Right`,
+      `Variable.Initial`, `Parameter/Port/Arg.Default`, `EnumMember.Value`,
+      `ParamOverride.Value`, `PortConnection.Expr` and `Class.ExtendsArgs` are
+      marked and stay populated.
 
 ## Conformance log
 

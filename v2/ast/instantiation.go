@@ -32,7 +32,8 @@ type Instantiation struct {
 // positioned on its name alone, ValueExpr lies outside Position there.
 type ParamOverride struct {
 	Position
-	Name      string
+	Name string
+	// Deprecated: use ValueExpr.
 	Value     []preprocessor.Token
 	ValueExpr Expr
 }
@@ -60,6 +61,7 @@ type PortConnection struct {
 	Name     string
 	Wildcard bool
 	Implicit bool
+	// Deprecated: use ConnExpr.
 	Expr     []preprocessor.Token
 	ConnExpr Expr // parsed Expr; nil for ".*", ".name" and an empty ".name()"
 }
