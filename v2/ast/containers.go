@@ -45,6 +45,7 @@ type Class struct {
 	Extends      string
 	ExtendsTypes []Type
 
+	// Deprecated: use ExtendsArgExprs.
 	ExtendsArgs     []preprocessor.Token
 	ExtendsArgExprs []Expr // parsed ExtendsArgs, one per argument (as in a Call's Args)
 

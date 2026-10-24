@@ -29,11 +29,12 @@ type Variable struct {
 	Type         Type
 	Name         string
 	UnpackedDims []Dim
-	Initial      []preprocessor.Token // nil unless "= expr"
-	InitialExpr  Expr                 // parsed Initial
-	IsRand       bool
-	IsRandC      bool
-	IsStatic     bool
+	// Deprecated: use InitialExpr.
+	Initial     []preprocessor.Token // nil unless "= expr"
+	InitialExpr Expr                 // parsed Initial
+	IsRand      bool
+	IsRandC     bool
+	IsStatic    bool
 
 	// The following apply to a net declaration (LRM 6.7, 6.9.2) and are zero
 	// for everything else.
@@ -58,8 +59,9 @@ type Parameter struct {
 	Type         Type // zero value if untyped ("parameter WIDTH = 8" -- Type.Name is "")
 	Name         string
 	UnpackedDims []Dim
-	Default      []preprocessor.Token
-	DefaultExpr  Expr // parsed Default; for a "parameter type", a type (*TypeExpr or *TypeOrExpr)
+	// Deprecated: use DefaultExpr.
+	Default     []preprocessor.Token
+	DefaultExpr Expr // parsed Default; for a "parameter type", a type (*TypeExpr or *TypeOrExpr)
 }
 
 // Nettype is a user-defined net type declaration (LRM 6.6.7): "nettype
@@ -127,7 +129,8 @@ type Enum struct {
 
 type EnumMember struct {
 	declBase
-	Name  string
+	Name string
+	// Deprecated: use ValueExpr.
 	Value []preprocessor.Token // nil unless "= expr"
 
 	ValueExpr Expr // parsed Value
@@ -149,8 +152,9 @@ type Port struct {
 	Type         Type
 	Name         string
 	UnpackedDims []Dim
-	Default      []preprocessor.Token
-	DefaultExpr  Expr // parsed Default
+	// Deprecated: use DefaultExpr.
+	Default     []preprocessor.Token
+	DefaultExpr Expr // parsed Default
 }
 
 // PortDecl is one non-ANSI port declaration (LRM 23.2.2.3): "direction
@@ -205,8 +209,9 @@ type Arg struct {
 	Type         Type
 	Name         string
 	UnpackedDims []Dim
-	Default      []preprocessor.Token
-	DefaultExpr  Expr // parsed Default
+	// Deprecated: use DefaultExpr.
+	Default     []preprocessor.Token
+	DefaultExpr Expr // parsed Default
 }
 
 // Function and Task are near-identical: a name, an argument list, and
