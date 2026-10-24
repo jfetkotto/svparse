@@ -15,7 +15,7 @@ func init() {
 	})
 	Register(Rule{
 		Name:     "unconnected-output",
-		Doc:      "an instance leaves an output port out of its connection list; write .port() to leave one open on purpose (LRM 23.3.2)",
+		Doc:      "an instance leaves an output or inout port out of its connection list; write .port() to leave one open on purpose (LRM 23.3.2)",
 		Severity: diag.Warning,
 		Check:    func(c *Context) { checkUnconnected(c, false) },
 	})
@@ -26,7 +26,8 @@ func init() {
 // An input that is left out, or written ".d()", floats, which is almost never
 // intended, so inputs are reported either way. An output has a legitimate way
 // to be left unused, ".q()", so only an output that is not mentioned at all is
-// reported: that is the mistake of forgetting it. A port that ".*" or ".p"
+// reported: that is the mistake of forgetting it. An inout port follows the
+// output rule. A port that ".*" or ".p"
 // connects is connected. An instance in a loop or an array is elaborated many
 // times but written once, so each finding is reported once per source
 // position.

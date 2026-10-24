@@ -8,3 +8,10 @@ module top (input logic clk, input logic a, output logic y);
   leaf u2 (.clk(clk), .d(a), .dbg());           // want
   leaf u_arr [1:0] (.clk(clk), .d(a), .dbg());  // want
 endmodule
+module pad (inout wire io, input logic oe, output logic c);
+  assign c = io;
+endmodule
+module pads (input logic oe, output logic c);
+  wire a;
+  pad p0 (.oe(oe), .c(c));       // want
+endmodule
