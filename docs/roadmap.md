@@ -560,3 +560,4 @@ into `devel`; `main` stays at the released `v0.1.9` until a `v2.0.0` release.
 | undeclared-names (`CheckNames`) | 155 (57 undetected negatives, 9 parser gaps, 89 need UVM) |
 | conformance-valid-rejects (escaped quote, `__FILE__`/`__LINE__`, macro `include`, `begin_keywords`, `SV_COV_*`, implicit constraints) | 146 (57 undetected negatives, 0 parser gaps, 89 need UVM) |
 | conformance-directive-checks (`line, `timescale, `unconnected_drive, `pragma, `resetall, directive redefinition) | 133 (44 undetected negatives, 0 parser gaps, 89 need UVM) |
+| enum-checks (member value width, x/z in 2-state, integer into enum, enum arithmetic) | 128 (39 undetected negatives, 0 parser gaps, 89 need UVM) |

@@ -34,6 +34,7 @@ func (m *Model) CheckStatementsIn(files map[string]bool) []diag.Diagnostic {
 			continue
 		}
 		us, _ := m.UnitScope(f.Path)
+		c.checkEnums(us, f)
 		for _, d := range f.Decls {
 			c.decl(us, d)
 		}
@@ -211,6 +212,7 @@ func (w *stmtWalker) Visit(n ast.Node) ast.Visitor {
 			kind = "nonblocking"
 		}
 		c.assignTarget(ctx.scope, ctx.sub, ctx.procFor(), n.LHS, kind)
+		c.checkEnumAssign(ctx.scope, n)
 		if n.Control != nil {
 			c.timing(ctx, n.Control.Pos())
 		}

@@ -638,6 +638,9 @@ func (b *binder) bindCond(e *ast.Conditional) BoundExpr {
 		return bad(e)
 	}
 	u := unify(t.Type(), f.Type())
+	if _, ok := Resolve(t.Type()).(*Enum); ok && Matches(t.Type(), f.Type()) {
+		u = t.Type() // both branches are the same enum: the result is that enum (LRM 6.19.3)
+	}
 	if IsInvalid(u) && comparableOperands(t.Type(), f.Type()) {
 		u = t.Type()
 		if Resolve(u) == Null {

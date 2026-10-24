@@ -39,11 +39,6 @@ chapter-5/5.7.1--integers-signed-illegal.sv pass # undetected: illegal negative 
 chapter-6/6.12--real_bit_select.sv pass # undetected: it is illegal to do bit select on real data type
 chapter-6/6.12--real_bit_select_idx.sv pass # undetected: it is illegal to do bit select on real data type
 chapter-6/6.12--real_edge.sv pass # undetected: it is illegal to use edge event controls on real type
-chapter-6/6.19--enum_value_inv.sv pass # undetected: If the integer value expression is a sized literal constant, it shall be an error if the size is different from the enum base type, even if the value is within the representable range.
-chapter-6/6.19--enum_xx_inv.sv pass # undetected: An enumerated name with x or z assignments assigned to an enum with no explicit data type or an explicit2-state declaration shall be a syntax error
-chapter-6/6.19--enum_xx_inv_order.sv pass # undetected: An unassigned enumerated name that follows an enum name with x or z assignments shall be a syntax error.
-chapter-6/6.19.3--enum_type_checking_inv.sv pass # undetected: enum enforces strict type checking rules
-chapter-6/6.19.4--enum_numerical_expr_no_cast.sv pass # undetected: enum numerical expression without casting
 chapter-6/6.20.5--specparam_inv.sv pass # undetected: specparam assignment to param should be invalid
 chapter-6/6.9.2--vector_vectored_inv.sv pass # undetected: bit selects are not permitted on vectored vector nets
 chapter-7/arrays/packed/variable-slice-zero.sv pass # undetected: slicing array with zero part width
