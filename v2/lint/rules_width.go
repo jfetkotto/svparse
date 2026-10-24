@@ -78,6 +78,7 @@ func computeWidths(c *Context) *widthFacts {
 	if c.Design == nil {
 		return facts
 	}
+	analysed := map[string]bool{}
 	c.Design.Walk(func(n *elab.Node) bool {
 		if c.Cancelled() {
 			return false
@@ -95,6 +96,13 @@ func computeWidths(c *Context) *widthFacts {
 					body = cont.Body
 				}
 			}
+		}
+		// A node that looks like one already analysed finds the same things.
+		if key := specializationKey(n); key != "" {
+			if analysed[key] {
+				return true
+			}
+			analysed[key] = true
 		}
 		w := &widthWalker{c: c, inst: c.Model.NewInstance(n.Env), scope: n.Scope, facts: facts}
 		for _, d := range body {
