@@ -462,7 +462,18 @@ into `devel`; `main` stays at the released `v0.1.9` until a `v2.0.0` release.
         `.sigils.json`. Gap found: undeclared names inside expressions are not
         reported by sema yet (also the largest group of undetected
         conformance negatives).
-  - [ ] Sema-backed definition and references (behind a flag, compared in tests)
+  - [x] Sema-backed definition and references (sigilsv2
+        `feature/semantic-navigation`, flag `semanticNavigation`, default
+        off): an index of every resolved name (identifiers, `pkg::name`,
+        qualified and plain type names, module types, named port and
+        parameter connections) plus declarations, built per generation. The
+        handlers use it first and fall back to the lexical lookup. Compared
+        against the lexical definition at every identifier: no disagreement
+        on a sample workspace (68 positions) or on Chipview (949 positions);
+        the model adds class members and declaration sites, and misses
+        `import` lines and loop variables, which the fallback covers.
+        References are checked to be a subset of the lexical ones. About
+        11 ms to rebuild after an edit on the benchmark workspace.
 - [x] After M7/M8: background elaboration, lint diagnostics (sigilsv2
       `feature/lint-diagnostics`): the debounced semantic pass elaborates the
       design and runs the lint rules on it, with suppression comments (the
