@@ -431,11 +431,14 @@ into `devel`; `main` stays at the released `v0.1.9` until a `v2.0.0` release.
 
 ## Follow-ups
 
-- [x] `feature/lint-unconnected-port`: `unconnected-port` (warning, raise it to
-      `error` in the lint config): an instance that leaves a port out of its
-      connection list. `elab.PortBinding.Omitted` tells a port that was never
-      mentioned from one left open on purpose with `.p()`; `.*` and `.p`
-      connections count as connected. Found a real omission in demosoc.
+- [x] `feature/lint-unconnected-port`, `feature/lint-unconnected-by-direction`:
+      two rules for ports an instance does not connect. `unconnected-input`
+      (error) fires for an input left out of the connection list or written
+      `.d()`, since it floats. `unconnected-output` (warning) fires for an
+      output left out; `.q()` leaves one open on purpose and is not reported.
+      `.*` and `.p` count as connected. `elab.PortBinding.Omitted` tells a
+      port never mentioned from one written empty. Found a real omission in
+      demosoc.
 
 - [x] `feature/undeclared-names`: `Model.CheckNames` binds every expression of
       modules, interfaces, programs and packages and reports undeclared names
