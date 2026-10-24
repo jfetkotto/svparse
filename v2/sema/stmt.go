@@ -161,6 +161,7 @@ func (c *checker) subroutine(s *Scope, kind, name, class string, ret ast.Type, s
 type stmtCtx struct {
 	scope *Scope
 	loops int
+	forks int // enclosing fork ... join blocks
 	sub   *subInfo
 	proc  *procInfo
 }
@@ -180,8 +181,19 @@ func (w *stmtWalker) Visit(n ast.Node) ast.Visitor {
 	c, ctx := w.c, w.ctx
 	switch n := n.(type) {
 	case *ast.Block:
-		if s, ok := c.m.ScopeOf(n); ok {
-			return w.with(func(x *stmtCtx) { x.scope = s })
+		if n.Fork && ctx.sub != nil && ctx.sub.kind == "function" && n.Join != "join_none" {
+			c.errorf(diag.CodeInvalidStatement, n.Pos(), "function %q can only contain fork ... join_none (LRM 13.4)", ctx.sub.name)
+		}
+		s, hasScope := c.m.ScopeOf(n)
+		if hasScope || n.Fork {
+			return w.with(func(x *stmtCtx) {
+				if hasScope {
+					x.scope = s
+				}
+				if n.Fork {
+					x.forks++
+				}
+			})
 		}
 	case *ast.For:
 		return w.with(func(x *stmtCtx) {
@@ -216,8 +228,19 @@ func (w *stmtWalker) Visit(n ast.Node) ast.Visitor {
 		}
 		c.assignTarget(ctx.scope, ctx.sub, ctx.procFor(), n.LHS, kind)
 		c.checkEnumAssign(ctx.scope, n)
+		if st, ok := n.RHS.(*ast.Streaming); ok && n.Op == "=" && ctx.scope != nil {
+			if lhs, _ := c.m.Bind(ctx.scope, n.LHS); lhs != nil {
+				c.checkStream(ctx.scope, lhs.Type(), st)
+			}
+		}
 		if n.Control != nil {
 			c.timing(ctx, n.Control.Pos())
+		}
+	case *ast.Variable:
+		if st, ok := n.InitialExpr.(*ast.Streaming); ok && len(n.UnpackedDims) == 0 {
+			if t, _ := c.m.ResolveType(ctx.scope, &n.Type); t != nil {
+				c.checkStream(ctx.scope, t, st)
+			}
 		}
 	case *ast.ProcAssign:
 		c.assignTarget(ctx.scope, ctx.sub, nil, n.LHS, "force")
@@ -246,6 +269,9 @@ func (c *checker) timing(ctx stmtCtx, at ast.Position) {
 }
 
 func (c *checker) checkReturn(ctx stmtCtx, n *ast.Return) {
+	if ctx.forks > 0 {
+		c.errorf(diag.CodeInvalidStatement, n.Pos(), "return cannot leave a fork ... join block (LRM 9.3.2)")
+	}
 	switch {
 	case ctx.sub == nil:
 		c.errorf(diag.CodeReturnOutsideSubroutine, n.Pos(), "return is not inside a function or task")

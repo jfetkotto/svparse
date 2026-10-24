@@ -99,6 +99,10 @@ func (c *nameChecker) bind(s *Scope, e ast.Expr) {
 	}
 	_, ds := c.m.Bind(s, e)
 	for _, d := range ds {
+		if d.Code == diag.CodeInvalidExpression {
+			c.set.Add(d)
+			continue
+		}
 		if d.Code != diag.CodeUndeclared {
 			continue
 		}
@@ -106,6 +110,70 @@ func (c *nameChecker) bind(s *Scope, e ast.Expr) {
 			continue
 		}
 		c.set.Add(d)
+	}
+}
+
+// noSpecparams reports a specparam used in the value of a parameter: the two
+// live in different worlds (LRM 6.20.5).
+func (c *nameChecker) noSpecparams(s *Scope, p *ast.Parameter) {
+	if s == nil || p.DefaultExpr == nil {
+		return
+	}
+	ast.Inspect(p.DefaultExpr, func(n ast.Node) bool {
+		if id, ok := n.(*ast.Ident); ok {
+			if sym := s.Lookup(id.Name).Symbol; sym != nil {
+				if sp, ok := sym.Decl.(*ast.Parameter); ok && sp.IsSpecparam {
+					c.set.Add(diag.Diagnostic{Code: diag.CodeInvalidExpression, Severity: diag.Error, Range: id.Pos(),
+						Message: "specparam " + id.Name + " cannot be used in the value of a parameter (LRM 6.20.5)"})
+				}
+			}
+		}
+		return true
+	})
+}
+
+// typeName reports a type written by name that nothing declares.
+func (c *nameChecker) typeName(s *Scope, t *ast.Type) {
+	if s == nil || t.Name == "" || t.Inline != nil {
+		return
+	}
+	_, ds := c.m.ResolveType(s, t)
+	for _, d := range ds {
+		if d.Code == diag.CodeUndeclared {
+			c.set.Add(d)
+		}
+	}
+}
+
+// typedef checks what a typedef names: an alias needs its type to exist, and a
+// bare forward declaration ("typedef T;") needs a type T declared in the same
+// scope (LRM 6.18).
+func (c *nameChecker) typedef(s *Scope, t *ast.Typedef) {
+	if s == nil {
+		return
+	}
+	switch u := t.Underlying.(type) {
+	case *ast.TypeAlias:
+		c.typeName(s, &u.Type)
+	case nil:
+		if t.ForwardKind == "" && s.Lookup(t.Name).Symbol == nil {
+			c.set.Add(diag.Diagnostic{Code: diag.CodeUndeclared, Severity: diag.Error, Range: t.Pos(),
+				Message: "forward typedef " + t.Name + " is never defined (LRM 6.18)"})
+		}
+	}
+}
+
+// edgeTerm binds one entry of an event expression and refuses an edge of a
+// real value (LRM 6.12).
+func (c *nameChecker) edgeTerm(s *Scope, t *ast.EventTerm) {
+	c.bind(s, t.X)
+	c.bind(s, t.Iff)
+	if t.Edge == "" || t.X == nil || s == nil {
+		return
+	}
+	if be, _ := c.m.Bind(s, t.X); be != nil && IsReal(be.Type()) {
+		c.set.Add(diag.Diagnostic{Code: diag.CodeInvalidExpression, Severity: diag.Error, Range: t.X.Pos(),
+			Message: "a real value has no " + t.Edge + " (LRM 6.12)"})
 	}
 }
 
@@ -196,6 +264,26 @@ func (w *nameWalker) Visit(n ast.Node) ast.Visitor {
 			if _, bare := n.ConnExpr.(*ast.Ident); !bare {
 				w.c.bind(w.scope, n.ConnExpr)
 			}
+		}
+		return nil
+	case *ast.Parameter:
+		if !w.collect && !n.IsSpecparam {
+			w.c.noSpecparams(w.scope, n)
+		}
+		return w
+	case *ast.Typedef:
+		if !w.collect {
+			w.c.typedef(w.scope, n)
+		}
+		return w
+	case *ast.Variable:
+		if !w.collect {
+			w.c.typeName(w.scope, &n.Type)
+		}
+		return w
+	case *ast.EventTerm:
+		if !w.collect {
+			w.c.edgeTerm(w.scope, n)
 		}
 		return nil
 	case ast.Expr:

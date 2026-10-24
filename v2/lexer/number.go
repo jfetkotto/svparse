@@ -104,7 +104,13 @@ func (l *lexer) scanTickPrefixedLiteral(startLine, startChar, start int, sizeTex
 		// "'b 0": white space is also allowed between the base and the digits.
 		l.advanceTo(j)
 	}
+	digits := l.i
 	l.consumeBaseDigits(base)
+	if l.i == digits && (l.i >= len(l.runes) || l.runes[l.i] != '`') {
+		// "8'd-6": the digits are missing (a macro may supply them, hence the
+		// backtick exception). A sign belongs before the size (LRM 5.7.1).
+		l.errorf(startLine, startChar, "based literal %q has no digits", string(l.runes[start:l.i]))
+	}
 	l.emit(token.KindIntLiteral, string(l.runes[start:l.i]), startLine, startChar)
 }
 

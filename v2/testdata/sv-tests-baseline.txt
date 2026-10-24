@@ -34,6 +34,7 @@ chapter-22/22.9--unconnected_drive-invalid-1.sv 1 # should_fail_because: The dir
 chapter-22/22.9--unconnected_drive-invalid-2.sv 1 # should_fail_because: The directive `unconnected_drive takes one of two arguments - pull1 or pull0
 chapter-22/22.9--unconnected_drive-invalid-3.sv 1 # should_fail_because: use a strength keyword with `nounconnected_drive macro
 chapter-5/5.6--wrong-identifiers.sv 2 # should_fail_because: identifiers starting with a digit or $
+chapter-5/5.7.1--integers-signed-illegal.sv 1 # should_fail_because: illegal negative decimal syntax, proper one is -8'd6
 chapter-5/5.7.1--integers-unsized-illegal.sv 1 # should_fail_because: hexadecimal format requires 'h; reported from the statement body (feature/expr-diagnostics)
 chapter-5/5.7.2-real-constants-illegal.sv 5 # should_fail_because: real literals need a digit on each side of the point; reported from the statement body (feature/expr-diagnostics)
 chapter-8/8.26.4--illegal_forward_def_implements.sv 3 # should_fail_because: illegal forward-typedef interface-class implements
