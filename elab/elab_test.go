@@ -504,6 +504,8 @@ func TestCorpusElaborates(t *testing.T) {
 func FuzzElaborate(f *testing.F) {
 	f.Add("module top #(parameter N = 2); genvar i; for (i = 0; i < N; i++) begin : g leaf #(i) u(); end defparam g[0].u.W = 3; endmodule module leaf #(parameter W = 1); endmodule")
 	f.Add("module a #(parameter N = 1); if (N < 4) a #(N + 1) next(); endmodule")
+	f.Add("interface i; modport m(); endinterface module top; i b(); c u(.x(b.m), .*, .y); wire w; assign q = w; endmodule module c(i x, input y); endmodule bind c chk k(.*);")
+	f.Add("module top; leaf u(1, 2, .p(3)); leaf v[2:0](.*); endmodule module leaf(input [3:0] p, q); endmodule bind top.u : x leaf z();")
 	f.Add("module top; leaf u[3:0] (); case (1) 1: leaf v(); default: ; endcase endmodule module leaf #(parameter type T = int); endmodule")
 	f.Fuzz(func(t *testing.T, src string) {
 		toks, _ := preprocessor.Preprocess("f.sv", src, nil)

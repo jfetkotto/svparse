@@ -680,3 +680,43 @@ func FuzzBind(f *testing.F) {
 		}
 	})
 }
+
+// TypeOfIn and BindIn resolve for one instance: parameters take the values of
+// the environment, and nothing leaks into the shared cache.
+func TestTypesPerInstance(t *testing.T) {
+	m, c := model(t, `typedef logic [3:0] fixed_t;
+module top #(parameter W = 8);
+  typedef logic [W-1:0] word_t;
+  logic [W-1:0] v; word_t w; fixed_t f; logic [W*2-1:0] dbl;
+endmodule`)
+	top := defScope(t, m, c, "top")
+	wsym, _ := top.Own("W")
+	env := &Env{Params: map[*Symbol]Const{wsym: intConst(svint.FromInt64(32, 16))}}
+	for name, want := range map[string][2]string{
+		"v": {"logic [7:0]", "logic [15:0]"}, "dbl": {"logic [15:0]", "logic [31:0]"},
+	} {
+		def, _ := m.TypeOf(top.syms[name])
+		in, ds := m.TypeOfIn(top.syms[name], env)
+		if len(ds) != 0 || def.String() != want[0] || in.String() != want[1] {
+			t.Errorf("%s: default %s, per instance %s %v; want %v", name, def, in, ds, want)
+		}
+	}
+	// A typedef that depends on the parameter follows it too, and the default
+	// answer is unchanged afterwards.
+	if in, _ := m.TypeOfIn(top.syms["w"], env); in.String() != "word_t" || widthOf(in) != 16 {
+		t.Errorf("w per instance: %s (%d bits)", in, widthOf(in))
+	}
+	if def, _ := m.TypeOf(top.syms["w"]); widthOf(def) != 8 {
+		t.Errorf("w default: %d bits", widthOf(def))
+	}
+	if in, _ := m.TypeOfIn(top.syms["f"], env); widthOf(in) != 4 {
+		t.Errorf("f: %d bits", widthOf(in))
+	}
+	be, ds := m.BindIn(top, parseExprText(t, "{v, v}"), env)
+	if len(ds) != 0 || widthOf(be.Type()) != 32 {
+		t.Errorf("BindIn width = %d %v", widthOf(be.Type()), ds)
+	}
+	if be, _ := m.Bind(top, parseExprText(t, "{v, v}")); widthOf(be.Type()) != 16 {
+		t.Errorf("Bind (defaults) width = %d", widthOf(be.Type()))
+	}
+}

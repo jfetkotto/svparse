@@ -33,7 +33,7 @@ type defparam struct {
 // from (nil for a top), ov the overrides of its instantiation and forwarded
 // the defparams that reach it from above, each with the path starting at the
 // instance's own parameters. It returns nil only if elaboration was stopped.
-func (e *elaborator) instance(def *sema.Definition, name string, parent *Node, decl ast.Node, ov map[string]override, forwarded []defparam) *Node {
+func (e *elaborator) instance(def *sema.Definition, name string, parent *Node, decl ast.Node, ov map[string]override, forwarded []defparam, connect func(*Node)) *Node {
 	if e.cancelled() {
 		return nil
 	}
@@ -80,8 +80,12 @@ func (e *elaborator) instance(def *sema.Definition, name string, parent *Node, d
 		e.errorf(diag.CodeRecursiveInstantiation, at, "module %q instantiates itself with the same parameters at %s", def.Name, n.Path())
 		return n
 	}
+	if connect != nil {
+		connect(n) // before the body, so interface ports are known to the children
+	}
 	if cont, ok := def.Decl.(*ast.Container); ok {
 		e.collectDefparams(n, scope, cont.Body)
+		e.implicitNets(n, scope, cont.Body)
 		e.items(n, scope, cont.Body)
 	}
 	return n
@@ -335,7 +339,7 @@ func (e *elaborator) instantiate(n *Node, sc *sema.Scope, inst *ast.Instantiatio
 		}
 		in := &inst.Instances[i]
 		for _, el := range e.elements(n, sc, in) {
-			e.instance(def, el.name, n, in, ov, forwardedFor(n, in.Name))
+			e.instance(def, el.name, n, in, ov, forwardedFor(n, in.Name), func(child *Node) { e.bindPorts(n, sc, child, in) })
 		}
 	}
 }

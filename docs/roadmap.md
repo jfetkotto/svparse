@@ -333,9 +333,19 @@ partway through an item, leave a short "Status:" note under it.
       `instantiation-depth`, `instance-limit`, `generate-limit`,
       `unknown-top`, `no-top`. Corpus: all 1014 files elaborate; two gaps
       remain (`$isunbounded`, aggregate parameters).
-- [ ] `feature/elab-ports`: port connection binding (named, positional, `.*`,
-      `.name`; width and direction checks), implicit nets, interface instances
-      and modports, `bind`, hierarchical reference resolution
+- [x] `feature/elab-ports`: `PortBinding`s on every instance (`Node.Ports`):
+      positional, named, `.name`, `.*` and `.p()` connections; unknown,
+      too many, duplicate and mixed connections; output/inout drivability,
+      type compatibility, and width mismatch (a warning) checked against the
+      instance's own port types (`TypeOfIn`/`BindIn` resolve array bounds with
+      the instance's parameters); interface ports bound to interface
+      instances and modports, including pass-through and generic `interface`
+      ports; implicit nets from port connections and continuous assignments
+      (`Options.DefaultNettype`, "none" makes them errors; the preprocessor
+      does not carry `default_nettype`, so it is one setting per design);
+      `bind` directives (by module, by hierarchical instance, or `bind m : a`)
+      elaborated into their targets; `Node.ResolveHier` / `Design.ResolveHier`
+      for hierarchical names with upward search and `$root`.
 - [ ] `feature/elab-conformance`: enable the `elaboration` stage in the
       conformance harness and cut the baseline against it
 
@@ -383,3 +393,4 @@ partway through an item, leave a short "Status:" note under it.
 | covergroups (none in corpus) | 164 |
 | sema-stmt (procedural assign extent fix) | 163 |
 | elab-instances (no conformance stage yet) | 163 |
+| elab-ports | 163 |

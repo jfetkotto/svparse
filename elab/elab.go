@@ -31,6 +31,12 @@ type Options struct {
 	// MaxSteps is the constant-evaluation step budget of each instance; the
 	// default is the evaluator's own.
 	MaxSteps int
+	// DefaultNettype is the type of an implicitly declared net (LRM 6.10):
+	// "wire" (the default) or "none", which makes an undeclared name in a port
+	// connection or on the left of a continuous assignment an error. The
+	// preprocessor does not carry `default_nettype through, so one setting
+	// covers the whole design.
+	DefaultNettype string
 }
 
 // NodeKind says what a Node is.
@@ -82,6 +88,12 @@ type Node struct {
 	// Children are the instances and blocks directly inside, in source order
 	// (loop iterations in iteration order).
 	Children []*Node
+	// Ports binds each port of the instantiated module to what the instance
+	// connects to it, in port order. It is empty for a top and for a block.
+	Ports []PortBinding
+	// ImplicitNets are the nets this node's scope declares implicitly, by being
+	// connected to an instance port or driven by a continuous assignment.
+	ImplicitNets []ImplicitNet
 	// Decl is the *ast.Instance or *ast.GenerateBlock this node comes from;
 	// nil for a top.
 	Decl ast.Node
@@ -123,6 +135,9 @@ func (n *Node) Child(name string) *Node {
 // Find follows a dotted path of child names from n.
 func (n *Node) Find(path string) *Node {
 	cur := n
+	if path == "" {
+		return n
+	}
 	for _, part := range splitPath(path) {
 		if cur = cur.Child(part); cur == nil {
 			return nil
@@ -240,8 +255,9 @@ func Elaborate(ctx context.Context, comp *sema.Compilation, opts Options) (*Desi
 		if e.cancelled() {
 			break
 		}
-		d.Tops = append(d.Tops, e.instance(def, def.Name, nil, nil, nil, nil))
+		d.Tops = append(d.Tops, e.instance(def, def.Name, nil, nil, nil, nil, nil))
 	}
+	e.applyBinds(d)
 	d.Count = e.count
 	return d, e.set.Sorted()
 }

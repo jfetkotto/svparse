@@ -141,7 +141,7 @@ func (b *binder) methodCall(e *ast.Call, f *ast.MemberSelect) BoundExpr {
 	n := &BCall{exprInfo: exprInfo{Invalid, e}, Name: f.Member, Method: f.Member, Recv: recv, Args: args}
 	rt := Resolve(recv.Type())
 	if cl, ok := rt.(*Class); ok {
-		if cs := b.m.cache().classes[cl]; cs != nil {
+		if cs := b.cache().classes[cl]; cs != nil {
 			sym, found := cs.syms[f.Member]
 			if !found {
 				sym, found = b.m.inheritedMember(cs, f.Member, 0)
