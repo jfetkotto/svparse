@@ -29,8 +29,12 @@ from `devel` at a release, which is then tagged.
 
 ## Modules
 
-The repository holds two Go modules. The root is the v0/v1 module, frozen at
-`v0.1.9`; do not change it. All development is in `v2/`
+The repository holds two Go modules. The root is the v0/v1 module (latest
+`v0.1.10`); it takes bug fixes only, never features. A fix that also applies
+there goes in as a `bugfix/<slug>` branch cut from `main`, with a test that
+fails on the previous tag, merged into `main` and released as the next
+`v0.1.x`; then `main` is merged into `devel` so the root copy stays in step.
+All development is in `v2/`
 (`github.com/jfetkotto/svparse/v2`), so run every command below from `v2/`.
 Releases are tagged `v2.x.y`.
 

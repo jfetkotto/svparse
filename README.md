@@ -1,6 +1,7 @@
 # svparse
 
-> The v0/v1 module in this directory is frozen at `v0.1.9`. Development
+> The v0/v1 module in this directory is the v0.1 line: `v0.1.10` is its latest release and it only takes bug
+> fixes. Development
 > continues in [`v2/`](v2/) (`github.com/jfetkotto/svparse/v2`), a full front
 > end with a semantic model, elaboration and lint.
 

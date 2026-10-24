@@ -431,6 +431,15 @@ into `devel`; `main` stays at the released `v0.1.9` until a `v2.0.0` release.
 
 ## Follow-ups
 
+- [x] Backports to v0.1.x (`v0.1.10`, tagged locally on `main`, not pushed):
+      size-cast lexing (`16'(a)`), real spans for `ParamOverride` and
+      `PortConnection` (they ended at 0:0), and a procedural `assign` inside an
+      `if`/`else` staying in its `always` block. Not backported: the features
+      that fixed the other false errors on valid code (`nettype`, strengths,
+      parameterized `extends`, inline aggregates), which need new AST nodes.
+      The released sigils shows three false errors on `casts.sv`; sigils `main`
+      built against `v0.1.10` shows none, and its tests pass.
+
 - [x] Lint performance (`perf/instance-binder`, `perf/shared-width-analysis`,
       `perf/specialization-dedupe`, `perf/parallel-parse`): on the 954k-line
       demosoc `svparse lint` went from 9.3 s to 4.1 s and `check` from 2.6 s to
