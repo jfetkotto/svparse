@@ -111,8 +111,9 @@ type Context struct {
 
 // shared holds analyses several rules need, computed once per run.
 type shared struct {
-	in    Input
-	usage *Usage
+	in     Input
+	usage  *Usage
+	widths *widthFacts
 }
 
 // Usage returns which signals, ports and parameters of the design are read and
