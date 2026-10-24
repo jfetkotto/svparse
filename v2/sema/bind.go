@@ -4,9 +4,9 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/jfetkotto/svparse/ast"
-	"github.com/jfetkotto/svparse/diag"
-	"github.com/jfetkotto/svparse/svint"
+	"github.com/jfetkotto/svparse/v2/ast"
+	"github.com/jfetkotto/svparse/v2/diag"
+	"github.com/jfetkotto/svparse/v2/svint"
 )
 
 // maxBindDepth bounds how deep an expression is bound, so a hostile program

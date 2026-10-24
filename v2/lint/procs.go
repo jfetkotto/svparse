@@ -1,8 +1,8 @@
 package lint
 
 import (
-	"github.com/jfetkotto/svparse/ast"
-	"github.com/jfetkotto/svparse/sema"
+	"github.com/jfetkotto/svparse/v2/ast"
+	"github.com/jfetkotto/svparse/v2/sema"
 )
 
 // procKind classifies an always procedure by what it models.

@@ -1,8 +1,8 @@
 package parser
 
 import (
-	"github.com/jfetkotto/svparse/ast"
-	"github.com/jfetkotto/svparse/token"
+	"github.com/jfetkotto/svparse/v2/ast"
+	"github.com/jfetkotto/svparse/v2/token"
 )
 
 // parseConfig parses a configuration declaration (LRM 33.4), the cursor on

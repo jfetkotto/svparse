@@ -5,7 +5,7 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/jfetkotto/svparse/preprocessor"
+	"github.com/jfetkotto/svparse/v2/preprocessor"
 )
 
 // Dump renders the tree rooted at n as a compact S-expression, for golden

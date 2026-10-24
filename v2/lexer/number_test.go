@@ -4,7 +4,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/jfetkotto/svparse/token"
+	"github.com/jfetkotto/svparse/v2/token"
 )
 
 func assertOneToken(t *testing.T, src string, wantKind token.Kind, wantText string) {

@@ -7,10 +7,10 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/jfetkotto/svparse/ast"
-	"github.com/jfetkotto/svparse/diag"
-	"github.com/jfetkotto/svparse/parser"
-	"github.com/jfetkotto/svparse/preprocessor"
+	"github.com/jfetkotto/svparse/v2/ast"
+	"github.com/jfetkotto/svparse/v2/diag"
+	"github.com/jfetkotto/svparse/v2/parser"
+	"github.com/jfetkotto/svparse/v2/preprocessor"
 )
 
 func model(t *testing.T, src string) (*Model, *Compilation) {

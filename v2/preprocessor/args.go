@@ -1,6 +1,6 @@
 package preprocessor
 
-import "github.com/jfetkotto/svparse/token"
+import "github.com/jfetkotto/svparse/v2/token"
 
 // SplitBalancedArgs consumes toks starting at pos, which must be
 // positioned right after an already-consumed opening '(', up to and

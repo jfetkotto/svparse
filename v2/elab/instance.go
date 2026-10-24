@@ -4,9 +4,9 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/jfetkotto/svparse/ast"
-	"github.com/jfetkotto/svparse/diag"
-	"github.com/jfetkotto/svparse/sema"
+	"github.com/jfetkotto/svparse/v2/ast"
+	"github.com/jfetkotto/svparse/v2/diag"
+	"github.com/jfetkotto/svparse/v2/sema"
 )
 
 // override is a value given to a parameter from outside: by an instantiation's

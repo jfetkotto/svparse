@@ -1,9 +1,9 @@
 package parser
 
 import (
-	"github.com/jfetkotto/svparse/ast"
-	"github.com/jfetkotto/svparse/preprocessor"
-	"github.com/jfetkotto/svparse/token"
+	"github.com/jfetkotto/svparse/v2/ast"
+	"github.com/jfetkotto/svparse/v2/preprocessor"
+	"github.com/jfetkotto/svparse/v2/token"
 )
 
 // externMethodQualifierKeywords are the method qualifiers that can appear

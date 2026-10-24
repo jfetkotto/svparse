@@ -3,7 +3,7 @@ package preprocessor
 import (
 	"testing"
 
-	"github.com/jfetkotto/svparse/token"
+	"github.com/jfetkotto/svparse/v2/token"
 )
 
 func TestTokenPasteJoinsIdentifiers(t *testing.T) {

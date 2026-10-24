@@ -1,9 +1,9 @@
 package diag
 
 import (
-	"github.com/jfetkotto/svparse/ast"
-	"github.com/jfetkotto/svparse/parser"
-	"github.com/jfetkotto/svparse/preprocessor"
+	"github.com/jfetkotto/svparse/v2/ast"
+	"github.com/jfetkotto/svparse/v2/parser"
+	"github.com/jfetkotto/svparse/v2/preprocessor"
 )
 
 // FromParser converts parser errors to diagnostics with code "syntax-error".

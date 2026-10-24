@@ -19,11 +19,11 @@ import (
 	"sort"
 	"sync"
 
-	"github.com/jfetkotto/svparse/ast"
-	"github.com/jfetkotto/svparse/diag"
-	"github.com/jfetkotto/svparse/elab"
-	"github.com/jfetkotto/svparse/preprocessor"
-	"github.com/jfetkotto/svparse/sema"
+	"github.com/jfetkotto/svparse/v2/ast"
+	"github.com/jfetkotto/svparse/v2/diag"
+	"github.com/jfetkotto/svparse/v2/elab"
+	"github.com/jfetkotto/svparse/v2/preprocessor"
+	"github.com/jfetkotto/svparse/v2/sema"
 )
 
 // Rule is one lint check.

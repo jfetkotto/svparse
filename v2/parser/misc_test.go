@@ -4,7 +4,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/jfetkotto/svparse/ast"
+	"github.com/jfetkotto/svparse/v2/ast"
 )
 
 const miscSource = `package p; endpackage

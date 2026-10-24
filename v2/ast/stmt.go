@@ -1,6 +1,6 @@
 package ast
 
-import "github.com/jfetkotto/svparse/preprocessor"
+import "github.com/jfetkotto/svparse/v2/preprocessor"
 
 // Statement nodes (LRM 9, 10, 12, 13, Annex A.6) and the procedural items that
 // hold them. The statement parser produces them; until it does, function and

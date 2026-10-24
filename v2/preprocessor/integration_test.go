@@ -3,7 +3,7 @@ package preprocessor
 import (
 	"testing"
 
-	"github.com/jfetkotto/svparse/token"
+	"github.com/jfetkotto/svparse/v2/token"
 )
 
 // A realistic snippet exercising every feature this milestone added

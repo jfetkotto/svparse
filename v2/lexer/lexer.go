@@ -9,7 +9,7 @@ package lexer
 import (
 	"fmt"
 
-	"github.com/jfetkotto/svparse/token"
+	"github.com/jfetkotto/svparse/v2/token"
 )
 
 // Error is a non-fatal problem noticed while lexing (an unrecognized

@@ -3,7 +3,7 @@ package preprocessor
 import (
 	"strings"
 
-	"github.com/jfetkotto/svparse/token"
+	"github.com/jfetkotto/svparse/v2/token"
 )
 
 // macroDef is a stored define. params/isFunctionLike distinguish a

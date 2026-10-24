@@ -9,9 +9,9 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/jfetkotto/svparse/ast"
-	"github.com/jfetkotto/svparse/preprocessor"
-	"github.com/jfetkotto/svparse/token"
+	"github.com/jfetkotto/svparse/v2/ast"
+	"github.com/jfetkotto/svparse/v2/preprocessor"
+	"github.com/jfetkotto/svparse/v2/token"
 )
 
 func tk(texts ...string) []preprocessor.Token {

@@ -12,8 +12,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/jfetkotto/svparse/ast"
-	"github.com/jfetkotto/svparse/preprocessor"
+	"github.com/jfetkotto/svparse/v2/ast"
+	"github.com/jfetkotto/svparse/v2/preprocessor"
 )
 
 // rawSpanSiblings maps every raw expression span field in package ast to the

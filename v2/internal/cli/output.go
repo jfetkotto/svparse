@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"io"
 
-	"github.com/jfetkotto/svparse/diag"
+	"github.com/jfetkotto/svparse/v2/diag"
 )
 
 // writeDiagnostics prints diagnostics in the compiler form

@@ -7,8 +7,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/jfetkotto/svparse/ast"
-	"github.com/jfetkotto/svparse/preprocessor"
+	"github.com/jfetkotto/svparse/v2/ast"
+	"github.com/jfetkotto/svparse/v2/preprocessor"
 )
 
 func TestProceduralItemsDump(t *testing.T) {

@@ -1,6 +1,6 @@
 package lexer
 
-import "github.com/jfetkotto/svparse/token"
+import "github.com/jfetkotto/svparse/v2/token"
 
 // scanDirective scans whatever follows a backtick: a compiler directive
 // (a backtick immediately followed by an identifier -- “ `define“,

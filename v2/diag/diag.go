@@ -14,7 +14,7 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/jfetkotto/svparse/ast"
+	"github.com/jfetkotto/svparse/v2/ast"
 )
 
 // Severity ranks a diagnostic. The values are ordered from most to least

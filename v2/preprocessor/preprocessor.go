@@ -19,8 +19,8 @@ package preprocessor
 import (
 	"fmt"
 
-	"github.com/jfetkotto/svparse/lexer"
-	"github.com/jfetkotto/svparse/token"
+	"github.com/jfetkotto/svparse/v2/lexer"
+	"github.com/jfetkotto/svparse/v2/token"
 )
 
 // Token is one preprocessed token. Kind/Text/Line/Character (embedded

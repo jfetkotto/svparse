@@ -25,7 +25,7 @@ package main
 import (
 	"os"
 
-	"github.com/jfetkotto/svparse/internal/cli"
+	"github.com/jfetkotto/svparse/v2/internal/cli"
 )
 
 func main() {

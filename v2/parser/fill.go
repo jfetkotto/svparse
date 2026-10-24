@@ -4,9 +4,9 @@ import (
 	"reflect"
 	"slices"
 
-	"github.com/jfetkotto/svparse/ast"
-	"github.com/jfetkotto/svparse/preprocessor"
-	"github.com/jfetkotto/svparse/token"
+	"github.com/jfetkotto/svparse/v2/ast"
+	"github.com/jfetkotto/svparse/v2/preprocessor"
+	"github.com/jfetkotto/svparse/v2/token"
 )
 
 // ownTypes gives every Type in f its own copies of the parts that

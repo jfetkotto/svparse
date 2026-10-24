@@ -1,6 +1,6 @@
 package ast
 
-import "github.com/jfetkotto/svparse/preprocessor"
+import "github.com/jfetkotto/svparse/v2/preprocessor"
 
 // Direction is a port or function/task argument's direction.
 // DirUnspecified means no direction was written -- the LRM gives this a

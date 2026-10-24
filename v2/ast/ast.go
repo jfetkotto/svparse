@@ -15,7 +15,7 @@
 // renders one as a compact S-expression for golden tests and debugging.
 package ast
 
-import "github.com/jfetkotto/svparse/preprocessor"
+import "github.com/jfetkotto/svparse/v2/preprocessor"
 
 // Position is embedded in every node. Line/Character mark the node's
 // name (or, where there's no name, its start); EndLine/EndCharacter mark

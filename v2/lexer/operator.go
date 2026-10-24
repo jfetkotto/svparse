@@ -3,7 +3,7 @@ package lexer
 import (
 	"sort"
 
-	"github.com/jfetkotto/svparse/token"
+	"github.com/jfetkotto/svparse/v2/token"
 )
 
 // multiCharOperators lists every operator/punctuation lexeme longer than

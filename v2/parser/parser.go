@@ -18,9 +18,9 @@ package parser
 import (
 	"fmt"
 
-	"github.com/jfetkotto/svparse/ast"
-	"github.com/jfetkotto/svparse/preprocessor"
-	"github.com/jfetkotto/svparse/token"
+	"github.com/jfetkotto/svparse/v2/ast"
+	"github.com/jfetkotto/svparse/v2/preprocessor"
+	"github.com/jfetkotto/svparse/v2/token"
 )
 
 // Error is a non-fatal problem noticed while parsing. Parse never stops

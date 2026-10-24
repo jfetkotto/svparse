@@ -5,7 +5,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/jfetkotto/svparse/token"
+	"github.com/jfetkotto/svparse/v2/token"
 )
 
 func pp(t *testing.T, src string) ([]Token, []Error) {

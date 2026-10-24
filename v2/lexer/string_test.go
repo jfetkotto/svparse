@@ -3,7 +3,7 @@ package lexer
 import (
 	"testing"
 
-	"github.com/jfetkotto/svparse/token"
+	"github.com/jfetkotto/svparse/v2/token"
 )
 
 func TestLexSimpleStringLiteral(t *testing.T) {

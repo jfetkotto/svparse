@@ -3,11 +3,11 @@ package lint
 import (
 	"math/big"
 
-	"github.com/jfetkotto/svparse/ast"
-	"github.com/jfetkotto/svparse/diag"
-	"github.com/jfetkotto/svparse/elab"
-	"github.com/jfetkotto/svparse/sema"
-	"github.com/jfetkotto/svparse/svint"
+	"github.com/jfetkotto/svparse/v2/ast"
+	"github.com/jfetkotto/svparse/v2/diag"
+	"github.com/jfetkotto/svparse/v2/elab"
+	"github.com/jfetkotto/svparse/v2/sema"
+	"github.com/jfetkotto/svparse/v2/svint"
 )
 
 func init() {

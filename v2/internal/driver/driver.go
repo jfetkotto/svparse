@@ -10,13 +10,13 @@ import (
 	"os"
 	"path/filepath"
 
-	"github.com/jfetkotto/svparse/ast"
-	"github.com/jfetkotto/svparse/diag"
-	"github.com/jfetkotto/svparse/elab"
-	"github.com/jfetkotto/svparse/lint"
-	"github.com/jfetkotto/svparse/parser"
-	"github.com/jfetkotto/svparse/preprocessor"
-	"github.com/jfetkotto/svparse/sema"
+	"github.com/jfetkotto/svparse/v2/ast"
+	"github.com/jfetkotto/svparse/v2/diag"
+	"github.com/jfetkotto/svparse/v2/elab"
+	"github.com/jfetkotto/svparse/v2/lint"
+	"github.com/jfetkotto/svparse/v2/parser"
+	"github.com/jfetkotto/svparse/v2/preprocessor"
+	"github.com/jfetkotto/svparse/v2/sema"
 )
 
 // Options say what to analyse and how.

@@ -1,6 +1,6 @@
 package preprocessor
 
-import "github.com/jfetkotto/svparse/token"
+import "github.com/jfetkotto/svparse/v2/token"
 
 // handleInclude consumes an `include directive's path and pushes the
 // resolved file's tokens as a new source, so the same main loop that

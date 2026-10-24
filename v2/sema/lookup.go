@@ -3,7 +3,7 @@ package sema
 import (
 	"strings"
 
-	"github.com/jfetkotto/svparse/ast"
+	"github.com/jfetkotto/svparse/v2/ast"
 )
 
 // Result is the outcome of a name lookup.

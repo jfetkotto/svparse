@@ -1,8 +1,8 @@
 package sema
 
 import (
-	"github.com/jfetkotto/svparse/ast"
-	"github.com/jfetkotto/svparse/svint"
+	"github.com/jfetkotto/svparse/v2/ast"
+	"github.com/jfetkotto/svparse/v2/svint"
 )
 
 // BoundExpr is an expression after name resolution and typing: every node has

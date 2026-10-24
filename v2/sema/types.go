@@ -11,7 +11,7 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/jfetkotto/svparse/svint"
+	"github.com/jfetkotto/svparse/v2/svint"
 )
 
 // Type is implemented by every type in this file. It is sealed.

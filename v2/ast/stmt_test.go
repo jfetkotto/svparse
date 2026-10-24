@@ -9,7 +9,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/jfetkotto/svparse/ast"
+	"github.com/jfetkotto/svparse/v2/ast"
 )
 
 func null() *ast.Null { return &ast.Null{} }

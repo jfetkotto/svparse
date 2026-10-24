@@ -1,8 +1,8 @@
 package parser
 
 import (
-	"github.com/jfetkotto/svparse/ast"
-	"github.com/jfetkotto/svparse/token"
+	"github.com/jfetkotto/svparse/v2/ast"
+	"github.com/jfetkotto/svparse/v2/token"
 )
 
 // parseClocking parses a clocking block (LRM 14.3), the cursor on "clocking".

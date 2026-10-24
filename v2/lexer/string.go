@@ -1,6 +1,6 @@
 package lexer
 
-import "github.com/jfetkotto/svparse/token"
+import "github.com/jfetkotto/svparse/v2/token"
 
 // scanStringLiteral scans a double-quoted string, handling SV's escape
 // sequences: \n \t \\ \" \v \f \a (single-character escapes, all handled

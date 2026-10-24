@@ -8,7 +8,7 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/jfetkotto/svparse/diag"
+	"github.com/jfetkotto/svparse/v2/diag"
 )
 
 // Config selects and tunes the rules. It is read from JSON:

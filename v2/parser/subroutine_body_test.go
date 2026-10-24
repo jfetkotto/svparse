@@ -4,7 +4,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/jfetkotto/svparse/ast"
+	"github.com/jfetkotto/svparse/v2/ast"
 )
 
 // lastSubroutineDump parses src, which must be error-free, and returns the Dump

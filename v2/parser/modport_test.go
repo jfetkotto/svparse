@@ -3,7 +3,7 @@ package parser
 import (
 	"testing"
 
-	"github.com/jfetkotto/svparse/ast"
+	"github.com/jfetkotto/svparse/v2/ast"
 )
 
 func TestModportDeclarationsAreParsed(t *testing.T) {

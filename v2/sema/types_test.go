@@ -4,7 +4,7 @@ import (
 	"math/rand"
 	"testing"
 
-	"github.com/jfetkotto/svparse/svint"
+	"github.com/jfetkotto/svparse/v2/svint"
 )
 
 func vec(b Base, signed bool, l, r int) Type { return Vector(b, signed, Range{l, r}) }

@@ -1,6 +1,6 @@
 package ast
 
-import "github.com/jfetkotto/svparse/preprocessor"
+import "github.com/jfetkotto/svparse/v2/preprocessor"
 
 // Expression nodes (LRM 11, Annex A.8). They are produced by the expression
 // parser and hang off the declaration nodes that used to keep a raw token

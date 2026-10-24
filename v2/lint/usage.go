@@ -3,9 +3,9 @@ package lint
 import (
 	"strings"
 
-	"github.com/jfetkotto/svparse/ast"
-	"github.com/jfetkotto/svparse/elab"
-	"github.com/jfetkotto/svparse/sema"
+	"github.com/jfetkotto/svparse/v2/ast"
+	"github.com/jfetkotto/svparse/v2/elab"
+	"github.com/jfetkotto/svparse/v2/sema"
 )
 
 // Usage records, for every symbol of the design, whether anything reads it and

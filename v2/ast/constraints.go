@@ -1,6 +1,6 @@
 package ast
 
-import "github.com/jfetkotto/svparse/preprocessor"
+import "github.com/jfetkotto/svparse/v2/preprocessor"
 
 // Constraint items (LRM 18.5) are neither expressions nor statements, so they
 // have their own sealed interface. A constraint block holds them in

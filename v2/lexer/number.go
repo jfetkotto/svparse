@@ -1,6 +1,6 @@
 package lexer
 
-import "github.com/jfetkotto/svparse/token"
+import "github.com/jfetkotto/svparse/v2/token"
 
 // scanNumber handles every SV numeric literal form: plain/real decimal
 // numbers, based numbers ([size]'[s]base value), the unbased-unsized

@@ -3,8 +3,8 @@ package sema
 import (
 	"fmt"
 
-	"github.com/jfetkotto/svparse/ast"
-	"github.com/jfetkotto/svparse/diag"
+	"github.com/jfetkotto/svparse/v2/ast"
+	"github.com/jfetkotto/svparse/v2/diag"
 )
 
 // DefKind says what a top-level Definition is.

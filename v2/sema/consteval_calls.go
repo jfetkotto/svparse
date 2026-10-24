@@ -3,7 +3,7 @@ package sema
 import (
 	"math"
 
-	"github.com/jfetkotto/svparse/svint"
+	"github.com/jfetkotto/svparse/v2/svint"
 )
 
 // evalCall evaluates a call in a constant expression: the system functions of

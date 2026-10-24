@@ -42,7 +42,7 @@ as `feature/expr-diagnostics` in [docs/roadmap.md](docs/roadmap.md).
 ## Command line
 
 ```sh
-go install github.com/jfetkotto/svparse/cmd/svparse@latest
+go install github.com/jfetkotto/svparse/v2/cmd/svparse@latest
 
 svparse check    [flags] files...   syntax, semantic checks and elaboration
 svparse lint     [flags] files...   check, plus lint rules
@@ -64,15 +64,15 @@ file problem. A lint configuration looks like:
 ## Install
 
 ```sh
-go get github.com/jfetkotto/svparse
+go get github.com/jfetkotto/svparse/v2
 ```
 
 ## Usage
 
 ```go
 import (
-    "github.com/jfetkotto/svparse/parser"
-    "github.com/jfetkotto/svparse/preprocessor"
+    "github.com/jfetkotto/svparse/v2/parser"
+    "github.com/jfetkotto/svparse/v2/preprocessor"
 )
 
 toks, ppErrs := preprocessor.Preprocess(path, text, resolver)

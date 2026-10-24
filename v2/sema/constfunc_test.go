@@ -3,8 +3,8 @@ package sema
 import (
 	"testing"
 
-	"github.com/jfetkotto/svparse/diag"
-	"github.com/jfetkotto/svparse/svint"
+	"github.com/jfetkotto/svparse/v2/diag"
+	"github.com/jfetkotto/svparse/v2/svint"
 )
 
 const constFuncs = `

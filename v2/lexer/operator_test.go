@@ -3,7 +3,7 @@ package lexer
 import (
 	"testing"
 
-	"github.com/jfetkotto/svparse/token"
+	"github.com/jfetkotto/svparse/v2/token"
 )
 
 // Every entry in multiCharOperators, lexed on its own, must round-trip to

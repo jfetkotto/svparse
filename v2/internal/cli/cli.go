@@ -11,11 +11,11 @@ import (
 	"os"
 	"strings"
 
-	"github.com/jfetkotto/svparse/ast"
-	"github.com/jfetkotto/svparse/diag"
-	"github.com/jfetkotto/svparse/elab"
-	"github.com/jfetkotto/svparse/internal/driver"
-	"github.com/jfetkotto/svparse/lint"
+	"github.com/jfetkotto/svparse/v2/ast"
+	"github.com/jfetkotto/svparse/v2/diag"
+	"github.com/jfetkotto/svparse/v2/elab"
+	"github.com/jfetkotto/svparse/v2/internal/driver"
+	"github.com/jfetkotto/svparse/v2/lint"
 )
 
 const usage = `usage: svparse <command> [flags] files...

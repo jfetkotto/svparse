@@ -1,6 +1,6 @@
 package ast
 
-import "github.com/jfetkotto/svparse/preprocessor"
+import "github.com/jfetkotto/svparse/v2/preprocessor"
 
 // Import is a package import: "import pkg::name;" or "import pkg::*;"
 // (Member == "*").

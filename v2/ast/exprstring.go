@@ -3,8 +3,8 @@ package ast
 import (
 	"strings"
 
-	"github.com/jfetkotto/svparse/lexer"
-	"github.com/jfetkotto/svparse/preprocessor"
+	"github.com/jfetkotto/svparse/v2/lexer"
+	"github.com/jfetkotto/svparse/v2/preprocessor"
 )
 
 // ExprString renders e as SystemVerilog source that parses back to an

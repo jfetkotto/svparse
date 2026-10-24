@@ -1,6 +1,6 @@
 package ast
 
-import "github.com/jfetkotto/svparse/preprocessor"
+import "github.com/jfetkotto/svparse/v2/preprocessor"
 
 // ContainerKind distinguishes the three container shapes that are
 // otherwise structurally identical (ports, parameter ports, a body).

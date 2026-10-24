@@ -4,7 +4,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/jfetkotto/svparse/ast"
+	"github.com/jfetkotto/svparse/v2/ast"
 )
 
 const inlineAggregateSource = `module m (input struct packed { logic a; logic [1:0] b; } p, output enum logic [1:0] {X, Y} q);

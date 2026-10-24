@@ -5,7 +5,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/jfetkotto/svparse/token"
+	"github.com/jfetkotto/svparse/v2/token"
 )
 
 func kinds(toks []token.Token) []token.Kind {

@@ -1,6 +1,6 @@
 package preprocessor
 
-import "github.com/jfetkotto/svparse/token"
+import "github.com/jfetkotto/svparse/v2/token"
 
 // condFrame tracks one open “ `ifdef “/“ `ifndef “ chain: parentActive
 // records whether the enclosing scope was already active when this frame
