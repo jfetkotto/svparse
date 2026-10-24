@@ -64,9 +64,18 @@ partway through an item, leave a short "Status:" note under it.
       owner so the tree stays a tree. `rawSpanSiblings` in `parser/fill_test.go`
       must list any new raw `[]preprocessor.Token` field. Still BadExpr in the
       corpus: `virtual x_if` type defaults (M2) and one undefined macro.
-- [ ] `feature/expr-diagnostics` (new): report expression syntax errors from the
-      fill pass as real parser errors, with the conformance and corpus baselines
-      updated deliberately. Do this after M3 so statements are covered too.
+- [x] `feature/expr-diagnostics`: `Parse` now reports the errors found inside
+      function and task bodies, procedural items, generate headers, SVA,
+      constraints, covergroups and misc items (the former `parser.suppressed`),
+      after the declaration errors and without duplicates. Real designs stay
+      clean. Newly detected negatives: `11.3.6 assign_in_expr_inv`,
+      `5.7.1 integers-unsized-illegal`, `5.7.2 real-constants-illegal`
+      (conformance baseline entries removed). Newly baselined with reasons:
+      `20.14 coverage` (tool-defined `SV_COV_*` macros) and `5.6.4 debug`
+      (`__FILE__`/`__LINE__` not expanded: a preprocessor follow-up).
+      Conformance 157 -> 156 (3 fixed, 2 added).
+      Expression spans filled by `fillExprs` still do not report; they match
+      the declaration scan's own errors.
 
 ## M2: Types and declarations (Annex A.2)
 
@@ -454,3 +463,4 @@ partway through an item, leave a short "Status:" note under it.
 | elab-instances (no conformance stage yet) | 163 |
 | elab-ports | 163 |
 | elab-conformance (elaboration stage enabled) | 157 (61 undetected negatives, 7 parser gaps, 89 need UVM) |
+| expr-diagnostics (body errors reported) | 156 (58 undetected negatives, 9 parser gaps, 89 need UVM) |

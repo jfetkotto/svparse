@@ -168,10 +168,10 @@ func TestSVADeclarationsAndAssertions(t *testing.T) {
 	}
 }
 
-func TestSVAErrorsAreSuppressedAndExtentsHold(t *testing.T) {
+func TestSVAErrorsAreReportedAndExtentsHold(t *testing.T) {
 	f, errs := parseSrc(t, "module m;\nproperty p; a |-> ; endproperty\nassert property (a |-> );\nlogic after;\nendmodule")
-	if len(errs) != 0 {
-		t.Fatalf("reported: %+v", errs)
+	if len(errs) == 0 {
+		t.Fatal("expected the malformed items to be reported")
 	}
 	body := f.Decls[0].(*ast.Container).Body
 	if len(body) != 3 {

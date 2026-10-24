@@ -138,10 +138,10 @@ func TestCovergroupExtendsRedefines(t *testing.T) {
 	}
 }
 
-func TestCovergroupErrorsAreSuppressed(t *testing.T) {
+func TestCovergroupErrorsAreReported(t *testing.T) {
 	f, errs := parseSrc(t, "module m;\ncovergroup cg; coverpoint ; cp: coverpoint x { bins b = ; bogus; } cross ; endgroup\nlogic after;\nendmodule")
-	if len(errs) != 0 {
-		t.Fatalf("reported: %+v", errs)
+	if len(errs) == 0 {
+		t.Fatal("expected the malformed items to be reported")
 	}
 	body := f.Decls[0].(*ast.Container).Body
 	if len(body) != 2 {

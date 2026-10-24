@@ -111,12 +111,12 @@ func TestDefaultClockingReferenceVersusDeclaration(t *testing.T) {
 	}
 }
 
-func TestMiscErrorsAreReportedOnlyForStructure(t *testing.T) {
-	// Malformed values inside defparam, let and clocking items are suppressed
+func TestMiscErrorsAreReported(t *testing.T) {
+	// Malformed values inside defparam, let and clocking items are reported
 	// like any expression error.
 	f, errs := parseSrc(t, "module m; defparam u.W = ; let f(a) = a +; clocking c @(posedge clk); input a = ; endclocking endmodule")
-	if len(errs) != 0 {
-		t.Fatalf("reported: %+v", errs)
+	if len(errs) == 0 {
+		t.Fatal("expected the malformed items to be reported")
 	}
 	if len(f.Decls[0].(*ast.Container).Body) != 3 {
 		t.Fatalf("items: %s", ast.Dump(f))
