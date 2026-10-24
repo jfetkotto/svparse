@@ -85,5 +85,6 @@ func (p *preprocessor) emit(tok Token) {
 			tok.Kind = token.KindIdent
 		}
 	}
+	p.trackDesignElement(tok)
 	p.out = append(p.out, tok)
 }
