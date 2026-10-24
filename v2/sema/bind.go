@@ -467,22 +467,33 @@ func (b *binder) bindPartSelect(e *ast.RangeSelect) BoundExpr {
 		return bad(e)
 	}
 	var t Type = Invalid
-	if IsIntegral(x.Type()) {
-		w := 0
-		switch e.Kind {
-		case ast.RangeColon:
-			lv, ok1 := b.constInt(e.Left)
-			rv, ok2 := b.constInt(e.Right)
-			if ok1 && ok2 {
-				w = int(abs64(lv-rv)) + 1
-			}
-		default:
-			if n, ok := b.constInt(e.Right); ok && n > 0 {
-				w = int(n)
-			}
+	// w is the number of elements selected: bits of a vector, elements of an
+	// array (LRM 11.5.1, 7.4.3).
+	w := 0
+	switch e.Kind {
+	case ast.RangeColon:
+		lv, ok1 := b.constInt(e.Left)
+		rv, ok2 := b.constInt(e.Right)
+		if ok1 && ok2 {
+			w = int(abs64(lv-rv)) + 1
 		}
-		if w > 0 && w <= maxElems {
-			t = intT(w, false, IsFourState(x.Type()))
+	default:
+		if n, ok := b.constInt(e.Right); ok && n > 0 {
+			w = int(n)
+		}
+	}
+	if w > 0 && w <= maxElems {
+		switch xt := Resolve(x.Type()).(type) {
+		case *PackedArray:
+			// A slice of "logic [N-1:0][7:0]" is still an array of bytes, so
+			// its width is the element count times the element width.
+			t = &PackedArray{Elem: xt.Elem, Range: Range{Left: w - 1, Right: 0}}
+		case *UnpackedArray:
+			t = &UnpackedArray{Elem: xt.Elem, Range: Range{Left: w - 1, Right: 0}}
+		default:
+			if IsIntegral(x.Type()) {
+				t = intT(w, false, IsFourState(x.Type()))
+			}
 		}
 	}
 	return &BPartSelect{exprInfo{t, e}, x, e.Kind, l, r}
