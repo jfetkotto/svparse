@@ -23,7 +23,8 @@ type Instantiation struct {
 // ParamOverride is one entry of an instantiation's "#( ... )" parameter
 // override list. Name is "" for a positional (ordered) override.
 // Position is the override's own name token for a named override (not
-// the preceding "."), matching PortConnection's own convention.
+// the preceding "."), matching PortConnection's own convention; for a
+// positional override it spans the value's tokens.
 type ParamOverride struct {
 	Position
 	Name  string
@@ -44,6 +45,10 @@ type Instance struct {
 // Wildcard is true for ".*"; Implicit is true for ".name" shorthand
 // (connects to a same-named signal, Expr is nil for both of those);
 // Name is "" for a positional connection.
+//
+// Position is the name token alone for a named connection (so a rename edit
+// range is exactly the name), the ".*" token for a wildcard, and the
+// expression's tokens for a positional connection.
 type PortConnection struct {
 	Position
 	Name     string
