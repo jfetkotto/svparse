@@ -443,9 +443,9 @@ into `devel`; `main` stays at the released `v0.1.9` until a `v2.0.0` release.
 
 ## M9: sigilsv2 adoption
 
-- [ ] After M1: bump svparse, no behaviour change
+- [x] After M1: bump svparse, no behaviour change (sigilsv2 imports the v2 module path; `chore/svparse-v2`)
 - [ ] After M3: semantic tokens, outline for procedural/generate blocks
-- [ ] After M6: sema diagnostics, typed hover, sema-backed resolution
+- [x] After M6: sema diagnostics, typed hover, sema-backed resolution
   - [x] Typed hover (sigilsv2 `feature/semantic-hover`, local `devel` only):
         hover keeps the index's declaration and adds the semantic reading of
         the position: resolved type, width, sign, constant value, and the
