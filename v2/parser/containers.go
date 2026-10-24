@@ -192,7 +192,7 @@ func (p *parser) parseDecl() ([]ast.Decl, bool) {
 		// in it at all, unlike "pure virtual function/task ...;" below.
 		if p.peekAt(1).Text == "constraint" {
 			p.advance() // "pure"
-			return oneDecl(p.parseConstraintPrototype())
+			return oneDecl(markPure(p.parseConstraintPrototype()))
 		}
 		// "pure virtual function/task ...;" -- an abstract class method,
 		// grammatically a prototype (no possible body) the same way extern
@@ -204,11 +204,11 @@ func (p *parser) parseDecl() ([]ast.Decl, bool) {
 		case "function":
 			p.advance() // "pure"
 			p.advance() // "virtual"
-			return oneDecl(p.parseFunction(true))
+			return oneDecl(markPure(p.parseFunction(true)))
 		case "task":
 			p.advance()
 			p.advance()
-			return oneDecl(p.parseTask(true))
+			return oneDecl(markPure(p.parseTask(true)))
 		}
 		return nil, false
 	case "package":
@@ -263,7 +263,11 @@ func (p *parser) parseDecl() ([]ast.Decl, bool) {
 			for externMethodQualifierKeywords[p.peek().Text] {
 				p.advance()
 			}
-			return oneDecl(p.parseConstraintPrototype())
+			d, ok := p.parseConstraintPrototype()
+			if c, isC := d.(*ast.Constraint); isC {
+				c.Extern = true
+			}
+			return oneDecl(d, ok)
 		}
 		return nil, false
 	case "import":
@@ -861,4 +865,17 @@ func (p *parser) skipToKeyword(keyword string, openers map[string]bool) {
 		}
 		p.advance()
 	}
+}
+
+// markPure flags a just-parsed prototype as "pure" (LRM 8.21, 18.5.2).
+func markPure(d ast.Decl, ok bool) (ast.Decl, bool) {
+	switch n := d.(type) {
+	case *ast.Function:
+		n.Pure = true
+	case *ast.Task:
+		n.Pure = true
+	case *ast.Constraint:
+		n.Pure = true
+	}
+	return d, ok
 }

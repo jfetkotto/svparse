@@ -26,14 +26,6 @@ chapter-18/18.17.2--if-else-production-statements_0_fail.sv pass # undetected: s
 chapter-18/18.17.2--if-else-production-statements_2_fail.sv pass # undetected: switch variable not declared
 chapter-18/18.17.3--case-production-statements_0_fail.sv pass # undetected: switch variable not declared
 chapter-18/18.17.6--aborting-productions-break-and-return_2_fail.sv pass # undetected: typo in production name
-chapter-18/18.5.1--explicit-external-constraint_1.sv pass # undetected: explicit contraint needs to be defined
-chapter-18/18.5.10--variable-ordering_1.sv pass # undetected: randc vars are not allowed, they are always solved before any other
-chapter-18/18.5.14--soft-constraints_2.sv pass # undetected: Soft constraints can only be specified on random variables; they may not be specified for randc variables.
-chapter-18/18.5.2--pure-constraint_2.sv pass # undetected: pure constraint must be implemented by non-virtual class
-chapter-18/18.5.4--distribution_2.sv pass # undetected: distribution shall not be applied to randc variables
-chapter-18/18.6.3--behavior-of-randomization-methods_4.sv pass # undetected: The randomize() method is built-in and cannot be overridden.
-chapter-18/18.8--disabling-random-variables-with-rand_mode_4.sv pass # undetected: The rand_mode() method is built-in and cannot be overridden.
-chapter-18/18.9--controlling-constraints-with-constraint_mode_1.sv pass # undetected: The constraint_mode() method is built-in and cannot be overridden.
 chapter-5/5.10-structure-arrays-illegal.sv pass # undetected: C-like assignment is illegal
 chapter-5/5.7.1--integers-signed-illegal.sv pass # undetected: illegal negative decimal syntax, proper one is -8'd6
 chapter-6/6.12--real_bit_select.sv pass # undetected: it is illegal to do bit select on real data type
@@ -43,16 +35,13 @@ chapter-6/6.20.5--specparam_inv.sv pass # undetected: specparam assignment to pa
 chapter-6/6.9.2--vector_vectored_inv.sv pass # undetected: bit selects are not permitted on vectored vector nets
 chapter-7/arrays/packed/variable-slice-zero.sv pass # undetected: slicing array with zero part width
 chapter-7/structures/packed/default-value.sv pass # undetected: members of packed structures shall not be assigned individual default member values.
-chapter-8/8.21--abstract_class_inst.sv pass # undetected: instantiating abstract class
 chapter-8/8.25.1--parametrized_class_invalid_scope_resolution.sv pass # undetected: parametrized class invalid scope resolution
 chapter-8/8.26.3--type_access_implements_invalid.sv pass # undetected: typedefs are not inherited by implements operator
 chapter-8/8.26.4--illegal_implements_parameter.sv pass # undetected: implementing parameter that resolves to an interface class is not allowed
-chapter-8/8.26.5--invalid_interface_instantiation.sv pass # undetected: instantiating an interface class
 chapter-8/8.26.6.1--name_conflict_unresolved.sv pass # undetected: unresolved interface class method name conflict
 chapter-8/8.26.6.2--parameter_type_conflict_unresolved.sv pass # undetected: superclass type declaration conflicts must be resolved in subclass
 chapter-8/8.26.6.3--diamond_relationship_parametrized.sv pass # undetected: different specializations of an interface class are treated as unique interface class types
 chapter-9/9.3.3--fork_return.sv pass # undetected: illegal return from fork
-generic/member/class_member_test_5.sv pass # undetected: pure virtual methods can only be declared in virtual classes
 generic/typedef/typedef_test_28__bad.sv pass # undetected: missing forward typedef declaration, type_identifier does not resolve to a data type.
 generic/typedef/typedef_test_8__bad.sv pass # undetected: defining a type using an undefined type
 

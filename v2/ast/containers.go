@@ -75,5 +75,7 @@ type Constraint struct {
 	Scope     string // class qualifier of an out-of-block definition; empty otherwise
 	Name      string
 	Prototype bool
+	Extern    bool             // written "extern constraint": it must be defined outside the class (LRM 18.5.1)
+	Pure      bool             // "pure constraint": an abstract prototype (LRM 18.5.2)
 	Items     []ConstraintItem // nil for a prototype
 }
