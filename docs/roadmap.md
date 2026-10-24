@@ -371,7 +371,15 @@ partway through an item, leave a short "Status:" note under it.
       harness that requires every rule to have a positive and a negative file
       under `lint/testdata/<rule>/` (`// want` marks expected lines). First
       rule: `implicit-net`.
-- [ ] Rule families (one branch each): width, unused/undriven, multi-driver,
+- [x] `feature/lint-unused`: `lint.Usage` (reads and writes of every symbol,
+      from expressions, assignment targets, instance connections by port
+      direction, call output arguments, hierarchical and package references;
+      errs towards "used") and the rules `unused-signal` (never used, or
+      assigned but never read), `undriven-signal`, `unused-port`,
+      `undriven-port`, `unused-parameter`. Names starting with `_`, `unused` or
+      `dummy` are skipped; interfaces, packages and classes are not checked.
+      On Chipview's SoC it reports five real findings and no false ones.
+- [ ] Remaining rule families (one branch each): width, multi-driver,
       always_comb/latch, blocking/nonblocking misuse, case default,
       unreachable/shadowing/sign mixing (implicit nets: done with the framework)
 - [x] `cmd/svparse` CLI: `check`, `lint`, `elab`, `dump-ast` over

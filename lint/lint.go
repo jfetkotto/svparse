@@ -106,6 +106,22 @@ type Context struct {
 	ctx  context.Context
 	rule *Rule
 	out  *[]diag.Diagnostic
+	sh   *shared
+}
+
+// shared holds analyses several rules need, computed once per run.
+type shared struct {
+	in    Input
+	usage *Usage
+}
+
+// Usage returns which signals, ports and parameters of the design are read and
+// written (computed on first use).
+func (c *Context) Usage() *Usage {
+	if c.sh.usage == nil {
+		c.sh.usage = buildUsage(c.Comp, c.Model, c.Design)
+	}
+	return c.sh.usage
 }
 
 // Cancelled reports whether the run was cancelled; a long rule should stop.
@@ -139,6 +155,7 @@ func Run(ctx context.Context, in Input, cfg Config) []diag.Diagnostic {
 	ignore := cfg.ignoreMatcher()
 	model := in.Comp.Model()
 
+	sh := &shared{in: in}
 	var set diag.Set
 	for _, r := range Rules() {
 		if ctx != nil && ctx.Err() != nil {
@@ -150,7 +167,7 @@ func Run(ctx context.Context, in Input, cfg Config) []diag.Diagnostic {
 		}
 		r.Severity = level
 		var found []diag.Diagnostic
-		c := &Context{Comp: in.Comp, Model: model, Design: in.Design, ctx: ctx, rule: &r, out: &found}
+		c := &Context{Comp: in.Comp, Model: model, Design: in.Design, ctx: ctx, rule: &r, out: &found, sh: sh}
 		runRule(&r, c, &found)
 		for _, d := range found {
 			if ignore(d.Range.File) || sup.Suppressed(d.Code, d.Range.File, d.Range.Line) {
