@@ -119,10 +119,23 @@ func (w *widthWalker) assignment(lhs, rhs ast.Expr, at ast.Position) {
 	case w.truncation && rw > lw:
 		w.seen[at] = true
 		w.c.Report(at, "%d-bit value assigned to a %d-bit target: the upper %d bit(s) are lost", rw, lw, rw-lw)
-	case !w.truncation && rw < lw && !isLiteralLike(rb) && !grows(rb):
+	case !w.truncation && rw < lw && !constantValue(rb) && !grows(rb):
 		w.seen[at] = true
 		w.c.Report(at, "%d-bit value assigned to a %d-bit target: padded with %d bit(s)", rw, lw, lw-rw)
 	}
+}
+
+// constantValue reports whether the value is one of a few constants chosen by a
+// condition ("c ? 32'd1 : 32'd0"): like a bare constant, it is written to fit
+// its target, whatever the condition reads.
+func constantValue(be sema.BoundExpr) bool {
+	if isLiteralLike(be) {
+		return true
+	}
+	if c, ok := be.(*sema.BCond); ok {
+		return constantValue(c.Then) && constantValue(c.Else)
+	}
+	return false
 }
 
 // grows reports whether the operator widens its result on purpose: the carry of
@@ -189,6 +202,9 @@ func (w *widthWalker) effectiveWidth(be sema.BoundExpr, fit bool) (int, bool) {
 			return max(x, y), ok1 && ok2
 		case ">>", ">>>":
 			x, ok := w.effectiveWidth(n.X, fit)
+			if n.Op == ">>>" && sema.IsSigned(n.X.Type()) {
+				return x, ok // an arithmetic shift refills with the sign bit: no padding appears
+			}
 			if k, isConst := w.constInt(n.Y); isConst {
 				x = max(x-int(min(k, int64(x))), 1) // a right shift by a constant drops bits
 			}
