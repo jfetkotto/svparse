@@ -22,29 +22,17 @@ const (
 // becomes three Variable nodes sharing an equal Type, one per name,
 // mirroring how sigils's own lexical scanner already treats multi-name
 // declarations. Also doubles as a struct/union member, which has the
-// identical shape (IsRand/IsRandC are set there too: a member may be
-// qualified "rand" or "randc", LRM 7.2).
+// identical shape (IsRand/IsRandC are always false there -- SV's rand/
+// randc qualifiers only apply to class properties).
 type Variable struct {
 	declBase
 	Type         Type
 	Name         string
 	UnpackedDims []Dim
 	Initial      []preprocessor.Token // nil unless "= expr"
-	InitialExpr  Expr                 // parsed Initial
 	IsRand       bool
 	IsRandC      bool
 	IsStatic     bool
-
-	// The following apply to a net declaration (LRM 6.7, 6.9.2) and are zero
-	// for everything else.
-	//
-	// NetQualifier is "vectored" or "scalared" when written. DriveStrength is
-	// the parenthesised strength pair, e.g. ["strong0", "pull1"], or a single
-	// charge strength, e.g. ["small"]. Delay holds the one to three delay
-	// values of "#10" or "#(1, 2, 3)".
-	NetQualifier  string
-	DriveStrength []string
-	Delay         []Expr
 }
 
 // Parameter is a parameter or localparam declaration. UnpackedDims covers
@@ -54,41 +42,20 @@ type Variable struct {
 type Parameter struct {
 	declBase
 	IsLocal      bool
-	IsSpecparam  bool // "specparam", a specify-block parameter (LRM 6.20.5)
 	Type         Type // zero value if untyped ("parameter WIDTH = 8" -- Type.Name is "")
 	Name         string
 	UnpackedDims []Dim
 	Default      []preprocessor.Token
-	DefaultExpr  Expr // parsed Default; for a "parameter type", a type (*TypeExpr or *TypeOrExpr)
-}
-
-// Nettype is a user-defined net type declaration (LRM 6.6.7): "nettype
-// data_type name [with resolve_function];". The alias form "nettype
-// other_nettype name;" has the same shape, with Type naming the existing net
-// type; telling the two apart takes name resolution.
-type Nettype struct {
-	declBase
-	Name string
-	Type Type
-
-	// ResolveFunc is the name after "with", possibly package-qualified
-	// ("pkg::resolve"), or "" if there is no resolution function.
-	ResolveFunc string
 }
 
 // Typedef is a typedef. Underlying is nil for a forward declaration
-// ("typedef class Foo;", "typedef struct Foo;", or a bare "typedef Foo;");
-// otherwise it's a *Struct, *Union, *Enum, or *TypeAlias, whose own Name is
-// empty -- it's anonymous, reachable only via this Typedef's Name.
+// ("typedef class Foo;" or a bare "typedef Foo;"); otherwise it's a
+// *Struct, *Union, *Enum, or *TypeAlias, whose own Name is empty -- it's
+// anonymous, reachable only via this Typedef's Name.
 type Typedef struct {
 	declBase
 	Name       string
 	Underlying Decl
-
-	// ForwardKind is the keyword of a forward declaration, "class", "struct",
-	// "union" or "enum" (LRM 6.18), or "" for a bare "typedef Foo;" and for
-	// every typedef that is not a forward declaration.
-	ForwardKind string
 }
 
 // TypeAlias is a typedef's underlying type when it's a plain alias
@@ -100,9 +67,7 @@ type TypeAlias struct {
 
 // Struct and Union share the same shape: a packed/unpacked flag and a
 // member list (reusing Variable, which has the identical name+type+dims
-// shape a struct/union field needs). For a typedef'd aggregate Position is
-// the typedef's name; for an anonymous one written in place (Type.Inline) it
-// spans from the keyword through the closing brace.
+// shape a struct/union field needs).
 type Struct struct {
 	declBase
 	Packed  bool
@@ -112,7 +77,6 @@ type Struct struct {
 type Union struct {
 	declBase
 	Packed  bool
-	Tagged  bool // "union tagged", LRM 7.3.2
 	Members []Variable
 }
 
@@ -129,8 +93,6 @@ type EnumMember struct {
 	declBase
 	Name  string
 	Value []preprocessor.Token // nil unless "= expr"
-
-	ValueExpr Expr // parsed Value
 }
 
 // Port is one entry in a container's own header port list -- always
@@ -150,7 +112,6 @@ type Port struct {
 	Name         string
 	UnpackedDims []Dim
 	Default      []preprocessor.Token
-	DefaultExpr  Expr // parsed Default
 }
 
 // PortDecl is one non-ANSI port declaration (LRM 23.2.2.3): "direction
@@ -206,35 +167,23 @@ type Arg struct {
 	Name         string
 	UnpackedDims []Dim
 	Default      []preprocessor.Token
-	DefaultExpr  Expr // parsed Default
 }
 
 // Function and Task are near-identical: a name, an argument list, and
 // whether this is a prototype (extern/pure virtual/DPI import -- no
-// body). Function additionally has a return type.
-//
-// A body, when there is one, is split as in a Block: Decls are the local
-// declarations (variables, typedefs, parameters) and Stmts the statements, in
-// source order within each list. Args holds the arguments written in the
-// header and, for the older style "function f; input int a; ...", the ones
-// declared in the body, after the header's.
+// body). Function additionally has a return type. Neither node's body
+// is parsed -- see the parser's skipBody design.
 type Function struct {
 	declBase
-	Scope      string // class qualifier of an out-of-block definition, "C" in "C::m"; empty otherwise
 	Name       string
 	ReturnType Type
 	Args       []Arg
 	Prototype  bool
-	Decls      []Decl
-	Stmts      []Stmt
 }
 
 type Task struct {
 	declBase
-	Scope     string // class qualifier of an out-of-block definition; empty otherwise
 	Name      string
 	Args      []Arg
 	Prototype bool
-	Decls     []Decl // local declarations of the body
-	Stmts     []Stmt // the body's statements
 }

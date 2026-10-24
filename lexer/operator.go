@@ -27,7 +27,6 @@ var multiCharOperators = []struct {
 	{"<<<", token.KindAShl}, {">>>", token.KindAShr},
 	{"->>", token.KindNonblockTrigger},
 	{"|->", token.KindImplies}, {"|=>", token.KindImpliesNext},
-	{"<->", token.KindEquiv},
 
 	{"==", token.KindEq}, {"!=", token.KindNe}, {"<=", token.KindLe}, {">=", token.KindGe},
 	{"&&", token.KindAndAnd}, {"||", token.KindOrOr}, {"**", token.KindStarStar},
@@ -96,19 +95,6 @@ func isOperatorStart(r rune) bool {
 // back to the single-character table.
 func (l *lexer) scanOperator() {
 	startLine, startChar := l.line, l.char
-
-	// "(*)" is the all-signals event control "@(*)" (LRM 9.4.2.2), not the
-	// start of an attribute: an attribute needs content, and reading it as
-	// "(*" ")" would make every "always @(*)" malformed. Emitted as three tokens.
-	if l.matchesAt("(*)") {
-		l.advance()
-		l.emit(token.KindLParen, "(", startLine, startChar)
-		l.advance()
-		l.emit(token.KindMul, "*", startLine, startChar+1)
-		l.advance()
-		l.emit(token.KindRParen, ")", startLine, startChar+2)
-		return
-	}
 
 	for _, op := range multiCharByFirstRune[l.runes[l.i]] {
 		if l.matchesAt(op.text) {

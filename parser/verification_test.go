@@ -6,7 +6,7 @@ import (
 	"github.com/jfetkotto/svparse/ast"
 )
 
-func TestCovergroupDoesNotDisturbSurroundingDecls(t *testing.T) {
+func TestCovergroupIsSkippedCleanly(t *testing.T) {
 	body := moduleBody(t, `logic before_marker;
 		covergroup cg @(posedge clk);
 			coverpoint state {
@@ -22,14 +22,11 @@ func TestCovergroupWithBlockLabel(t *testing.T) {
 	body := moduleBody(t, `covergroup cg @(posedge clk);
 	endgroup : cg
 logic done;`)
-	if len(body) != 2 {
-		t.Fatalf("expected the covergroup and done, got %+v", body)
+	if len(body) != 1 {
+		t.Fatalf("expected 1 decl, got %+v", body)
 	}
-	if cg, ok := body[0].(*ast.Covergroup); !ok || cg.Name != "cg" {
-		t.Fatalf("expected covergroup cg, got %+v", body[0])
-	}
-	if v, ok := body[1].(*ast.Variable); !ok || v.Name != "done" {
-		t.Fatalf("expected variable done, got %+v", body[1])
+	if v, ok := body[0].(*ast.Variable); !ok || v.Name != "done" {
+		t.Fatalf("expected variable done, got %+v", body[0])
 	}
 }
 

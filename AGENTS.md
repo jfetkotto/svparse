@@ -20,10 +20,19 @@ narratives, symptom walkthroughs, or alternatives-considered discussion.
 
 ## Branches
 
-Never commit directly to `main`. Do each change on its own branch named for
-the kind of change (`feature/<slug>`, `bugfix/<slug>`, `perf/<slug>`,
-`ci/<slug>`, `chore/<slug>`), then merge it into `main` with a merge commit
-(`git merge --no-ff`) once it is ready. One roadmap item per branch.
+Never commit directly to `main` or `devel`. Do each change on its own branch
+cut from `devel` and named for the kind of change (`feature/<slug>`,
+`bugfix/<slug>`, `perf/<slug>`, `ci/<slug>`, `chore/<slug>`), then merge it
+into `devel` with a merge commit (`git merge --no-ff`) once it is ready. One
+roadmap item per branch. `main` holds released code only: it receives merges
+from `devel` at a release, which is then tagged.
+
+## Modules
+
+The repository holds two Go modules. The root is the v0/v1 module, frozen at
+`v0.1.9`; do not change it. All development is in `v2/`
+(`github.com/jfetkotto/svparse/v2`), so run every command below from `v2/`.
+Releases are tagged `v2.x.y`.
 
 ## Writing style
 
@@ -53,17 +62,19 @@ reference for every parser change.
 
 ## Baselines
 
-`testdata/sv-tests-baseline.txt` (and the conformance baseline once it
+`v2/testdata/sv-tests-baseline.txt` (and the conformance baseline once it
 exists) only change on purpose. Every entry carries a reason; removing one
 means a fix landed with its own tests. Never regenerate a baseline wholesale.
 
 ## Before merging
 
-Run what CI runs:
+Run what CI runs, from `v2/` (and `go build ./... && go test ./...` at the
+root, which must stay green and unchanged):
 
 ```sh
+cd v2
 go build ./... && go vet ./... && go mod tidy -diff && go test ./... -race && test -z "$(gofmt -l .)"
 ```
 
 Also run the sibling sigils checkout's tests against this tree (it uses a
-local `go.work` pointing here) to catch API breaks early.
+local `go.work` pointing at `v2/` here) to catch API breaks early.

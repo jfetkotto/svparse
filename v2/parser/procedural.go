@@ -1,0 +1,119 @@
+package parser
+
+import (
+	"github.com/jfetkotto/svparse/v2/ast"
+	"github.com/jfetkotto/svparse/v2/token"
+)
+
+// parseProceduralItem parses one `initial`, `final`, `always*` or `assign`
+// item at container scope (LRM 9.2, 10.3), the cursor on its keyword.
+//
+// Extents still come from skipProceduralConstruct, so declaration boundaries,
+// recovery and the errors it reports are exactly what they were when these
+// items were skipped. The tokens it consumed are then parsed by a bounded
+// sub-parser, and any error from that parse is held in p.suppressed like the
+// ones from subroutine bodies: reporting statement errors is deliberate
+// future work (feature/expr-diagnostics), not a side effect of emitting nodes.
+func (p *parser) parseProceduralItem() ast.Decl {
+	start := p.pos
+	kw := p.advance()
+	bodyStart := p.pos
+	p.skipProceduralConstruct()
+	sub := p.newSubParser(p.toks[bodyStart:p.pos])
+
+	var d ast.Decl
+	var setPos func(ast.Position)
+	switch kw.Text {
+	case "initial":
+		n := &ast.Initial{Body: sub.parseItemBody()}
+		d, setPos = n, func(pos ast.Position) { n.Position = pos }
+	case "final":
+		n := &ast.Final{Body: sub.parseItemBody()}
+		d, setPos = n, func(pos ast.Position) { n.Position = pos }
+	case "assign":
+		n := sub.parseContinuousAssign()
+		d, setPos = n, func(pos ast.Position) { n.Position = pos }
+	default:
+		n := &ast.Always{Kind: kw.Text, Body: sub.parseItemBody()}
+		d, setPos = n, func(pos ast.Position) { n.Position = pos }
+	}
+	p.giveBackElse(sub, bodyStart)
+	setPos(p.spanFrom(start))
+	p.suppressed = append(p.suppressed, sub.errs...)
+	return d
+}
+
+// giveBackElse undoes the skip's habit of treating a following "else" as the
+// rest of this item: an else the item's own statement did not consume (the
+// statement is not an if, or is a continuous assignment) belongs to an
+// enclosing generate-if ("if (c) assign a = b; else assign a = d;"). The
+// cursor moves back to it. sub must be the sub-parser over p.toks[from:p.pos].
+func (p *parser) giveBackElse(sub *parser, from int) {
+	if tok := sub.peek(); tok.Kind == token.KindKeyword && tok.Text == "else" {
+		p.pos = from + sub.pos
+	}
+}
+
+// parseItemBody parses the single statement of a procedural block. Anything
+// left after it (stray tokens skipProceduralConstruct happened to include) is
+// dropped: the block's extent was already settled by the skip.
+func (p *parser) parseItemBody() ast.Stmt {
+	return p.parseStatement()
+}
+
+// parseContinuousAssign parses "[(strength)] [#delay] lhs = rhs {, lhs = rhs} ;"
+// (LRM 10.3.2), the leading "assign" already consumed by the caller.
+func (p *parser) parseContinuousAssign() *ast.ContinuousAssign {
+	n := &ast.ContinuousAssign{}
+	if p.peek().Kind == token.KindLParen {
+		n.DriveStrength = p.parseStrength()
+	}
+	if p.peek().Kind == token.KindHash {
+		n.Delay = p.parseDelay3()
+	}
+	n.Assigns = p.parseAssignItems()
+	p.expectSemi()
+	return n
+}
+
+// parseAssignItems parses "lhs = rhs {, lhs = rhs}" without a terminator, as
+// in a continuous assignment or a defparam (LRM 10.3.2, 23.10.1).
+func (p *parser) parseAssignItems() []ast.Assign {
+	var out []ast.Assign
+	for {
+		start := p.pos
+		lhs := p.parseUnary()
+		a := ast.Assign{Op: "=", LHS: lhs}
+		if p.expectKind(token.KindAssign, "'=' in an assignment") {
+			a.RHS = p.parseExpr()
+		} else {
+			a.RHS = p.emptyBad()
+		}
+		a.SetPos(p.spanFrom(start))
+		out = append(out, a)
+		if p.peek().Kind != token.KindComma {
+			return out
+		}
+		p.advance()
+	}
+}
+
+// parseAssertionItem parses an assertion statement at module scope (LRM 16.14),
+// the cursor on its keyword or on a "label:" before it. Like the procedural
+// items, its extent comes from skipProceduralConstruct and the tokens it
+// consumed are parsed by the statement parser with errors suppressed.
+func (p *parser) parseAssertionItem() ([]ast.Decl, bool) {
+	start := p.pos
+	if p.peek().Kind == token.KindIdent {
+		p.advance() // label
+		p.advance() // ':'
+	}
+	p.advance() // the assertion keyword
+	p.skipProceduralConstruct()
+	sub := p.newSubParser(p.toks[start:p.pos])
+	n := &ast.AssertionItem{Body: sub.parseStatement()}
+	p.giveBackElse(sub, start)
+	p.suppressed = append(p.suppressed, sub.errs...)
+	n.Position = p.spanFrom(start)
+	return []ast.Decl{n}, true
+}

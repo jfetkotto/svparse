@@ -29,7 +29,6 @@ var containerStartKeywords = map[string]bool{
 	"class": true, "package": true, "virtual": true,
 	"typedef": true, "parameter": true, "localparam": true,
 	"function": true, "task": true, "extern": true, "import": true,
-	"nettype": true, "specparam": true,
 	"constraint": true, "static": true, "rand": true, "randc": true,
 }
 
@@ -40,7 +39,7 @@ func isEndKeyword(text string) bool { return endKeywords[text] }
 // builtin data-type keywords a variable/net declaration can start with
 // (dataTypeKeywords, defined in variables.go).
 func isDeclStartKeyword(text string) bool {
-	return containerStartKeywords[text] || dataTypeKeywords[text] || aggregateKeywords[text]
+	return containerStartKeywords[text] || dataTypeKeywords[text]
 }
 
 // proceduralStartKeywords are the keywords that begin a procedural block

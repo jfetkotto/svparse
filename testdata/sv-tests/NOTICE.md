@@ -9,24 +9,17 @@ SystemVerilog standard.
 - **License:** ISC (see below) - each vendored file also carries its own
   copyright/license header, unmodified, satisfying the notice-preservation
   requirement per file.
-- **Selection:** two tiers, both copied unmodified from the source commit.
-  - *Declaration-grade core* (387 files): every single-file test under
-    `tests/chapter-{5,6,7,8,13,22,23,24,25,26}/` (lexical conventions, data
-    types, aggregate types, classes, tasks/functions, compiler directives,
-    modules, programs, interfaces, packages). `parser/corpus_test.go` checks
-    these against `testdata/sv-tests-baseline.txt` by exact error count.
-  - *Full-front-end set*: every test under `tests/chapter-{9,10,11,12,14,15,16,18,20,21}/`
-    (procedural code, operators and expressions, assertions, randomization,
-    system tasks and functions) and `tests/generic/`, vendored as the
-    conformance target for growing svparse into a full front end (see
-    `docs/roadmap.md`). The source commit has no other chapter directories.
-    These are exercised by the conformance harness, not by the count baseline.
+- **Selection:** every single-file test under `tests/chapter-{5,6,7,8,13,22,23,24,25,26}/`
+  in the source repo (lexical conventions, data types, aggregate types,
+  classes, tasks/functions, compiler directives, modules, programs,
+  interfaces, packages) - the chapters relevant to svparse's declaration-grade
+  scope. Chapters covering procedural statements, expressions, assertions,
+  randomization, and system tasks/functions (9-12, 14-16, 18, 20-21), and the
+  large multi-file `uvm`/`testbenches` directories, were deliberately not
+  vendored - out of scope for a single-file, declaration-grade parser. This
+  is a one-time snapshot, not fetched at build/test time.
 
-  The multi-file `uvm`/`testbenches` directories and the top-level
-  `sanity.sv` are not vendored. This is a one-time snapshot, not fetched at
-  build/test time.
-
-The core tier is used by `svparse/parser`'s corpus tests
+This directory is used by `svparse/parser`'s corpus tests
 (`corpus_test.go`) to validate the parser against real, spec-representative
 SystemVerilog, as a complement to its existing fuzz testing.
 

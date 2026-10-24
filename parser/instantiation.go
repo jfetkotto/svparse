@@ -29,13 +29,6 @@ func (p *parser) parseVariableOrInstantiation() ([]ast.Decl, bool) {
 	hasParamOverrides := p.peek().Kind == token.KindHash
 	if hasParamOverrides {
 		paramOverrides = p.parseParamOverrideList()
-		if p.absorbClassScope(&typ, paramOverrides) {
-			// "cls #(8)::inner_t v;" -- a type inside a parameterized class,
-			// so a variable declaration, never an instantiation.
-			paramOverrides = nil
-			hasParamOverrides = false
-			typ.PackedDims = p.parseDims()
-		}
 	} else {
 		// Packed dims only apply to a variable's type -- an instantiation
 		// has no such position for them, and a '[' right after a
@@ -124,10 +117,7 @@ func (p *parser) parseParamOverrideList() []ast.ParamOverride {
 	}
 	p.advance() // '('
 
-	// Bounded at the closing ')' or, if it is missing, the statement's ';' --
-	// see parenGroupEnd. (The splitter itself cannot make that call: in a macro
-	// argument a ';' is ordinary text.)
-	groups, newPos, closed := preprocessor.SplitBalancedArgs(p.toks[:p.parenGroupLimit()], p.pos)
+	groups, newPos, closed := preprocessor.SplitBalancedArgs(p.toks, p.pos)
 	p.pos = newPos
 	if !closed {
 		p.errorf(p.peek(), "unterminated parameter override list")
@@ -152,15 +142,16 @@ func parseParamOverrideGroup(group []preprocessor.Token) ast.ParamOverride {
 	if len(group) == 0 {
 		return ast.ParamOverride{}
 	}
+	pos := ast.Position{File: group[0].File, Line: group[0].Line, Character: group[0].Character}
 	if len(group) >= 2 && group[0].Kind == token.KindDot && group[1].Kind == token.KindIdent {
 		name := group[1].Text
-		namePos := namePosition(group[1])
+		namePos := ast.Position{File: group[1].File, Line: group[1].Line, Character: group[1].Character}
 		if len(group) >= 4 && group[2].Kind == token.KindLParen && group[len(group)-1].Kind == token.KindRParen {
 			return ast.ParamOverride{Position: namePos, Name: name, Value: group[3 : len(group)-1]}
 		}
 		return ast.ParamOverride{Position: namePos, Name: name}
 	}
-	return ast.ParamOverride{Position: tokensSpan(group), Value: group}
+	return ast.ParamOverride{Position: pos, Value: group}
 }
 
 // parseInstanceGroup parses one already-comma-isolated instance:
@@ -207,12 +198,14 @@ func parsePortConnectionGroup(group []preprocessor.Token) ast.PortConnection {
 	if len(group) == 0 {
 		return ast.PortConnection{}
 	}
+	pos := ast.Position{File: group[0].File, Line: group[0].Line, Character: group[0].Character}
+
 	if group[0].Kind == token.KindDotStar {
-		return ast.PortConnection{Position: tokensSpan(group[:1]), Wildcard: true}
+		return ast.PortConnection{Position: pos, Wildcard: true}
 	}
 	if group[0].Kind == token.KindDot && len(group) >= 2 && group[1].Kind == token.KindIdent {
 		name := group[1].Text
-		namePos := namePosition(group[1])
+		namePos := ast.Position{File: group[1].File, Line: group[1].Line, Character: group[1].Character}
 		if len(group) >= 4 && group[2].Kind == token.KindLParen && group[len(group)-1].Kind == token.KindRParen {
 			return ast.PortConnection{Position: namePos, Name: name, Expr: group[3 : len(group)-1]}
 		}
@@ -223,5 +216,5 @@ func parsePortConnectionGroup(group []preprocessor.Token) ast.PortConnection {
 		}
 		return ast.PortConnection{Position: namePos, Name: name, Implicit: true}
 	}
-	return ast.PortConnection{Position: tokensSpan(group), Expr: group}
+	return ast.PortConnection{Position: pos, Expr: group}
 }

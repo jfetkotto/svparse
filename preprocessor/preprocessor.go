@@ -70,9 +70,6 @@ type tokenSource struct {
 }
 
 type preprocessor struct {
-	keepComments bool
-	comments     []Comment // see Options.KeepComments
-
 	stack     []*tokenSource
 	macros    map[string]*macroDef
 	expanding map[string]bool
@@ -125,54 +122,18 @@ type Options struct {
 	// function-like macro this way, matching +define+'s own CLI-level
 	// semantics -- it only ever defines a name to a flat token sequence.
 	InitialMacros map[string]string
-
-	// KeepComments makes PreprocessDetailed return the comments of the file and
-	// of everything it includes. It has no effect on PreprocessWithOptions,
-	// which has nowhere to return them, and it never changes the tokens.
-	KeepComments bool
-}
-
-// Comment is a source comment with the file it is in. Its position is its true
-// position in File, like a Token's.
-type Comment struct {
-	token.Comment
-	File string
-}
-
-// Result is everything a preprocessing run produces.
-type Result struct {
-	Tokens   []Token
-	Errors   []Error
-	Comments []Comment // only with Options.KeepComments, in the order the sources were read
-}
-
-// PreprocessDetailed is PreprocessWithOptions that returns a Result, so it can
-// also hand back the comments (see Options.KeepComments). The tokens and errors
-// are exactly what PreprocessWithOptions returns.
-//
-// Comments come from every source text read: the file, and each `include in
-// the order it was reached. A comment inside an inactive `ifdef branch is
-// still returned, since it is still in the file; one inside a `define body is
-// returned once, where it is written, not once per expansion. A file that is
-// included twice has its comments returned twice; see CommentIndex.
-func PreprocessDetailed(path, text string, resolver IncludeResolver, opts Options) Result {
-	p := newPreprocessor(resolver)
-	p.keepComments = opts.KeepComments
-	p.seedInitialMacros(opts.InitialMacros)
-	p.including[path] = true
-	p.pushFile(path, text)
-	p.run()
-	p.reportUnterminatedConditionals()
-	return Result{Tokens: p.out, Errors: p.errs, Comments: p.comments}
 }
 
 // PreprocessWithOptions is Preprocess with additional configuration -- see
 // Options.
 func PreprocessWithOptions(path, text string, resolver IncludeResolver, opts Options) ([]Token, []Error) {
-	// Comments have nowhere to go here, so don't spend time collecting them.
-	opts.KeepComments = false
-	r := PreprocessDetailed(path, text, resolver, opts)
-	return r.Tokens, r.Errors
+	p := newPreprocessor(resolver)
+	p.seedInitialMacros(opts.InitialMacros)
+	p.including[path] = true // seeds cycle detection for the root file too; never explicitly cleared, since nothing needs to re-include root after the run completes
+	p.pushFile(path, text)
+	p.run()
+	p.reportUnterminatedConditionals()
+	return p.out, p.errs
 }
 
 // newPreprocessor builds a preprocessor with the default step budget.
@@ -220,17 +181,7 @@ func (p *preprocessor) seedInitialMacros(macros map[string]string) {
 // source (a macro expansion's source is built by substitution instead,
 // see expandMacro).
 func (p *preprocessor) lexToTokens(file, text string) []Token {
-	var lexToks []token.Token
-	var lexErrs []lexer.Error
-	if p.keepComments && file != initialMacroFile {
-		var comments []token.Comment
-		lexToks, comments, lexErrs = lexer.LexWithComments(text)
-		for _, c := range comments {
-			p.comments = append(p.comments, Comment{Comment: c, File: file})
-		}
-	} else {
-		lexToks, lexErrs = lexer.Lex(text)
-	}
+	lexToks, lexErrs := lexer.Lex(text)
 	for _, e := range lexErrs {
 		p.errorf(file, e.Line, e.Character, "%s", e.Message)
 	}

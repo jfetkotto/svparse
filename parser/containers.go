@@ -157,7 +157,11 @@ func (p *parser) parseDecl() ([]ast.Decl, bool) {
 		// label, a ternary expression) only occurs inside an
 		// already-skipped procedural/generate-case construct -- so this
 		// check is narrow enough to only ever fire here.
-		return p.parseAssertionItem()
+		p.advance() // label
+		p.advance() // ":"
+		p.advance() // "assert"/"assume"/"cover"/"restrict"
+		p.skipProceduralConstruct()
+		return nil, true
 	}
 	if tok.Kind == token.KindIdent {
 		return p.parseVariableOrInstantiation()
@@ -215,10 +219,8 @@ func (p *parser) parseDecl() ([]ast.Decl, bool) {
 		return oneDecl(p.parsePackage())
 	case "typedef":
 		return oneDecl(p.parseTypedef())
-	case "parameter", "localparam", "specparam":
+	case "parameter", "localparam":
 		return p.parseParameterDecl()
-	case "nettype":
-		return oneDecl(p.parseNettype())
 	case "input", "output", "inout":
 		// A non-ANSI port declaration (LRM 23.2.2.3), giving direction/type
 		// to a name the container's header port list already declared bare
@@ -287,25 +289,89 @@ func (p *parser) parseDecl() ([]ast.Decl, bool) {
 		// begin ... end" otherwise looks like its own bad top-level
 		// declaration once recover() -- which doesn't understand begin/end
 		// nesting -- stops at the first semicolon it finds).
-		return []ast.Decl{p.parseProceduralItem()}, true
+		p.advance()
+		p.skipProceduralConstruct()
+		return nil, true
 	case "assert", "assume", "cover", "restrict":
-		return p.parseAssertionItem()
-	case "primitive":
-		return oneDecl(p.parseUDP())
+		// A module-scope concurrent assertion statement (LRM 16.14),
+		// e.g. "assert property (@(posedge clk) req |-> ##1 ack) else
+		// $error(...);" -- same "recognized and skipped, statement/
+		// expression grammar out of scope" treatment as "assign" above,
+		// and the identical skipProceduralConstruct shape handles its
+		// action_block (an ordinary statement, ending at a top-level ';',
+		// optionally itself starting with "else") with no changes needed.
+		// A labeled form ("a1: assert property (...);") is dispatched
+		// separately, before parseVariableOrInstantiation ever sees the
+		// label -- see parseDecl's KindIdent check above.
+		p.advance()
+		p.skipProceduralConstruct()
+		return nil, true
 	case "constraint":
 		return oneDecl(p.parseConstraint())
 	case "covergroup":
-		return oneDecl(p.parseCovergroup())
+		// A covergroup declaration (LRM 19.3): "covergroup name [(...)]
+		// [@(...) | @@(...)]; coverpoint/cross/option items... endgroup [:
+		// name]" -- never parsed, out of declaration-grade scope
+		// (coverpoint/bins expression grammar is entirely out of scope,
+		// same reasoning as a constraint block's body). Skipped wholesale,
+		// header included, rather than trying to parse just the header the
+		// way a container does, since the header's own "(...)"/"@(...)"
+		// hold expression content this parser doesn't model either.
+		p.advance()
+		p.skipToKeyword("endgroup", nil)
+		p.skipEndLabel()
+		return nil, true
 	case "property":
-		return oneDecl(p.parsePropertyDecl())
+		// A property declaration (LRM 16.6): "property name [(...)]; ...
+		// endproperty [: name]" -- assertion expression grammar is entirely
+		// out of scope, so the whole thing is skipped wholesale, same
+		// treatment as "covergroup" above. Unambiguous with "assert
+		// property (...)" (LRM 16.14's concurrent assertion statement,
+		// found only inside/via a procedural construct or the also-skipped
+		// "assert"/"assume"/"cover" module items), since that form always
+		// starts with "assert"/"assume"/"cover", never with a bare
+		// "property" token reaching this dispatch.
+		p.advance()
+		p.skipToKeyword("endproperty", nil)
+		p.skipEndLabel()
+		return nil, true
 	case "sequence":
-		return oneDecl(p.parseSequenceDecl())
+		// A sequence declaration (LRM 16.11): "sequence name [(...)]; ...
+		// endsequence [: name]" -- same treatment as "property" above.
+		p.advance()
+		p.skipToKeyword("endsequence", nil)
+		p.skipEndLabel()
+		return nil, true
 	case "clocking":
-		return oneDecl(p.parseClocking(p.pos, false, false))
+		// A clocking block (LRM 14.3): "clocking [name] @(...); ...
+		// endclocking [: name]" -- skipped wholesale, header (including its
+		// clocking-event expression) and all, same reasoning as
+		// "covergroup"/"property" above. "default clocking name;" -- a
+		// one-line reference to an already-declared clocking block, not a
+		// declaration of its own -- is a different shape entirely, starting
+		// with "default", not "clocking"; see the "default" case below.
+		p.advance()
+		p.skipToKeyword("endclocking", nil)
+		p.skipEndLabel()
+		return nil, true
 	case "default":
-		// Module-level "default clocking" / "default disable iff" (LRM 14.12,
-		// 16.15); a bare "default:" label never reaches this dispatch.
-		return p.parseDefaultItem()
+		// "default clocking name;" (LRM 14.3, a reference to an
+		// already-declared clocking block) / "default disable iff expr;"
+		// (LRM 16.15.2) -- both one-line statements ending at ';', not a
+		// body of their own. ("default input|output ...;" skew
+		// declarations exist too, LRM 14.3, but only ever appear nested
+		// inside a clocking block's own body, which "clocking" above
+		// already skips wholesale -- they never reach this dispatch
+		// directly.) Anything else starting with "default" (e.g. a bare
+		// "default:" case-statement label) only occurs inside a
+		// procedural/generate-case construct already skipped before
+		// parseDecl ever sees it, so no other shape reaches here.
+		if p.peekAt(1).Text != "clocking" && p.peekAt(1).Text != "disable" {
+			return nil, false
+		}
+		p.advance()
+		p.skipHeaderToSemi()
+		return nil, true
 	case "checker":
 		// A checker declaration (LRM 17.2): "checker name [(...)]; ...
 		// endchecker [: name]" -- structurally a lot like a class/module (it
@@ -324,21 +390,62 @@ func (p *parser) parseDecl() ([]ast.Decl, bool) {
 		p.skipToKeyword("endspecify", nil)
 		return nil, true
 	case "defparam":
-		return p.parseDefparam()
+		// "defparam u1.WIDTH = 8;" (LRM 23.10, legacy pre-parameter-override
+		// hierarchical parameter assignment) -- never parsed, out of
+		// declaration-grade scope (its target is a hierarchical path, not a
+		// name this package's model resolves), skipped explicitly rather
+		// than falling through to the generic unrecognized-token recovery.
+		p.advance()
+		p.skipHeaderToSemi()
+		return nil, true
 	case "modport":
 		return p.parseModportDecl()
 	case "bind":
-		return p.parseBind()
+		// "bind target_scope [#(...)] bind_instantiation ...;" (LRM 23.11) --
+		// a hierarchical binding directive (commonly used to attach
+		// verification checkers to an existing instance), never parsed, out
+		// of declaration-grade scope for the same reason "defparam" is
+		// (its target is a hierarchical reference, not a declaration).
+		// skipHeaderToSemi handles whatever shape follows uniformly: it's
+		// depth-aware, so the bind_instantiation's own port-connection
+		// parens don't confuse it.
+		p.advance()
+		p.skipHeaderToSemi()
+		return nil, true
 	case "timeunit", "timeprecision":
-		return p.parseTimeUnit()
+		// "timeunit 1ns [/ 1ps];" / "timeprecision 1ps;" (LRM 3.14.2, a
+		// module/interface/package/program/checker time-unit declaration)
+		// -- never parsed, out of declaration-grade scope (timing metadata,
+		// same reasoning as "'timescale"), skipped like every other
+		// header-only construct here.
+		p.advance()
+		p.skipHeaderToSemi()
+		return nil, true
 	case "export":
-		return p.parseExport()
+		// "export pkg::name;" / "export pkg::*;" (LRM 26.4, re-exporting an
+		// imported package member) or "export \"DPI-C\" ... ;" (a DPI
+		// export) -- neither introduces a declaration this package models
+		// (the former references an existing import; DPI export's own
+		// name/signature duplicates a function/task already declared
+		// elsewhere), skipped like "import"'s DPI form's own qualifiers are
+		// consumed-but-untracked elsewhere in this parser.
+		p.advance()
+		p.skipHeaderToSemi()
+		return nil, true
 	case "let":
-		return p.parseLet()
+		// "let name(args) = expr;" (LRM 11.12, a macro-like expression
+		// shorthand) -- never parsed, expression grammar out of scope same
+		// as everywhere else in this parser; skipped explicitly rather
+		// than falling through to the generic unrecognized-token recovery.
+		p.advance()
+		p.skipHeaderToSemi()
+		return nil, true
 	case "alias":
-		return p.parseAlias()
-	case "config":
-		return oneDecl(p.parseConfig())
+		// "alias w1 = w2;" (LRM 10.11, a net alias) -- never parsed, same
+		// reasoning as "let" above.
+		p.advance()
+		p.skipHeaderToSemi()
+		return nil, true
 	case "global":
 		// "global clocking [name] @(...); ... endclocking" (LRM 14.14) --
 		// only recognized in this specific "global clocking" shape (unlike
@@ -349,34 +456,68 @@ func (p *parser) parseDecl() ([]ast.Decl, bool) {
 		if p.peekAt(1).Text != "clocking" {
 			return nil, false
 		}
-		start := p.pos
 		p.advance() // "global"
-		return oneDecl(p.parseClocking(start, false, true))
-	case "generate":
-		return p.parseGenerateRegion()
-	case "endgenerate", "end":
-		// A stray closer (its opener is consumed by the construct that owns
-		// it): a no-op, plus an optional ": name" label after "end".
+		p.advance() // "clocking"
+		p.skipToKeyword("endclocking", nil)
+		p.skipEndLabel()
+		return nil, true
+	case "generate", "endgenerate":
+		// "generate"/"endgenerate" (LRM 27.3) are pure scope brackets around
+		// an otherwise ordinary run of module items (instantiations,
+		// variable/parameter declarations, generate for/if/case
+		// constructs, ...) -- consumed as no-ops so everything between them
+		// parses exactly as it would outside a generate region.
+		p.advance()
+		return nil, true
+	case "begin", "end":
+		// A generate block's own delimiters (LRM 27.3's "generate_block" ::
+		// begin [ : name ] ... end [ : name ]), reached here only at
+		// container/generate scope -- a procedural block's begin/end is
+		// already consumed whole by skipProceduralConstruct/skipBody before
+		// parseDecl ever sees it. Consumed as a no-op (plus an optional
+		// ": name" block label) so a generate block's contents parse as
+		// ordinary declarations, same reasoning as "generate"/"endgenerate"
+		// above.
 		p.advance()
 		p.skipEndLabel()
 		return nil, true
-	case "begin":
-		// A bare generate block at item scope (LRM 27.3).
-		n := p.parseGenerateBlock()
-		return []ast.Decl{n}, true
 	case "else":
-		// A stray "else" (its "if" was consumed by parseGenerateIf): a no-op.
+		// A generate-if's "else" (LRM 27.5): consumed as a no-op. What
+		// follows -- "begin"/"if"/a bare single item -- is left for the
+		// next parseBody iteration to dispatch on normally, which is what
+		// naturally chains an "else if" and reaches the "begin"/"if" cases
+		// above/below without this case needing to recurse.
 		p.advance()
 		return nil, true
-	case "if":
-		return p.parseGenerateIf()
-	case "for":
-		return p.parseGenerateFor()
-	case "case":
-		return p.parseGenerateCase()
+	case "for", "if":
+		// A generate for-loop or generate-if's condition/header (LRM 27.4,
+		// 27.5) -- never parsed, same "declaration-grade, not full
+		// expression/statement grammar" reasoning as everywhere else in
+		// this parser. Skipped as a single balanced "(...)" group; what
+		// follows (a "begin ... end" generate block, or -- LRM allows it --
+		// a single bare generate item with no begin/end) is left for the
+		// next parseBody iteration, which reaches the "begin" case above
+		// or parses the single item as an ordinary declaration.
+		p.advance()
+		p.skipParenGroup()
+		return nil, true
+	case "case", "casex", "casez":
+		// A generate-case construct (LRM 27.5): unlike for/if, its per-item
+		// "expr : item" / "default : item" shape (item possibly a bare
+		// statement with no begin/end at all) doesn't fit this parser's
+		// declaration-oriented dispatch loop cleanly, so it's skipped
+		// wholesale -- header and body together -- down to the matching
+		// "endcase", rather than letting its items parse individually the
+		// way for/if's do.
+		p.advance()
+		p.skipParenGroup()
+		p.skipToKeyword("endcase", caseOpenKeywords)
+		return nil, true
 	}
 	if gatePrimitiveKeywords[tok.Text] {
-		return p.parseGateInstantiation()
+		p.advance()
+		p.skipHeaderToSemi()
+		return nil, true
 	}
 	if isVariableStartKeyword(tok.Text) {
 		return p.parseVariableDecl()

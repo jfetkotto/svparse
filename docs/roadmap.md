@@ -6,6 +6,10 @@ checkbox is one branch. Take the next unchecked item, tick it when it merges,
 and record the conformance mismatch count where relevant. If a session stops
 partway through an item, leave a short "Status:" note under it.
 
+The v2 front end lives in `v2/` (module `github.com/jfetkotto/svparse/v2`);
+paths below such as `parser/` or `testdata/` are relative to it. Work merges
+into `devel`; `main` stays at the released `v0.1.9` until a `v2.0.0` release.
+
 ## M0: Setup
 
 - [x] sigilsv2 checkout at `~/proj/sigilsv2` building against this tree via a

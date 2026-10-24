@@ -42,10 +42,10 @@ func (p *parser) parseFunction(isPrototype bool) (ast.Decl, bool) {
 	if !ok {
 		return nil, false
 	}
-	nameTok, scope := p.resolveQualifiedName(nameTok)
+	nameTok = p.resolveQualifiedName(nameTok)
 	args := p.parseArgList()
 
-	fn := &ast.Function{Scope: scope, Name: nameTok.Text, ReturnType: returnType, Args: args, Prototype: isPrototype}
+	fn := &ast.Function{Name: nameTok.Text, ReturnType: returnType, Args: args, Prototype: isPrototype}
 	fn.Position = namePosition(nameTok)
 
 	if p.peek().Kind == token.KindSemi {
@@ -59,13 +59,7 @@ func (p *parser) parseFunction(isPrototype bool) (ast.Decl, bool) {
 		return fn, true
 	}
 
-	bodyStart := p.pos
 	end, found := p.skipBody("endfunction")
-	var extra []ast.Arg
-	var suppressed []Error
-	fn.Decls, fn.Stmts, extra, suppressed = p.parseSubroutineBody(p.toks[bodyStart:p.pos])
-	fn.Args = append(fn.Args, extra...)
-	p.suppressed = append(p.suppressed, suppressed...)
 	fn.EndLine, fn.EndCharacter = end.Line, end.Character
 	if found {
 		p.advance() // "endfunction"
@@ -86,10 +80,10 @@ func (p *parser) parseTask(isPrototype bool) (ast.Decl, bool) {
 	if !ok {
 		return nil, false
 	}
-	nameTok, scope := p.resolveQualifiedName(nameTok)
+	nameTok = p.resolveQualifiedName(nameTok)
 	args := p.parseArgList()
 
-	task := &ast.Task{Scope: scope, Name: nameTok.Text, Args: args, Prototype: isPrototype}
+	task := &ast.Task{Name: nameTok.Text, Args: args, Prototype: isPrototype}
 	task.Position = namePosition(nameTok)
 
 	if p.peek().Kind == token.KindSemi {
@@ -103,13 +97,7 @@ func (p *parser) parseTask(isPrototype bool) (ast.Decl, bool) {
 		return task, true
 	}
 
-	bodyStart := p.pos
 	end, found := p.skipBody("endtask")
-	var extra []ast.Arg
-	var suppressed []Error
-	task.Decls, task.Stmts, extra, suppressed = p.parseSubroutineBody(p.toks[bodyStart:p.pos])
-	task.Args = append(task.Args, extra...)
-	p.suppressed = append(p.suppressed, suppressed...)
 	task.EndLine, task.EndCharacter = end.Line, end.Character
 	if found {
 		p.advance() // "endtask"
@@ -126,19 +114,17 @@ func (p *parser) parseTask(isPrototype bool) (ast.Decl, bool) {
 // declaration support). If present, consumes the "::" and the real name
 // that follows, returning that as the effective name. The class
 // qualifier itself isn't retained -- ast.Function/Task have no field for
-// it in the name; it is returned separately and recorded as Scope on the
-// Function/Task/Constraint, so a definition "C::m" is not mistaken for a
-// free subroutine "m". Unifying it with its class's extern prototype is the
-// semantic layer's job.
-func (p *parser) resolveQualifiedName(nameTok preprocessor.Token) (preprocessor.Token, string) {
+// it; unifying an out-of-class body back with its class's extern
+// prototype is a future phase's job, not this one's.
+func (p *parser) resolveQualifiedName(nameTok preprocessor.Token) preprocessor.Token {
 	if p.peek().Kind != token.KindColonColon {
-		return nameTok, ""
+		return nameTok
 	}
 	p.advance() // "::"
 	if realName, ok := p.expectIdent(); ok {
-		return realName, nameTok.Text
+		return realName
 	}
-	return nameTok, ""
+	return nameTok
 }
 
 // parseDPIImport parses "import <string-literal> [context|pure]
@@ -426,8 +412,7 @@ func (p *parser) skipProceduralConstruct() {
 					continue
 				}
 			} else if !atStatementStart && blockDepth == 0 && parenDepth == 0 &&
-				isDeclBoundaryKeyword(tok.Text) && !isTypeCastKeyword(tok, p.peekAt(1)) &&
-				!p.isProceduralAssign(tok) {
+				isDeclBoundaryKeyword(tok.Text) && !isTypeCastKeyword(tok, p.peekAt(1)) {
 				p.errorf(tok, "expected ';' before %q", tok.Text)
 				return
 			}
@@ -444,61 +429,6 @@ func (p *parser) skipProceduralConstruct() {
 		atStatementStart = false
 		p.advance()
 	}
-}
-
-// isProceduralAssign reports whether the "assign" under the cursor is a
-// procedural continuous assignment (LRM 10.6.1) rather than the start of the
-// next module item. It is one when it follows a token that can only introduce a
-// statement: the "else" of an if, the ")" of an if, while or event control, a
-// ":" of a case item or block label, or a "begin"/"fork". After a missing ';'
-// the token before the next item is a name or a literal, never these.
-func (p *parser) isProceduralAssign(tok preprocessor.Token) bool {
-	if tok.Text != "assign" || p.pos == 0 {
-		return false
-	}
-	prev := p.toks[p.pos-1]
-	switch prev.Kind {
-	case token.KindColon:
-		return true
-	case token.KindRParen:
-		return p.closesStatementHeader()
-	case token.KindKeyword:
-		return prev.Text == "else" || prev.Text == "begin" || prev.Text == "fork"
-	}
-	return false
-}
-
-// closesStatementHeader reports whether the ")" just consumed ends the header
-// of an if, while, for, repeat, foreach or wait, or an event control: the
-// parenthesis whose matching "(" follows one of those.
-func (p *parser) closesStatementHeader() bool {
-	depth := 0
-	for i := p.pos - 1; i >= 0; i-- {
-		switch p.toks[i].Kind {
-		case token.KindRParen:
-			depth++
-		case token.KindLParen:
-			depth--
-			if depth == 0 {
-				if i == 0 {
-					return false
-				}
-				before := p.toks[i-1]
-				if before.Kind == token.KindAt {
-					return true
-				}
-				if before.Kind != token.KindKeyword {
-					return false
-				}
-				switch before.Text {
-				case "if", "while", "for", "repeat", "foreach", "wait":
-					return true
-				}
-				return false
-			}
-		}
-	}
-	return false
 }
 
 // continueAfterStatement is called by skipProceduralConstruct once a

@@ -1,0 +1,533 @@
+package parser
+
+import (
+	"maps"
+
+	"github.com/jfetkotto/svparse/v2/ast"
+	"github.com/jfetkotto/svparse/v2/preprocessor"
+	"github.com/jfetkotto/svparse/v2/token"
+)
+
+// parseFunction parses a function declaration: [lifetime] [return-type]
+// name(args); ... endfunction. isPrototype tells it not to expect a body
+// at all -- extern and DPI-import functions are grammatically distinct
+// declarations with no possible body, not detected by "is there a ';'
+// right after the argument list", which is present either way (an
+// ordinary function's ANSI-style header ends in ';' too, before its
+// real body starts; only the caller, having seen "extern" or a DPI
+// import string literal, actually knows which case this is). Return
+// type follows the exact same implicit-vs-explicit ambiguity ports/
+// parameters/variables do ("function foo(...)" vs "function int
+// foo(...)"), resolved by the same parseTypeAndName -- except for the
+// class constructor, "function new(...);", where "new" is SV's one
+// genuinely dual-role keyword: reserved everywhere else (the new
+// operator), but the mandatory, typeless constructor name here.
+// parseTypeAndName's final step requires a plain identifier and would
+// reject "new" outright (it's lexed as a keyword, not an identifier),
+// so that case is special-cased before delegating to it.
+func (p *parser) parseFunction(isPrototype bool) (ast.Decl, bool) {
+	p.advance() // "function"
+	if p.peek().Text == "automatic" || p.peek().Text == "static" {
+		p.advance() // lifetime qualifier -- consumed, not tracked
+	}
+
+	var returnType ast.Type
+	var nameTok preprocessor.Token
+	var ok bool
+	if p.peek().Kind == token.KindKeyword && p.peek().Text == "new" {
+		nameTok, ok = p.advance(), true
+	} else {
+		returnType, nameTok, ok = p.parseTypeAndName()
+	}
+	if !ok {
+		return nil, false
+	}
+	nameTok, scope := p.resolveQualifiedName(nameTok)
+	args := p.parseArgList()
+
+	fn := &ast.Function{Scope: scope, Name: nameTok.Text, ReturnType: returnType, Args: args, Prototype: isPrototype}
+	fn.Position = namePosition(nameTok)
+
+	if p.peek().Kind == token.KindSemi {
+		p.advance()
+	} else {
+		p.errorf(p.peek(), "expected ';' after function signature")
+	}
+
+	if isPrototype {
+		fn.EndLine, fn.EndCharacter = endOfName(nameTok)
+		return fn, true
+	}
+
+	bodyStart := p.pos
+	end, found := p.skipBody("endfunction")
+	var extra []ast.Arg
+	var suppressed []Error
+	fn.Decls, fn.Stmts, extra, suppressed = p.parseSubroutineBody(p.toks[bodyStart:p.pos])
+	fn.Args = append(fn.Args, extra...)
+	p.suppressed = append(p.suppressed, suppressed...)
+	fn.EndLine, fn.EndCharacter = end.Line, end.Character
+	if found {
+		p.advance() // "endfunction"
+		p.skipEndLabel()
+	}
+	return fn, true
+}
+
+// parseTask mirrors parseFunction, minus a return type -- tasks never
+// have one.
+func (p *parser) parseTask(isPrototype bool) (ast.Decl, bool) {
+	p.advance() // "task"
+	if p.peek().Text == "automatic" || p.peek().Text == "static" {
+		p.advance()
+	}
+
+	nameTok, ok := p.expectIdent()
+	if !ok {
+		return nil, false
+	}
+	nameTok, scope := p.resolveQualifiedName(nameTok)
+	args := p.parseArgList()
+
+	task := &ast.Task{Scope: scope, Name: nameTok.Text, Args: args, Prototype: isPrototype}
+	task.Position = namePosition(nameTok)
+
+	if p.peek().Kind == token.KindSemi {
+		p.advance()
+	} else {
+		p.errorf(p.peek(), "expected ';' after task signature")
+	}
+
+	if isPrototype {
+		task.EndLine, task.EndCharacter = endOfName(nameTok)
+		return task, true
+	}
+
+	bodyStart := p.pos
+	end, found := p.skipBody("endtask")
+	var extra []ast.Arg
+	var suppressed []Error
+	task.Decls, task.Stmts, extra, suppressed = p.parseSubroutineBody(p.toks[bodyStart:p.pos])
+	task.Args = append(task.Args, extra...)
+	p.suppressed = append(p.suppressed, suppressed...)
+	task.EndLine, task.EndCharacter = end.Line, end.Character
+	if found {
+		p.advance() // "endtask"
+		p.skipEndLabel()
+	}
+	return task, true
+}
+
+// resolveQualifiedName checks for a "::" immediately after a
+// function/task's parsed name -- an out-of-class method body matching an
+// extern prototype declared inside a class, e.g. "function void
+// foo::bar(); ... endfunction" (mirrors sigils's own internal/sv/scan.go,
+// which already handles this exact pattern for its own goto-definition/
+// declaration support). If present, consumes the "::" and the real name
+// that follows, returning that as the effective name. The class
+// qualifier itself isn't retained -- ast.Function/Task have no field for
+// it in the name; it is returned separately and recorded as Scope on the
+// Function/Task/Constraint, so a definition "C::m" is not mistaken for a
+// free subroutine "m". Unifying it with its class's extern prototype is the
+// semantic layer's job.
+func (p *parser) resolveQualifiedName(nameTok preprocessor.Token) (preprocessor.Token, string) {
+	if p.peek().Kind != token.KindColonColon {
+		return nameTok, ""
+	}
+	p.advance() // "::"
+	if realName, ok := p.expectIdent(); ok {
+		return realName, nameTok.Text
+	}
+	return nameTok, ""
+}
+
+// parseDPIImport parses "import <string-literal> [context|pure]
+// function/task ...;" -- the cursor is expected to be at "import", with
+// the following token already confirmed to be a string literal (see the
+// parseDecl dispatch). Always a prototype -- DPI imports never have a
+// body. The optional "c_identifier =" foreign-name-mapping form isn't
+// handled -- a rare feature; encountering one produces a recorded error
+// via the fallback below rather than being silently misparsed.
+func (p *parser) parseDPIImport() (ast.Decl, bool) {
+	p.advance() // "import"
+	p.advance() // the DPI spec string literal, e.g. "DPI-C"
+	if p.peek().Text == "context" || p.peek().Text == "pure" {
+		p.advance() // DPI qualifier -- consumed, not tracked
+	}
+	switch p.peek().Text {
+	case "function":
+		return p.parseFunction(true)
+	case "task":
+		return p.parseTask(true)
+	}
+	p.errorf(p.peek(), "expected function or task after DPI import")
+	return nil, false
+}
+
+// parseArgList parses a function/task's argument list, identical in
+// shape and splitting strategy to parsePortEntry's port list (ports.go)
+// -- SplitBalancedArgs first, then each already-isolated group parsed
+// independently.
+func (p *parser) parseArgList() []ast.Arg {
+	if p.peek().Kind != token.KindLParen {
+		return nil
+	}
+	p.advance() // '('
+
+	groups, newPos, closed := preprocessor.SplitBalancedArgs(p.toks, p.pos)
+	p.pos = newPos
+	if !closed {
+		p.errorf(p.peek(), "unterminated argument list")
+	}
+	if isEmptyGroups(groups) {
+		return nil
+	}
+
+	var args []ast.Arg
+	for _, group := range groups {
+		if arg, ok := p.parseArgEntry(group); ok {
+			args = append(args, arg)
+		}
+	}
+	return args
+}
+
+func (p *parser) parseArgEntry(group []preprocessor.Token) (ast.Arg, bool) {
+	sub := p.newSubParser(group)
+	dir := sub.consumeDirection()
+
+	typ, nameTok, ok := sub.parseTypeAndName()
+	if !ok {
+		p.mergeErrors(sub)
+		return ast.Arg{}, false
+	}
+
+	arg := ast.Arg{Direction: dir, Type: typ, Name: nameTok.Text}
+	arg.Position = namePosition(nameTok)
+	arg.UnpackedDims = sub.parseDims()
+	if sub.peek().Kind == token.KindAssign {
+		sub.advance()
+		arg.Default = sub.remainingTokens()
+	} else if sub.pos < len(sub.toks) {
+		// Same trailing-garbage backstop as parsePortEntry/
+		// parseVariableDeclarator -- anything left unconsumed here isn't
+		// a '[' or '=', so it's malformed and would otherwise vanish
+		// silently.
+		p.errorf(sub.peek(), "unexpected trailing tokens after argument %q", nameTok.Text)
+	}
+	p.mergeErrors(sub)
+	return arg, true
+}
+
+// blockOpenKeywords/blockCloseKeywords are the block-delimiter keyword
+// pairs that can appear inside a function/task body -- tracked via one
+// combined depth counter (mirroring the preprocessor's own combined-
+// depth simplification in SplitBalancedArgs) since skipBody only needs
+// to find the matching endfunction/endtask, never to validate which
+// specific pair opened or closed. "randcase" closes via "endcase" the
+// same as "case"/"casex"/"casez" (and, like them, has no block label of
+// its own to skip).
+// caseOpenKeywords are the case-family openers alone -- the subset of
+// blockOpenKeywords that "endcase" closes. skipToKeyword needs them
+// separately: it tracks one construct's nesting at a time, and a generate
+// case's body can contain a nested procedural case whose own "endcase"
+// must not be mistaken for the outer one's.
+var caseOpenKeywords = map[string]bool{"case": true, "casex": true, "casez": true, "randcase": true}
+
+var blockOpenKeywords = func() map[string]bool {
+	m := map[string]bool{"begin": true, "fork": true}
+	maps.Copy(m, caseOpenKeywords)
+	return m
+}()
+var blockCloseKeywords = map[string]bool{"end": true, "join": true, "join_any": true, "join_none": true, "endcase": true}
+
+// isWaitOrDisableFork reports whether tok ("wait"/"disable") is
+// immediately followed by "fork" -- the standalone "wait fork;"/
+// "disable fork;" statements (LRM 9.6.1/9.6.2), which have nothing to do
+// with the fork/join block-delimiter pair skipBody/skipProceduralConstruct
+// otherwise track via blockOpenKeywords/blockCloseKeywords. Neither of
+// those maps, which key purely off a token's own text, can tell this
+// "fork" apart from a real block-opening one -- doing so needs the
+// PRECEDING token too. Without this check, "wait fork;"/"disable fork;"
+// increments depth for a "fork" with no matching "join" ever coming,
+// running the scan to end of file and silently dropping every
+// declaration after it.
+func isWaitOrDisableFork(text string, next preprocessor.Token) bool {
+	return (text == "wait" || text == "disable") && next.Kind == token.KindKeyword && next.Text == "fork"
+}
+
+// skipBody consumes a function/task's body -- never parsed, since
+// statement/expression grammar is entirely out of scope for this parser.
+// It returns the token it stopped at, left unconsumed, and whether that
+// token is endKeyword ("endfunction"/"endtask") itself: false means the
+// body ran out before its own terminator (end of file, or an enclosing
+// construct's end keyword), so the caller must not consume it.
+func (p *parser) skipBody(endKeyword string) (preprocessor.Token, bool) {
+	depth := 0
+	for {
+		tok := p.peek()
+		if tok.Kind == token.KindEOF {
+			p.errorf(tok, "unexpected end of file, expected %s", endKeyword)
+			return tok, false
+		}
+		if tok.Kind == token.KindKeyword && isEndKeyword(tok.Text) {
+			// Checked at ANY depth, deliberately. A container or
+			// subroutine end keyword can never legally appear inside a
+			// begin/fork/case, so reaching one means the block nesting is
+			// already broken -- almost always an unclosed "begin", the
+			// single most common mid-edit state there is. Gating this on
+			// depth zero (as every stop condition here used to be) leaves
+			// depth stuck above zero with nothing able to lower it again,
+			// so the scan runs to end of file and every declaration after
+			// this one silently vanishes from the parse result. Same
+			// failure isWaitOrDisableFork already prevents for "wait
+			// fork;", generalized.
+			if tok.Text != endKeyword {
+				p.errorf(tok, "expected %s before %q", endKeyword, tok.Text)
+				return tok, false // left unconsumed: it belongs to an enclosing construct
+			}
+			if depth > 0 {
+				p.errorf(tok, "expected \"end\" before %q", tok.Text)
+			}
+			return tok, true
+		}
+		if tok.Kind == token.KindKeyword {
+			if isWaitOrDisableFork(tok.Text, p.peekAt(1)) {
+				p.advance() // "wait"/"disable"
+				p.advance() // "fork"
+				continue
+			}
+			switch {
+			case blockOpenKeywords[tok.Text]:
+				depth++
+			case blockCloseKeywords[tok.Text]:
+				if depth > 0 {
+					depth--
+				}
+			}
+		}
+		p.advance()
+	}
+}
+
+// skipProceduralConstruct consumes one `initial`/`always`/`always_comb`/
+// `always_ff`/`always_latch`/`final` construct's statement (the keyword
+// itself already consumed by the caller) -- never parsed, same reasoning
+// as skipBody, but with no single terminating end-keyword the way a
+// function/task body has: it ends at a ';' at depth zero (a single
+// statement, e.g. "initial $display(...);") or at the matching close of
+// an opening begin/fork/case (a block, e.g. "initial begin ... end"),
+// tracking both `( { [ nesting (so a for-loop header's own ';'s, or a
+// call's argument list, don't look like the statement's terminator) and
+// block-keyword depth (reusing blockOpen/blockCloseKeywords) in the same
+// pass. Once a statement/block at depth zero completes, continueAfterStatement
+// checks for a trailing "while (cond);" (a do-while's own terminator,
+// LRM 12.7.2 -- the do-while's body, a single statement or begin/end
+// block, is otherwise indistinguishable from any other statement/block at
+// the point this reaches depth zero again) and/or a following "else" (an
+// if/else chain's next branch), continuing to skip those as part of the
+// same construct rather than returning and leaving them dangling at
+// container scope, where they'd otherwise misparse as their own bad
+// declaration.
+//
+// If the real terminator is missing entirely, this used to run silently
+// to end of file, quietly deleting every following declaration from the
+// parse result with no diagnostic at all (unlike skipBody, which already
+// errors on EOF); it now records the same "unexpected end of file" error
+// skipBody does. Similarly, a keyword that plausibly starts a new
+// declaration (isDeclBoundaryKeyword) reached at depth zero is treated
+// as a sign the real terminator was skipped over already: an error is
+// recorded and the scan stops immediately, the boundary token itself
+// left UNCONSUMED so parseBody's own dispatch loop parses it fresh as
+// its own declaration next, instead of it being silently swallowed as
+// more of this one. A builtin type keyword immediately followed by "'"
+// is excluded (isTypeCastKeyword) -- an "int'(x)"-style cast (LRM
+// 6.24.1) is ordinary, legal content of an unparsed expression here, not
+// a sign the next declaration has begun. The keyword immediately
+// following the already-consumed initial/always*/final/assign/assert/
+// assume/cover/restrict keyword is exempted too (atStatementStart) --
+// LRM 10.4.1/16.14 permit a procedural continuous assignment or
+// concurrent assertion as a construct's own single, un-begin/end-wrapped
+// statement (e.g. "initial assign x = y;"), so that one keyword is
+// unambiguously part of THIS construct, not a new one starting; a
+// decl-boundary keyword reappearing any deeper into an unwrapped single
+// statement (e.g. a bare if/else with a nested "assign" in each branch)
+// isn't similarly protected -- rare enough, and precisely handling it
+// would mean tracking if/else statement structure this parser otherwise
+// never looks at, accepted here as a known gap rather than solved.
+func (p *parser) skipProceduralConstruct() {
+	blockDepth := 0
+	parenDepth := 0
+	atStatementStart := true
+	for {
+		tok := p.peek()
+		if tok.Kind == token.KindEOF {
+			p.errorf(tok, "unexpected end of file, expected ';'")
+			return
+		}
+		switch tok.Kind {
+		case token.KindLParen, token.KindLBrack, token.KindLBrace, token.KindTickLBrace:
+			parenDepth++
+		case token.KindRParen, token.KindRBrack, token.KindRBrace:
+			if parenDepth > 0 {
+				parenDepth--
+			}
+		case token.KindKeyword:
+			if isEndKeyword(tok.Text) {
+				// Checked before the depth-gated branches below, and at
+				// any depth -- see skipBody for why. "endcase" is not an
+				// isEndKeyword, so the blockCloseKeywords branch still
+				// owns it.
+				if blockDepth > 0 {
+					p.errorf(tok, "expected \"end\" before %q", tok.Text)
+				} else {
+					p.errorf(tok, "expected ';' before %q", tok.Text)
+				}
+				return
+			}
+			if isWaitOrDisableFork(tok.Text, p.peekAt(1)) {
+				p.advance() // "wait"/"disable"
+				p.advance() // "fork"
+				atStatementStart = false
+				continue
+			}
+			if blockOpenKeywords[tok.Text] {
+				blockDepth++
+				p.advance()
+				if tok.Text == "begin" || tok.Text == "fork" {
+					// "begin : label" / "fork : label" -- a named block
+					// (LRM 9.3.1), the same "block identifiers" feature as
+					// skipEndLabel handles for containers/functions/tasks,
+					// just introduced BEFORE the block's contents here
+					// instead of after. "case"/"casex"/"casez"/"randcase"
+					// have no such label.
+					p.skipEndLabel()
+				}
+				atStatementStart = false
+				continue
+			} else if blockCloseKeywords[tok.Text] {
+				if blockDepth > 0 {
+					blockDepth--
+					p.advance()
+					if tok.Text != "endcase" {
+						// "end : label" / "join[_any|_none] : label" --
+						// closing half of the same named-block feature;
+						// "endcase" has no label to match.
+						p.skipEndLabel()
+					}
+					if blockDepth == 0 && parenDepth == 0 {
+						if p.continueAfterStatement() {
+							atStatementStart = true
+							continue
+						}
+						return
+					}
+					atStatementStart = false
+					continue
+				}
+			} else if !atStatementStart && blockDepth == 0 && parenDepth == 0 &&
+				isDeclBoundaryKeyword(tok.Text) && !isTypeCastKeyword(tok, p.peekAt(1)) &&
+				!p.isProceduralAssign(tok) {
+				p.errorf(tok, "expected ';' before %q", tok.Text)
+				return
+			}
+		case token.KindSemi:
+			if blockDepth == 0 && parenDepth == 0 {
+				p.advance()
+				if p.continueAfterStatement() {
+					atStatementStart = true
+					continue
+				}
+				return
+			}
+		}
+		atStatementStart = false
+		p.advance()
+	}
+}
+
+// isProceduralAssign reports whether the "assign" under the cursor is a
+// procedural continuous assignment (LRM 10.6.1) rather than the start of the
+// next module item. It is one when it follows a token that can only introduce a
+// statement: the "else" of an if, the ")" of an if, while or event control, a
+// ":" of a case item or block label, or a "begin"/"fork". After a missing ';'
+// the token before the next item is a name or a literal, never these.
+func (p *parser) isProceduralAssign(tok preprocessor.Token) bool {
+	if tok.Text != "assign" || p.pos == 0 {
+		return false
+	}
+	prev := p.toks[p.pos-1]
+	switch prev.Kind {
+	case token.KindColon:
+		return true
+	case token.KindRParen:
+		return p.closesStatementHeader()
+	case token.KindKeyword:
+		return prev.Text == "else" || prev.Text == "begin" || prev.Text == "fork"
+	}
+	return false
+}
+
+// closesStatementHeader reports whether the ")" just consumed ends the header
+// of an if, while, for, repeat, foreach or wait, or an event control: the
+// parenthesis whose matching "(" follows one of those.
+func (p *parser) closesStatementHeader() bool {
+	depth := 0
+	for i := p.pos - 1; i >= 0; i-- {
+		switch p.toks[i].Kind {
+		case token.KindRParen:
+			depth++
+		case token.KindLParen:
+			depth--
+			if depth == 0 {
+				if i == 0 {
+					return false
+				}
+				before := p.toks[i-1]
+				if before.Kind == token.KindAt {
+					return true
+				}
+				if before.Kind != token.KindKeyword {
+					return false
+				}
+				switch before.Text {
+				case "if", "while", "for", "repeat", "foreach", "wait":
+					return true
+				}
+				return false
+			}
+		}
+	}
+	return false
+}
+
+// continueAfterStatement is called by skipProceduralConstruct once a
+// statement or block at depth zero has just completed. It first consumes
+// a do-while's trailing "while (cond);" clause if present (the true
+// terminator of the whole do-while -- not a new statement of its own, so
+// this always happens regardless of the return value below), then
+// reports whether the caller should keep scanning rather than return:
+// true iff an immediately following "else" is present (an if/else
+// chain's next branch, consumed here so the chain's remaining branch is
+// skipped as part of the same construct -- looping naturally handles an
+// "else if ... else ..." chain of any length, since each "else"/"if" this
+// consumes just leaves the next branch to be discovered the same way).
+// A bare "while (cond);" with no following "else" means the whole
+// construct is now fully consumed, so it must NOT itself signal "keep
+// scanning" -- doing so would resume the generic per-token loop with
+// nothing left to bound it, consuming whatever unrelated declaration
+// follows.
+func (p *parser) continueAfterStatement() bool {
+	if p.peek().Kind == token.KindKeyword && p.peek().Text == "while" {
+		p.advance() // "while"
+		p.skipParenGroup()
+		if p.peek().Kind == token.KindSemi {
+			p.advance()
+		}
+	}
+	if p.peek().Kind == token.KindKeyword && p.peek().Text == "else" {
+		p.advance() // "else"
+		return true
+	}
+	return false
+}

@@ -8,10 +8,10 @@ import (
 
 // parseClass handles "class", "virtual class", "interface class", and
 // "virtual interface class", consuming whichever prefix is actually
-// present, then a parameter port list, an "extends" clause (each base is a
-// class reference with an optional package qualifier and parameter list, see
-// parseClassTypeRef, then an optional constructor argument list kept as a
-// raw token span -- see ast.Class.ExtendsArgs), and an "implements" clause.
+// present, then a parameter port list, an "extends" clause (with an
+// optional package/class qualifier on the base name and an optional
+// constructor argument list, kept as a raw token span -- see
+// ast.Class.ExtendsArgs), and an "implements" clause.
 func (p *parser) parseClass() (ast.Decl, bool) {
 	virtual := false
 	if p.peek().Text == "virtual" {
@@ -36,43 +36,36 @@ func (p *parser) parseClass() (ast.Decl, bool) {
 
 	if p.peek().Text == "extends" {
 		p.advance()
-		// A class extends one base; an interface class may extend several
-		// (LRM 8.26.2), so this is a list either way and a stray comma after a
-		// class's single base is tolerated rather than derailing the header.
-		for {
-			base, ok := p.parseClassTypeRef()
-			if !ok {
-				break
-			}
-			cls.ExtendsTypes = append(cls.ExtendsTypes, base)
-			if len(cls.ExtendsTypes) == 1 {
-				cls.Extends = base.Name
-				if p.peek().Kind == token.KindLParen {
-					p.advance()
-					end := p.parenGroupEnd()
-					cls.ExtendsArgs = p.toks[p.pos:end]
-					p.pos = end
-					if !p.expectKind(token.KindRParen, "')' to close the constructor arguments") {
-						break // the header is broken; what follows is the class body or the next declaration
-					}
+		if baseTok, ok := p.expectIdent(); ok {
+			cls.Extends = baseTok.Text
+			if p.peek().Kind == token.KindColonColon {
+				// "extends pkg::Base" -- keep just the base class name;
+				// the package qualifier isn't separately tracked on
+				// ast.Class, consistent with this parser's scope elsewhere
+				// (e.g. Instantiation.ModuleType is also unqualified).
+				p.advance()
+				if realBase, ok := p.expectIdent(); ok {
+					cls.Extends = realBase.Text
 				}
 			}
-			if p.peek().Kind != token.KindComma {
-				break
+			if p.peek().Kind == token.KindLParen {
+				p.advance()
+				cls.ExtendsArgs = p.collectUntil(token.KindRParen)
+				if p.peek().Kind == token.KindRParen {
+					p.advance()
+				}
 			}
-			p.advance()
 		}
 	}
 
 	if p.peek().Text == "implements" {
 		p.advance()
 		for {
-			iface, ok := p.parseClassTypeRef()
+			ifaceTok, ok := p.expectIdent()
 			if !ok {
 				break
 			}
-			cls.ImplementsTypes = append(cls.ImplementsTypes, iface)
-			cls.Implements = append(cls.Implements, iface.Name)
+			cls.Implements = append(cls.Implements, ifaceTok.Text)
 			if p.peek().Kind != token.KindComma {
 				break
 			}
@@ -90,38 +83,6 @@ func (p *parser) parseClass() (ast.Decl, bool) {
 	cls.Body = body
 	cls.EndLine, cls.EndCharacter = end.Line, end.Character
 	return cls, true
-}
-
-// parseClassTypeRef parses a class reference in an extends or implements
-// clause: "Base", "pkg::Base", "Base #(5)", or "pkg::Base #(5, .W(2))". The
-// result is a Type (Name is the class, PackageQualifier its scope,
-// ParamOverrides its parameter values). The override list is the same tolerant
-// raw form an instantiation uses, so unusual expressions inside it never add a
-// header error; the fill pass parses them.
-func (p *parser) parseClassTypeRef() (ast.Type, bool) {
-	nameTok, ok := p.expectIdent()
-	if !ok {
-		return ast.Type{}, false
-	}
-	t := ast.Type{Name: nameTok.Text}
-	t.Position = namePosition(nameTok)
-	for p.peek().Kind == token.KindColonColon {
-		p.advance()
-		next, ok := p.expectIdent()
-		if !ok {
-			return t, true
-		}
-		if t.PackageQualifier != "" {
-			t.PackageQualifier += "::"
-		}
-		t.PackageQualifier += t.Name
-		t.Name = next.Text
-		t.Position = namePosition(next)
-	}
-	if p.peek().Kind == token.KindHash && p.peekAt(1).Kind == token.KindLParen {
-		t.ParamOverrides = p.parseParamOverrideList()
-	}
-	return t, true
 }
 
 // parseConstraint parses a class constraint block: constraint name
@@ -142,23 +103,12 @@ func (p *parser) parseConstraint() (ast.Decl, bool) {
 	if !ok {
 		return nil, false
 	}
-	nameTok, scope := p.resolveQualifiedName(nameTok)
-	c := &ast.Constraint{Scope: scope, Name: nameTok.Text}
+	nameTok = p.resolveQualifiedName(nameTok)
+	c := &ast.Constraint{Name: nameTok.Text}
 	c.Position = namePosition(nameTok)
 
-	open := p.pos
-	opens := p.peek().Kind == token.KindLBrace // peek, not p.toks[open]: the block can start at the end of input
 	end := p.skipBracedBlock()
 	c.EndLine, c.EndCharacter = end.Line, end.Character
-	if opens {
-		// The tokens between the braces; the closing brace is the last token
-		// consumed when the block was terminated.
-		to := p.pos
-		if end.Kind == token.KindRBrace {
-			to--
-		}
-		c.Items = p.parseConstraintItems(p.toks[open+1 : to])
-	}
 	return c, true
 }
 

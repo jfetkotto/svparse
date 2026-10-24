@@ -37,23 +37,10 @@ type Class struct {
 	IsInterfaceClass bool
 	Name             string
 	Params           []Parameter
-
-	// Extends is the base class's bare name (a package qualifier and any
-	// parameter list are dropped), "" if there is no extends clause; for an
-	// interface class that extends several, the first. ExtendsTypes has the
-	// full references, "pkg::Base #(5)" included, one per base.
-	Extends      string
-	ExtendsTypes []Type
-
-	ExtendsArgs     []preprocessor.Token
-	ExtendsArgExprs []Expr // parsed ExtendsArgs, one per argument (as in a Call's Args)
-
-	// Implements lists the implemented interface classes' bare names, and
-	// ImplementsTypes their full references, in the same order.
-	Implements      []string
-	ImplementsTypes []Type
-
-	Body []Decl
+	Extends          string
+	ExtendsArgs      []preprocessor.Token
+	Implements       []string
+	Body             []Decl
 }
 
 // Package is a package declaration: a flat body of imports, variables,
@@ -64,15 +51,14 @@ type Package struct {
 	Body []Decl
 }
 
-// Constraint is a class constraint block (LRM 18.5). Items are its parsed
-// constraint items. Prototype is true for an "extern constraint name;" or "pure
-// constraint name;" declaration (LRM 18.5.1/18.5.2) -- no body at all, mirroring
-// how ast.Function/Task use Prototype for their own extern/pure-virtual/DPI-import
-// forms.
+// Constraint is a class constraint block. Its body is recognized and
+// skipped (balanced braces), never parsed -- constraint-expression
+// grammar is entirely out of scope. Prototype is true for an "extern
+// constraint name;" or "pure constraint name;" declaration (LRM
+// 18.5.1/18.5.2) -- no body at all, mirroring how ast.Function/Task use
+// Prototype for their own extern/pure-virtual/DPI-import forms.
 type Constraint struct {
 	declBase
-	Scope     string // class qualifier of an out-of-block definition; empty otherwise
 	Name      string
 	Prototype bool
-	Items     []ConstraintItem // nil for a prototype
 }

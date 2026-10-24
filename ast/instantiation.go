@@ -23,18 +23,11 @@ type Instantiation struct {
 // ParamOverride is one entry of an instantiation's "#( ... )" parameter
 // override list. Name is "" for a positional (ordered) override.
 // Position is the override's own name token for a named override (not
-// the preceding "."), matching PortConnection's own convention; for a
-// positional override it spans the value's tokens.
-//
-// ValueExpr is the parsed form of Value (a *TypeExpr, *TypeOrExpr or other
-// expression, since an override may be a type); nil until the parser fills
-// it, and Value stays populated alongside it. Because a named override is
-// positioned on its name alone, ValueExpr lies outside Position there.
+// the preceding "."), matching PortConnection's own convention.
 type ParamOverride struct {
 	Position
-	Name      string
-	Value     []preprocessor.Token
-	ValueExpr Expr
+	Name  string
+	Value []preprocessor.Token
 }
 
 // Instance is one instance name within an Instantiation, e.g. the u0 in
@@ -51,15 +44,10 @@ type Instance struct {
 // Wildcard is true for ".*"; Implicit is true for ".name" shorthand
 // (connects to a same-named signal, Expr is nil for both of those);
 // Name is "" for a positional connection.
-//
-// Position is the name token alone for a named connection (so a rename edit
-// range is exactly the name), the ".*" token for a wildcard, and the
-// expression's tokens for a positional connection.
 type PortConnection struct {
 	Position
 	Name     string
 	Wildcard bool
 	Implicit bool
 	Expr     []preprocessor.Token
-	ConnExpr Expr // parsed Expr; nil for ".*", ".name" and an empty ".name()"
 }

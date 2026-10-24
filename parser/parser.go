@@ -39,37 +39,6 @@ type parser struct {
 
 	// fallback positions eofToken when toks is empty -- see newSubParser.
 	fallback preprocessor.Token
-
-	// exprDepth is the current expression-recursion depth, bounded by
-	// maxExprDepth -- see expr.go.
-	exprDepth int
-
-	// stmtDepth is the current statement nesting depth, bounded by
-	// maxStmtDepth -- see stmt.go.
-	stmtDepth int
-
-	// genDepth is the current generate nesting depth, bounded by
-	// maxGenDepth -- see generate.go.
-	genDepth int
-
-	// inProp is positive while a property or sequence expression is being
-	// parsed, which changes how a parenthesised group is read -- see sva.go.
-	inProp int
-
-	// suppressed holds errors found while parsing a construct for its
-	// structure only: the body of a function or task, a procedural item,
-	// a generate header and so on, whose extent the declaration parser
-	// finds without looking inside. They are kept apart so that scan is
-	// unchanged, and Parse reports them after the declaration errors
-	// (see reported).
-	suppressed []Error
-
-	// zeroWidth* remember the most recent zero-width expression node (a
-	// placeholder for something missing) so enclosing spans can widen to
-	// contain it -- see spanFrom.
-	zeroWidthSet                bool
-	zeroWidthAt                 int // token index it was created at
-	zeroWidthLine, zeroWidthCol int
 }
 
 // Parse parses toks. preprocessor.Token is the canonical input -- not
@@ -90,27 +59,7 @@ func Parse(path string, toks []preprocessor.Token) (*ast.File, []Error) {
 	p := &parser{toks: toks}
 	f := &ast.File{Path: path}
 	f.Decls, _, _ = p.parseBody("")
-	ownTypes(f)
-	fillExprs(f)
-	return f, p.reported()
-}
-
-// reported returns the parse errors: the declaration errors, then those found inside bodies, procedural items and other constructs parsed
-// for their structure (LRM Annex A.6, A.8). A body parsed twice, or an error
-// seen by both the extent scan and the body parser, is reported once.
-func (p *parser) reported() []Error {
-	if len(p.suppressed) == 0 {
-		return p.errs
-	}
-	all := make([]Error, 0, len(p.errs)+len(p.suppressed))
-	seen := make(map[Error]bool, cap(all))
-	for _, e := range append(append(all, p.errs...), p.suppressed...) {
-		if !seen[e] {
-			seen[e] = true
-			all = append(all, e)
-		}
-	}
-	return all
+	return f, p.errs
 }
 
 // ParseTokens is a convenience entry point for callers that skip
@@ -159,9 +108,8 @@ func (p *parser) eofToken() preprocessor.Token {
 		}
 	}
 	last := p.toks[len(p.toks)-1]
-	endLine, endChar := last.End()
 	return preprocessor.Token{
-		Token: token.Token{Kind: token.KindEOF, Line: endLine, Character: endChar},
+		Token: token.Token{Kind: token.KindEOF, Line: last.Line, Character: last.Character + token.UTF16Len(last.Text)},
 		File:  last.File,
 	}
 }
@@ -213,63 +161,6 @@ func namePosition(nameTok preprocessor.Token) ast.Position {
 		File: nameTok.File, Line: nameTok.Line, Character: nameTok.Character,
 		EndLine: endLine, EndCharacter: endCharacter,
 	}
-}
-
-// parenGroupEnd returns the index of the ')' that closes the parenthesized
-// group the cursor is inside (the cursor is just past its '('), or, if that
-// ')' is missing, the index of the first ';' or the end of input.
-//
-// In a declaration-level list (a parameter value list, a constructor argument
-// list) a ';' can never appear inside the parentheses, so meeting one means the
-// ')' is missing, and the list must stop there instead of running on through
-// the declarations that follow. The scan only bounds; it consumes nothing.
-func (p *parser) parenGroupEnd() int {
-	depth := 0
-	for i := p.pos; i < len(p.toks); i++ {
-		switch p.toks[i].Kind {
-		case token.KindLParen, token.KindLBrack, token.KindLBrace, token.KindTickLBrace:
-			depth++
-		case token.KindRBrack, token.KindRBrace:
-			if depth > 0 {
-				depth--
-			}
-		case token.KindRParen:
-			if depth == 0 {
-				return i
-			}
-			depth--
-		case token.KindSemi:
-			return i
-		}
-	}
-	return len(p.toks)
-}
-
-// parenGroupLimit is the exclusive upper bound of the tokens a parenthesized
-// list may use: through its closing ')', or up to but NOT including the ';' or
-// end of input that stands in for a missing one, so the terminator is left
-// for the enclosing construct to consume.
-func (p *parser) parenGroupLimit() int {
-	end := p.parenGroupEnd()
-	if end < len(p.toks) && p.toks[end].Kind == token.KindRParen {
-		return end + 1
-	}
-	return end
-}
-
-// tokensSpan is the span from the start of toks[0] through the end of the last
-// token, for a node that covers a run of tokens rather than a single name (a
-// positional override or connection, a wildcard). End is clamped so it never
-// precedes Start (tokens from a macro expansion can be positioned out of order
-// relative to their invocation). toks must not be empty.
-func tokensSpan(toks []preprocessor.Token) ast.Position {
-	first := toks[0]
-	pos := ast.Position{File: first.File, Line: first.Line, Character: first.Character}
-	pos.EndLine, pos.EndCharacter = toks[len(toks)-1].End()
-	if pos.EndLine < pos.Line || (pos.EndLine == pos.Line && pos.EndCharacter < pos.Character) {
-		pos.EndLine, pos.EndCharacter = pos.Line, pos.Character
-	}
-	return pos
 }
 
 // endOfName returns the End position for a declaration that has no body to

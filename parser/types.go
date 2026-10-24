@@ -19,18 +19,16 @@ func (p *parser) parseTypeAndName() (ast.Type, preprocessor.Token, bool) {
 		return t, nameTok, true
 	}
 
-	save, saveErrs := p.pos, len(p.errs)
-	t := p.parseDataType()
+	save := p.pos
+	t := p.parseTypeBase()
+	t.PackedDims = p.parseDims()
 
 	if nameTok := p.peek(); nameTok.Kind == token.KindIdent {
 		p.advance()
 		return t, nameTok, true
 	}
 
-	// Rewind, and forget any error the speculative parse recorded (an
-	// aggregate body can report some; the implicit-type reading will not
-	// re-parse it).
-	p.pos, p.errs = save, p.errs[:saveErrs]
+	p.pos = save
 	nameTok, ok := p.expectIdent()
 	return ast.Type{}, nameTok, ok
 }
@@ -56,7 +54,8 @@ func (p *parser) netTypeAndName() (ast.Type, preprocessor.Token, bool) {
 	savePos, saveErrs := p.pos, len(p.errs)
 	p.advance() // the net-type keyword
 
-	t := p.parseDataType()
+	t := p.parseTypeBase()
+	t.PackedDims = p.parseDims()
 	if t.Name != "" && !nonTypeNameQualifiers[t.Name] {
 		if nameTok := p.peek(); nameTok.Kind == token.KindIdent {
 			p.advance()
@@ -69,7 +68,7 @@ func (p *parser) netTypeAndName() (ast.Type, preprocessor.Token, bool) {
 	return ast.Type{}, preprocessor.Token{}, false
 }
 
-// consumeNetTypeQualifier (which reports whether it swallowed the keyword) is netTypeAndName's counterpart for a net
+// consumeNetTypeQualifier is netTypeAndName's counterpart for a net
 // declaration written as a statement ("wire logic foo;"), where the same
 // [net_type] data_type shape is legal. It swallows the net-type keyword
 // only when the keyword is qualifying a following data type, not serving
@@ -84,85 +83,18 @@ func (p *parser) netTypeAndName() (ast.Type, preprocessor.Token, bool) {
 // excluded despite lexing as type-name tokens, so "wire signed [3:0] x"
 // and "tri1 scalared [15:0] a" both keep naming the net type as their
 // type, as before.
-func (p *parser) consumeNetTypeQualifier() bool {
+func (p *parser) consumeNetTypeQualifier() {
 	if !netTypeKeywords[p.peek().Text] {
-		return false
+		return
 	}
 	next := p.peekAt(1)
 	if !isTypeNameToken(next) || nonTypeNameQualifiers[next.Text] {
-		return false
+		return
 	}
 	switch p.peekAt(2).Kind {
 	case token.KindIdent, token.KindLBrack, token.KindColonColon:
 		p.advance()
-		return true
 	}
-	return false
-}
-
-// parseDataType parses a data type with its packed dimensions: an anonymous
-// struct, union, or enum written in place (parseInlineAggregate), or else a
-// named type (parseTypeBase). Every site that reads "type [dims]" before a
-// declared name uses this, so an inline aggregate works in a variable, port,
-// parameter, argument, return type, and struct member alike.
-func (p *parser) parseDataType() ast.Type {
-	var t ast.Type
-	if tok := p.peek(); tok.Kind == token.KindKeyword && tok.Text == "type" && p.peekAt(1).Kind == token.KindLParen {
-		// The type reference operator, "type(a + b)" (LRM 6.23).
-		t = ast.Type{Name: "type"}
-		t.Position = namePosition(tok)
-		t.TypeRef, _ = p.parseTypeRef().(*ast.TypeRef)
-	} else if p.atAggregate() {
-		t, _ = p.parseInlineAggregate() // on failure the error is recorded and t still names the keyword
-	} else {
-		t = p.parseTypeBase()
-		p.parseClassTypeSuffix(&t)
-	}
-	t.PackedDims = p.parseDims()
-	return t
-}
-
-// parseClassTypeSuffix parses the "#( ... )" that follows a user-defined
-// class type's name, and the "::name" that may follow that: "cls #(8)" is a
-// parameterized class, and "cls #(8)::inner_t" is a type inside one. The
-// cursor is after the type name parseTypeBase consumed.
-//
-// Only an identifier can be a class name. After a keyword type a '#' is
-// something else ("wire #(5) w" is a net delay, not a parameter list), so it
-// is left for the declaration to deal with as before.
-func (p *parser) parseClassTypeSuffix(t *ast.Type) {
-	if t.Name == "" || token.Keywords[t.Name] || p.peek().Kind != token.KindHash || p.peekAt(1).Kind != token.KindLParen {
-		return
-	}
-	overrides := p.parseParamOverrideList()
-	if !p.absorbClassScope(t, overrides) {
-		t.ParamOverrides = overrides
-	}
-}
-
-// absorbClassScope handles "::name" after a parameterized class's overrides,
-// the cursor on the "::". The class becomes the type's qualifier (keeping its
-// overrides as QualifierOverrides) and name becomes the type's Name. It
-// reports whether a "::" was there to absorb.
-func (p *parser) absorbClassScope(t *ast.Type, overrides []ast.ParamOverride) bool {
-	if p.peek().Kind != token.KindColonColon {
-		return false
-	}
-	p.advance() // "::"
-	nameTok, ok := p.expectIdent()
-	if !ok {
-		t.ParamOverrides = overrides // keep what was parsed; the error is recorded
-		return true
-	}
-	qualifier := t.Name
-	if t.PackageQualifier != "" {
-		qualifier = t.PackageQualifier + "::" + t.Name
-	}
-	t.PackageQualifier = qualifier
-	t.QualifierOverrides = overrides
-	t.Name = nameTok.Text
-	t.Position = namePosition(nameTok)
-	return true
 }
 
 // parseTypeBase greedily consumes signed/unsigned and one type name
