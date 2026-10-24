@@ -94,6 +94,7 @@ const (
 	CodeIncompatibleTypes    = "incompatible-types"
 	CodeCastRequired         = "cast-required"
 	CodeInvalidType          = "invalid-type"
+	CodeInvalidEnumValue     = "invalid-enum-value"
 	CodeConstantLimit        = "constant-limit"
 	CodeCircularParameter    = "circular-parameter"
 	CodeDivideByZero         = "divide-by-zero"
