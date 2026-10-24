@@ -320,8 +320,24 @@ partway through an item, leave a short "Status:" note under it.
 
 ## M7: Elaboration
 
-- [ ] `elab/` instance tree, parameters, generate unrolling, port binding,
-      hierarchical references; conformance `elaboration` stage enabled
+- [x] `feature/elab-instances`: `elab.Elaborate(ctx, comp, opts)` builds the
+      instance tree: tops (explicit or uninstantiated), per-instance
+      parameters from positional and named `#()` overrides, `defparam`
+      (relative, forwarded below, beats `#()`), defaults and dependent
+      localparams, type-parameter overrides, instance arrays (multi-dim,
+      either direction), generate if/else-if/case/for with `genblkN` naming
+      (numbered per construct, LRM 27.6), genvar-dependent block parameters,
+      recursion and depth/instance/iteration limits, cancellation, and the
+      diagnostics `unknown-module`, `unknown-parameter`, `too-many-parameters`,
+      `local-parameter-override`, `recursive-instantiation`,
+      `instantiation-depth`, `instance-limit`, `generate-limit`,
+      `unknown-top`, `no-top`. Corpus: all 1014 files elaborate; two gaps
+      remain (`$isunbounded`, aggregate parameters).
+- [ ] `feature/elab-ports`: port connection binding (named, positional, `.*`,
+      `.name`; width and direction checks), implicit nets, interface instances
+      and modports, `bind`, hierarchical reference resolution
+- [ ] `feature/elab-conformance`: enable the `elaboration` stage in the
+      conformance harness and cut the baseline against it
 
 ## M8: Lint
 
@@ -366,3 +382,4 @@ partway through an item, leave a short "Status:" note under it.
 | constraints | 164 |
 | covergroups (none in corpus) | 164 |
 | sema-stmt (procedural assign extent fix) | 163 |
+| elab-instances (no conformance stage yet) | 163 |

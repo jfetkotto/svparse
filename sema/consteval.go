@@ -110,6 +110,25 @@ func (m *Model) EvalAssign(s *Scope, target Type, e ast.Expr, env *Env) (Const, 
 	return c, b.diags()
 }
 
+// ResolveTypeExpr resolves an expression that names a type, such as the value
+// of a "#(.T(int))" override or the default of "parameter type T = int", to a
+// Type. It is Invalid if the expression is not a type.
+func (m *Model) ResolveTypeExpr(s *Scope, e ast.Expr) (Type, []diag.Diagnostic) {
+	b := m.newBinder(s)
+	t := b.typeFromName(e)
+	return t, b.diags()
+}
+
+// IsTypeExpr reports whether e, as seen from scope s, names a type rather than
+// a value.
+func (m *Model) IsTypeExpr(s *Scope, e ast.Expr) bool {
+	switch e.(type) {
+	case *ast.TypeExpr:
+		return true
+	}
+	return s.ClassifyName(e) == NameType
+}
+
 // EvalBound evaluates an already bound expression.
 func (m *Model) EvalBound(be BoundExpr, env *Env) (Const, []diag.Diagnostic) {
 	b := m.newBinder(m.rootScope())
@@ -242,7 +261,10 @@ func (b *binder) evalLiteral(n *BLiteral) (Const, bool) {
 	case ast.LitString:
 		return strConst(n.Str), true
 	}
-	return b.notConst(n.src, "a %v literal is not a constant value", n.Kind)
+	if n.Kind == ast.LitUnbounded {
+		return b.notConst(n.src, "an unbounded $ is not a constant value here")
+	}
+	return b.notConst(n.src, "null is not a constant value")
 }
 
 func (b *binder) evalName(n *BName) (Const, bool) {
@@ -286,8 +308,10 @@ func (b *binder) paramValue(sym *Symbol) (Const, bool) {
 		return Const{}, false
 	}
 	if ov, ok := env.Params[sym]; ok {
-		t := b.typeOfSymbol(sym)
-		c := b.conv(ov, t)
+		c := ov
+		if decl.Type.Name != "" || len(decl.Type.PackedDims) > 0 {
+			c = b.conv(ov, b.typeOfSymbol(sym)) // a typed parameter converts its override
+		} // an untyped one takes the type of the value it is given (LRM 6.20.2)
 		env.cache[sym] = c
 		return c, true
 	}

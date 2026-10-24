@@ -109,6 +109,17 @@ const (
 	CodeMissingReturnValue      = "missing-return-value"
 	CodeReturnOutsideSubroutine = "return-outside-subroutine"
 	CodeTimingInFunction        = "timing-in-function"
+
+	CodeUnknownModule          = "unknown-module"
+	CodeUnknownParameter       = "unknown-parameter"
+	CodeTooManyParameters      = "too-many-parameters"
+	CodeLocalParameterOverride = "local-parameter-override"
+	CodeRecursiveInstantiation = "recursive-instantiation"
+	CodeInstantiationDepth     = "instantiation-depth"
+	CodeInstanceLimit          = "instance-limit"
+	CodeGenerateLimit          = "generate-limit"
+	CodeUnknownTop             = "unknown-top"
+	CodeNoTop                  = "no-top"
 )
 
 // Known maps every registered code to a one-line description. A code must be
@@ -140,6 +151,17 @@ var Known = map[string]string{
 	CodeMissingReturnValue:      "return gives no value in a function that returns one",
 	CodeReturnOutsideSubroutine: "return is used outside a function or task",
 	CodeTimingInFunction:        "a function contains a delay, event control or wait",
+
+	CodeUnknownModule:          "an instantiation names a module, interface or program that is not defined",
+	CodeUnknownParameter:       "a parameter override names a parameter the instantiated module does not have",
+	CodeTooManyParameters:      "more positional parameter overrides than the module has parameters",
+	CodeLocalParameterOverride: "a localparam, or a parameter the module's port list hides, is overridden",
+	CodeRecursiveInstantiation: "a module instantiates itself with the same parameters",
+	CodeInstantiationDepth:     "the hierarchy is nested deeper than the limit",
+	CodeInstanceLimit:          "the design has more instances than the limit",
+	CodeGenerateLimit:          "a generate loop runs more iterations than the limit",
+	CodeUnknownTop:             "a requested top module is not defined",
+	CodeNoTop:                  "the design has no module that nothing instantiates",
 }
 
 // ValidCode reports whether code is well-formed: lower-case words joined by
