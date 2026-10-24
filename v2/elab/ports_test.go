@@ -127,6 +127,9 @@ func TestPortConnectionErrors(t *testing.T) {
 		{"width warning", "leaf u(.d(w16), .q(a));", diag.CodePortWidthMismatch},
 		{"output width warning", "leaf u(.d(a), .q(w16));", diag.CodePortWidthMismatch},
 		{"fine", "leaf u(.d(a), .q(a));", ""},
+		{"unsized fill literal", "leaf u(.d('0), .q(a));", ""},
+		{"parenthesised fill literal", "leaf u(.d(('1)), .q(a));", ""},
+		{"sized zero is still checked", "leaf u(.d(1'b0), .q(a));", diag.CodePortWidthMismatch},
 		{"inout to a net", "wide u(.p(w16));", ""},
 	}
 	for _, c := range cases {

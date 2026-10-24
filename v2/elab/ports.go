@@ -267,6 +267,11 @@ func (e *elaborator) checkConnection(parent *Node, sc *sema.Scope, inst *Node, i
 	if copies > 1 && ew == pw*copies {
 		return
 	}
+	// '0, '1, 'x and 'z fill whatever they are connected to (LRM 5.7.1), so
+	// they have no width of their own to disagree with the port's.
+	if lit, ok := unparen(b.Expr).(*ast.Literal); ok && lit.Kind == ast.LitUnbasedUnsized {
+		return
+	}
 	if ok1 && ok2 && sema.IsIntegral(pt) && sema.IsIntegral(b.ExprType) && pw != ew {
 		e.set.Add(diag.Diagnostic{
 			Code: diag.CodePortWidthMismatch, Severity: diag.Warning, Range: b.Expr.Pos(),
@@ -335,5 +340,16 @@ func (e *elaborator) implicitNets(n *Node, scope *sema.Scope, decls []ast.Decl) 
 		case *ast.GenerateRegion:
 			e.implicitNets(n, scope, d.Body)
 		}
+	}
+}
+
+// unparen strips the parentheses around an expression.
+func unparen(e ast.Expr) ast.Expr {
+	for {
+		p, ok := e.(*ast.Paren)
+		if !ok {
+			return e
+		}
+		e = p.X
 	}
 }
