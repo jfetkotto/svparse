@@ -83,7 +83,7 @@ func computeWidths(c *Context) *widthFacts {
 		if c.Cancelled() {
 			return false
 		}
-		if n.Scope == nil || n.Env == nil {
+		if n.Scope == nil || n.Env == nil || !c.bodyWanted(n) {
 			return true
 		}
 		var body []ast.Decl

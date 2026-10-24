@@ -71,7 +71,7 @@ func checkUnreachable(c *Context) {
 			break
 		}
 	}
-	for _, f := range c.Comp.Files() {
+	for _, f := range c.Files() {
 		ast.Inspect(f, func(n ast.Node) bool {
 			switch n := n.(type) {
 			case *ast.Block:
@@ -104,7 +104,7 @@ func checkShadowing(c *Context) {
 			}
 		}
 	}
-	for _, f := range c.Comp.Files() {
+	for _, f := range c.Files() {
 		ast.Inspect(f, func(n ast.Node) bool {
 			if c.Cancelled() {
 				return false
@@ -134,7 +134,7 @@ var signSensitiveOps = map[string]bool{
 
 func checkSignMixing(c *Context) {
 	seen := map[ast.Position]bool{}
-	for _, f := range c.Comp.Files() {
+	for _, f := range c.Files() {
 		us, _ := c.Model.UnitScope(f.Path)
 		ast.Walk(&signWalker{c: c, scope: us, seen: seen}, f)
 	}

@@ -22,13 +22,25 @@ import (
 // (LRM 6.10): the target of a continuous assignment and a signal wired to an
 // instance or gate terminal become one-bit nets (see the elaborator's
 // ImplicitNets for those).
-func (m *Model) CheckNames() []diag.Diagnostic {
+func (m *Model) CheckNames() []diag.Diagnostic { return m.CheckNamesIn(nil) }
+
+// CheckNamesIn is CheckNames for the files whose path is in files (nil means
+// all of them): an editor that has changed one file of a large design needs
+// the answer for that file only. A name is still resolved against the whole
+// compilation; what is skipped is binding the expressions of the other files.
+func (m *Model) CheckNamesIn(files map[string]bool) []diag.Diagnostic {
 	c := &nameChecker{m: m, implicit: map[*Scope]map[string]bool{}}
 	for _, f := range m.comp.files {
+		if files != nil && !files[f.Path] {
+			continue
+		}
 		us, _ := m.UnitScope(f.Path)
 		ast.Walk(&nameWalker{c: c, scope: us, collect: true}, f)
 	}
 	for _, f := range m.comp.files {
+		if files != nil && !files[f.Path] {
+			continue
+		}
 		us, _ := m.UnitScope(f.Path)
 		ast.Walk(&nameWalker{c: c, scope: us}, f)
 	}

@@ -30,7 +30,7 @@ const (
 	dirWrite = 2
 )
 
-func buildUsage(comp *sema.Compilation, model *sema.Model, design *elab.Design) *Usage {
+func buildUsage(comp *sema.Compilation, model *sema.Model, design *elab.Design, files map[string]bool) *Usage {
 	u := &Usage{read: map[*sema.Symbol]bool{}, write: map[*sema.Symbol]bool{}}
 	// How each connection expression is used, from the port directions of the
 	// instances that were elaborated. A connection never elaborated (in a
@@ -55,6 +55,9 @@ func buildUsage(comp *sema.Compilation, model *sema.Model, design *elab.Design) 
 		})
 	}
 	for _, f := range comp.Files() {
+		if files != nil && !files[f.Path] {
+			continue // usage is of a module's own signals, so other files' do not matter
+		}
 		us, _ := model.UnitScope(f.Path)
 		ast.Walk(&usageWalker{u: u, comp: comp, model: model, scope: us, dirs: dirs}, f)
 	}

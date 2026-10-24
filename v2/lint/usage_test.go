@@ -28,7 +28,7 @@ func usageOf(t *testing.T, src string, withDesign bool) map[string]string {
 		design, _ = elab.Elaborate(context.Background(), comp, elab.Options{})
 	}
 	model := comp.Model()
-	u := buildUsage(comp, model, design)
+	u := buildUsage(comp, model, design, nil)
 	def, ok := comp.Lookup("top")
 	if !ok {
 		t.Fatal("no top")
@@ -152,7 +152,7 @@ module sub; logic sig, other; endmodule`, true)
 	comp := sema.NewCompilation(sema.Options{})
 	comp.AddFile(file)
 	model := comp.Model()
-	u := buildUsage(comp, model, nil)
+	u := buildUsage(comp, model, nil, nil)
 	def, _ := comp.Lookup("sub")
 	scope, _ := model.DefinitionScope(def)
 	sig, _ := scope.Own("sig")
@@ -185,6 +185,6 @@ func TestUsageToleratesBrokenSource(t *testing.T) {
 		comp := sema.NewCompilation(sema.Options{})
 		comp.AddFile(file)
 		design, _ := elab.Elaborate(context.Background(), comp, elab.Options{})
-		buildUsage(comp, comp.Model(), design)
+		buildUsage(comp, comp.Model(), design, nil)
 	}
 }
