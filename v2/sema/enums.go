@@ -96,6 +96,9 @@ func (c *checker) checkEnumAssign(s *Scope, a *ast.Assign) {
 	if lhs == nil {
 		return
 	}
+	if a.Op == "=" {
+		c.checkNew(s, lhs.Type(), a.RHS)
+	}
 	en, ok := Resolve(lhs.Type()).(*Enum)
 	if !ok {
 		return

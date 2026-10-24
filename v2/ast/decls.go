@@ -230,6 +230,7 @@ type Function struct {
 	ReturnType Type
 	Args       []Arg
 	Prototype  bool
+	Pure       bool // "pure virtual": an abstract method with no body anywhere (LRM 8.21)
 	Decls      []Decl
 	Stmts      []Stmt
 }
@@ -240,6 +241,7 @@ type Task struct {
 	Name      string
 	Args      []Arg
 	Prototype bool
+	Pure      bool   // "pure virtual", see Function.Pure
 	Decls     []Decl // local declarations of the body
 	Stmts     []Stmt // the body's statements
 }

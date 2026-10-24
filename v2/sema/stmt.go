@@ -44,10 +44,11 @@ func (m *Model) CheckStatementsIn(files map[string]bool) []diag.Diagnostic {
 }
 
 type checker struct {
-	m      *Model
-	set    diag.Set
-	writes map[*Symbol][]write
-	order  []*Symbol // symbols in the order they were first written, for determinism
+	m        *Model
+	set      diag.Set
+	writes   map[*Symbol][]write
+	external map[string]bool // see externalDefinitions
+	order    []*Symbol       // symbols in the order they were first written, for determinism
 }
 
 // write is one assignment to a variable made by a process.
@@ -85,7 +86,9 @@ func (c *checker) decl(s *Scope, d ast.Decl) {
 	case *ast.Package:
 		c.decls(c.scopeOf(n, s), n.Body)
 	case *ast.Class:
-		c.decls(c.scopeOf(n, s), n.Body)
+		cs := c.scopeOf(n, s)
+		c.classRules(cs, n)
+		c.decls(cs, n.Body)
 	case *ast.Function:
 		c.subroutine(c.scopeOf(n, s), "function", n.Name, n.Scope, n.ReturnType, n.Stmts)
 	case *ast.Task:
