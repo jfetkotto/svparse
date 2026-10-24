@@ -434,6 +434,16 @@ into `devel`; `main` stays at the released `v0.1.9` until a `v2.0.0` release.
 - [ ] After M1: bump svparse, no behaviour change
 - [ ] After M3: semantic tokens, outline for procedural/generate blocks
 - [ ] After M6: sema diagnostics, typed hover, sema-backed resolution
+  - [x] Typed hover (sigilsv2 `feature/semantic-hover`, local `devel` only):
+        hover keeps the index's declaration and adds the semantic reading of
+        the position: resolved type, width, sign, constant value, and the
+        width an assignment evaluates the enclosing expression at (LRM
+        11.8.1). `sv.Index` now keeps each scanned file's tree
+        (`Index.ASTs`); `internal/semantic` builds the sema model lazily per
+        index generation (about 1.5 ms after an edit on the bench workspace).
+        Indexing and didChange benchmarks unchanged.
+  - [ ] Sema diagnostics published alongside parse errors
+  - [ ] Sema-backed definition and references (behind a flag, compared in tests)
 - [ ] After M7/M8: background elaboration, lint diagnostics
 - [ ] Mark raw-span AST fields `Deprecated`
 
