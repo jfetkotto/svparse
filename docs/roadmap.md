@@ -431,6 +431,17 @@ into `devel`; `main` stays at the released `v0.1.9` until a `v2.0.0` release.
 
 ## Follow-ups
 
+- [x] Lint performance (`perf/instance-binder`, `perf/shared-width-analysis`,
+      `perf/specialization-dedupe`, `perf/parallel-parse`): on the 954k-line
+      demosoc `svparse lint` went from 9.3 s to 4.1 s and `check` from 2.6 s to
+      1.75 s, with identical findings. `sema.Instance` shares one type cache
+      across the expressions of an instance (it was a fresh cache per
+      `BindIn`); the two width rules share one analysis; nodes with the same
+      declaration and parameter values are analysed once; files are parsed by
+      a worker pool. The lint stage is 7.0 s -> 2.3 s; what is left is mostly
+      `width-*` (1.0 s), `overlapping-drivers` (0.5 s) and about 0.1 s for each
+      other rule. `lint/bench_test.go` has a synthetic benchmark.
+
 - [x] `feature/lint-unconnected-port`, `feature/lint-unconnected-by-direction`:
       two rules for ports an instance does not connect. `unconnected-input`
       (error) fires for an input left out of the connection list or written

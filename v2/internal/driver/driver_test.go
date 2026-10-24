@@ -2,6 +2,7 @@ package driver
 
 import (
 	"context"
+	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
@@ -109,5 +110,50 @@ func TestResolverFindsAbsoluteAndNestedIncludes(t *testing.T) {
 	res, err := Analyze(context.Background(), Options{Files: []string{f}})
 	if err != nil || res.HasErrors() {
 		t.Errorf("%v %v", err, res.Diagnostics)
+	}
+}
+
+// Files are handled by parallel workers but come out in the order given: the
+// first definition of a duplicated module is the one from the earlier file,
+// and the same run gives the same diagnostics every time.
+func TestAnalyzeParallelParsingKeepsFileOrder(t *testing.T) {
+	dir := t.TempDir()
+	var files []string
+	for i := 0; i < 40; i++ {
+		files = append(files, write(t, dir, fmt.Sprintf("f%02d.sv", i), fmt.Sprintf("module m%02d; logic x; endmodule\n", i)))
+	}
+	dup := write(t, dir, "dup.sv", "module m05; endmodule\n")
+	files = append(files, dup)
+	var first string
+	for run := 0; run < 5; run++ {
+		res, err := Analyze(context.Background(), Options{Files: files})
+		if err != nil {
+			t.Fatal(err)
+		}
+		for i, f := range res.Files {
+			if f.Path != files[i] {
+				t.Fatalf("file %d is %s, want %s", i, f.Path, files[i])
+			}
+		}
+		var b strings.Builder
+		for _, d := range res.Diagnostics {
+			b.WriteString(d.String() + "\n")
+		}
+		if run == 0 {
+			first = b.String()
+			if !strings.Contains(first, "duplicate-definition") || !strings.Contains(first, "dup.sv") {
+				t.Fatalf("expected the later file to be the duplicate:\n%s", first)
+			}
+		} else if b.String() != first {
+			t.Fatalf("run %d differs:\n%s\nvs\n%s", run, b.String(), first)
+		}
+	}
+}
+
+func TestAnalyzeMissingFileAmongManyIsAnError(t *testing.T) {
+	dir := t.TempDir()
+	files := []string{write(t, dir, "a.sv", "module a; endmodule\n"), filepath.Join(dir, "missing.sv"), write(t, dir, "b.sv", "module b; endmodule\n")}
+	if _, err := Analyze(context.Background(), Options{Files: files}); err == nil {
+		t.Fatal("expected an error for the unreadable file")
 	}
 }
