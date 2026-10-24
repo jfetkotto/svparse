@@ -185,9 +185,13 @@ func (e *elaborator) bindPorts(parent *Node, sc *sema.Scope, inst *Node, in *ast
 		}
 	}
 
+	// One binder per side for all of this instance's connections, so a type
+	// the connections share is resolved once. They are not kept on the nodes:
+	// a design has tens of thousands of them.
+	mine, theirs := e.model.NewInstance(inst.Env), e.model.NewInstance(parent.Env)
 	for i := range bindings {
 		bindings[i].Omitted = !connected[i] && bindings[i].Kind == ConnNone
-		e.checkConnection(parent, sc, inst, in, &bindings[i], copies)
+		e.checkConnection(parent, sc, inst, in, &bindings[i], copies, mine, theirs)
 	}
 	inst.Ports = bindings
 }
@@ -211,8 +215,8 @@ func (e *elaborator) siblingInterface(parent *Node, name string) *Node {
 // checkConnection types one connection and applies the direction and width
 // rules. copies is the size of the instance array the instance belongs to (1
 // for a plain instance).
-func (e *elaborator) checkConnection(parent *Node, sc *sema.Scope, inst *Node, in *ast.Instance, b *PortBinding, copies int) {
-	pt, ds := e.model.TypeOfIn(b.Port, inst.Env)
+func (e *elaborator) checkConnection(parent *Node, sc *sema.Scope, inst *Node, in *ast.Instance, b *PortBinding, copies int, mine, theirs *sema.Instance) {
+	pt, ds := mine.TypeOf(b.Port)
 	e.addAll(ds)
 	b.PortType = pt
 	b.ExprType = sema.Invalid
@@ -239,7 +243,7 @@ func (e *elaborator) checkConnection(parent *Node, sc *sema.Scope, inst *Node, i
 		return
 	}
 
-	be, ds := e.model.BindIn(sc, b.Expr, parent.Env)
+	be, ds := theirs.Bind(sc, b.Expr)
 	e.addAll(ds)
 	b.ExprType = be.Type()
 	if sema.IsInvalid(pt) || sema.IsInvalid(b.ExprType) {
