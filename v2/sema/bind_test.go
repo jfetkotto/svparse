@@ -781,3 +781,33 @@ endmodule`)
 		}
 	}
 }
+
+func TestPartSelectOfAPackedArrayKeepsTheElementWidth(t *testing.T) {
+	m, c := model(t, "module top; logic [7:0][3:0] v; logic [3:0] u [8]; endmodule")
+	sc := defScope(t, m, c, "top")
+	for _, tc := range []struct {
+		expr string
+		bits int
+	}{
+		{"v[5 +: 4]", 16},
+		{"v[7 -: 2]", 8},
+		{"v[3:1]", 12},
+		{"v[0 +: 1]", 4},
+	} {
+		be, ds := m.Bind(sc, parseExprText(t, tc.expr))
+		if len(ds) != 0 {
+			t.Fatalf("%s: %v", tc.expr, ds)
+		}
+		if w, _ := Bits(be.Type()); w != tc.bits {
+			t.Errorf("%s is %d bits, want %d", tc.expr, w, tc.bits)
+		}
+	}
+	// A slice of an unpacked array is an unpacked array of the same elements.
+	be, ds := m.Bind(sc, parseExprText(t, "u[2:1]"))
+	if len(ds) != 0 {
+		t.Fatal(ds)
+	}
+	if ua, ok := Resolve(be.Type()).(*UnpackedArray); !ok || ua.Range.Size() != 2 {
+		t.Errorf("u[2:1] is %v", be.Type())
+	}
+}
