@@ -23,9 +23,16 @@ import (
 //     other driver (LRM 6.5, 9.2.2).
 //
 // Names it cannot resolve are skipped: reporting them is Bind's job.
-func (m *Model) CheckStatements() []diag.Diagnostic {
+func (m *Model) CheckStatements() []diag.Diagnostic { return m.CheckStatementsIn(nil) }
+
+// CheckStatementsIn is CheckStatements for the files whose path is in files
+// (nil means all of them).
+func (m *Model) CheckStatementsIn(files map[string]bool) []diag.Diagnostic {
 	c := &checker{m: m, writes: map[*Symbol][]write{}}
 	for _, f := range m.comp.files {
+		if files != nil && !files[f.Path] {
+			continue
+		}
 		us, _ := m.UnitScope(f.Path)
 		for _, d := range f.Decls {
 			c.decl(us, d)

@@ -88,7 +88,7 @@ func checkNonblockingInCombinational(c *Context) {
 }
 
 func checkCaseDefault(c *Context) {
-	for _, f := range c.Comp.Files() {
+	for _, f := range c.Files() {
 		ast.Inspect(f, func(n ast.Node) bool {
 			cs, ok := n.(*ast.Case)
 			if !ok || cs.Qualifier != "" {

@@ -22,6 +22,9 @@ func checkImplicitNets(c *Context) {
 		if c.Cancelled() {
 			return false
 		}
+		if !c.bodyWanted(n) {
+			return true
+		}
 		for _, net := range n.ImplicitNets {
 			c.Report(net.At, "net %q is implicitly declared as a %d-bit wire; declare it, or use `default_nettype none", net.Name, net.Width)
 		}

@@ -67,6 +67,9 @@ func eachSignalScope(c *Context, f func(s *sema.Scope)) {
 		if def.Kind != sema.DefModule && def.Kind != sema.DefProgram {
 			continue
 		}
+		if def.Decl != nil && !c.InScope(def.Decl.Pos().File) {
+			continue
+		}
 		if s, ok := c.Model.DefinitionScope(def); ok && s.Def == def {
 			visit(s, 0)
 		}

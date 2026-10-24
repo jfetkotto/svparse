@@ -39,7 +39,7 @@ type process struct {
 // eachProcess calls f for every always procedure of the design, in source
 // order.
 func eachProcess(c *Context, f func(p *process)) {
-	for _, file := range c.Comp.Files() {
+	for _, file := range c.Files() {
 		us, _ := c.Model.UnitScope(file.Path)
 		ast.Walk(&procWalker{c: c, scope: us, f: f}, file)
 	}

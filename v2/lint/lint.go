@@ -95,6 +95,14 @@ type Input struct {
 	// Comments are the comments of every source read, for suppression
 	// directives (preprocessor.Options.KeepComments).
 	Comments []preprocessor.Comment
+	// Files, if not nil, limits the run to findings in the files whose path is
+	// a key: an editor that has changed one file of a design of thousands
+	// needs that file's findings, not everyone's. The rules still see the
+	// whole design (an instance's parameters come from its parent), but skip
+	// the work of looking for findings elsewhere, and any finding outside the
+	// files is dropped. Findings in other files that the change affects are not
+	// refreshed; a run without Files does that.
+	Files map[string]bool
 }
 
 // Context is what a rule's Check gets: the design, and the way to report.
@@ -103,10 +111,11 @@ type Context struct {
 	Model  *sema.Model
 	Design *elab.Design
 
-	ctx  context.Context
-	rule *Rule
-	out  *[]diag.Diagnostic
-	sh   *shared
+	ctx   context.Context
+	scope map[string]bool // Input.Files
+	rule  *Rule
+	out   *[]diag.Diagnostic
+	sh    *shared
 }
 
 // shared holds analyses several rules need, computed once per run.
@@ -120,9 +129,55 @@ type shared struct {
 // written (computed on first use).
 func (c *Context) Usage() *Usage {
 	if c.sh.usage == nil {
-		c.sh.usage = buildUsage(c.Comp, c.Model, c.Design)
+		c.sh.usage = buildUsage(c.Comp, c.Model, c.Design, c.scope)
 	}
 	return c.sh.usage
+}
+
+// InScope reports whether findings in the file are wanted: always, unless the
+// run was limited to some files (Input.Files).
+func (c *Context) InScope(file string) bool {
+	return c.scope == nil || file == "" || c.scope[file]
+}
+
+// Files returns the files of the compilation that the run covers.
+func (c *Context) Files() []*ast.File {
+	all := c.Comp.Files()
+	if c.scope == nil {
+		return all
+	}
+	out := all[:0:0]
+	for _, f := range all {
+		if c.scope[f.Path] {
+			out = append(out, f)
+		}
+	}
+	return out
+}
+
+// bodyWanted reports whether the body of an elaborated node, the source of the
+// findings a rule makes about its contents, is in a covered file.
+func (c *Context) bodyWanted(n *elab.Node) bool {
+	if c.scope == nil {
+		return true
+	}
+	if _, ok := n.Decl.(*ast.GenerateBlock); ok {
+		return c.InScope(n.Decl.Pos().File)
+	}
+	if n.Def != nil && n.Def.Decl != nil {
+		return c.InScope(n.Def.Decl.Pos().File)
+	}
+	return true
+}
+
+// siteWanted reports whether the place an elaborated node is written, its
+// instantiation, is in a covered file: where findings about how it is
+// connected go.
+func (c *Context) siteWanted(n *elab.Node) bool {
+	if c.scope == nil || n.Decl == nil {
+		return true
+	}
+	return c.InScope(n.Decl.Pos().File)
 }
 
 // Cancelled reports whether the run was cancelled; a long rule should stop.
@@ -135,6 +190,9 @@ func (c *Context) Report(at ast.Position, format string, args ...any) {
 
 // ReportRelated records a finding with other places that explain it.
 func (c *Context) ReportRelated(at ast.Position, related []diag.Related, format string, args ...any) {
+	if !c.InScope(at.File) {
+		return
+	}
 	*c.out = append(*c.out, diag.Diagnostic{
 		Code:     c.rule.Name,
 		Severity: c.rule.Severity,
@@ -168,7 +226,7 @@ func Run(ctx context.Context, in Input, cfg Config) []diag.Diagnostic {
 		}
 		r.Severity = level
 		var found []diag.Diagnostic
-		c := &Context{Comp: in.Comp, Model: model, Design: in.Design, ctx: ctx, rule: &r, out: &found, sh: sh}
+		c := &Context{Comp: in.Comp, Model: model, Design: in.Design, ctx: ctx, scope: in.Files, rule: &r, out: &found, sh: sh}
 		runRule(&r, c, &found)
 		for _, d := range found {
 			if ignore(d.Range.File) || sup.Suppressed(d.Code, d.Range.File, d.Range.Line) {

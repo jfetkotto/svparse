@@ -45,7 +45,7 @@ func checkUnconnected(c *Context, inputs bool) {
 			return false
 		}
 		in, ok := n.Decl.(*ast.Instance)
-		if !ok || n.Def == nil {
+		if !ok || n.Def == nil || !c.siteWanted(n) {
 			return true
 		}
 		for _, b := range n.Ports {
