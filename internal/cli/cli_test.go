@@ -28,8 +28,8 @@ func run(t *testing.T, args ...string) (code int, out, errOut string) {
 	return code, o.String(), e.String()
 }
 
-const cleanSrc = "module top; logic a; leaf u(.d(a), .q()); endmodule\nmodule leaf(input d, output q); endmodule\n"
-const warnSrc = "module top; leaf u(.d(nope), .q()); endmodule\nmodule leaf(input d, output q); endmodule\n"
+const cleanSrc = "module top; logic a; leaf u(.d(a), .q()); endmodule\nmodule leaf(input d, output q); assign q = d; endmodule\n"
+const warnSrc = "module top; leaf u(.d(nope), .q()); endmodule\nmodule leaf(input d, output q); assign q = d; endmodule\n"
 const errSrc = "module top; wire w; initial w = 1; endmodule\n"
 
 func TestExitStatuses(t *testing.T) {
@@ -201,7 +201,7 @@ func TestLintConfigAndRules(t *testing.T) {
 
 func TestSuppressionAndNettypeNone(t *testing.T) {
 	dir := t.TempDir()
-	sup := write(t, dir, "sup.sv", "module top; leaf u(.d(nope), .q()); // svparse: disable=implicit-net\nendmodule\nmodule leaf(input d, output q); endmodule\n")
+	sup := write(t, dir, "sup.sv", "module top; leaf u(.d(nope), .q()); // svparse: disable=implicit-net\nendmodule\nmodule leaf(input d, output q); assign q = d; endmodule\n")
 	if _, out, _ := run(t, "lint", sup); strings.Contains(out, "implicit-net") {
 		t.Errorf("suppression comment ignored:\n%s", out)
 	}

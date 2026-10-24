@@ -36,7 +36,7 @@ func TestAnalyzeCollectsEveryStage(t *testing.T) {
 	// A preprocessor error, a syntax error, a semantic error, an elaboration
 	// error and a lint finding, from one design.
 	a := write(t, dir, "a.sv", "`endif\nmodule top; wire w; initial w = 1; nosuch u(); leaf v(.d(imp), .q()); endmodule\n")
-	b := write(t, dir, "b.sv", "module leaf(input d, output q); endmodule\nmodule ( ;\n")
+	b := write(t, dir, "b.sv", "module leaf(input d, output q); assign q = d; endmodule\nmodule ( ;\n")
 	res, err := Analyze(context.Background(), Options{Files: []string{a, b}, Lint: true})
 	if err != nil {
 		t.Fatal(err)
@@ -73,7 +73,7 @@ func TestAnalyzeStagesAreOptional(t *testing.T) {
 func TestAnalyzeIncludesDefinesAndSuppression(t *testing.T) {
 	dir := t.TempDir()
 	write(t, dir, "inc/w.svh", "`define W 3\n")
-	f := write(t, dir, "a.sv", "`include \"w.svh\"\nmodule top; logic [`W:0] v; `ifdef D\n leaf u(.d(imp), .q()); // svparse: disable=implicit-net\n `endif\nendmodule\nmodule leaf(input d, output q); endmodule\n")
+	f := write(t, dir, "a.sv", "`include \"w.svh\"\nmodule top(output o); logic [`W:0] v = 0; assign o = v[0]; `ifdef D\n leaf u(.d(imp), .q()); // svparse: disable=implicit-net\n `endif\nendmodule\nmodule leaf(input d, output q); assign q = d; endmodule\n")
 	opts := Options{Files: []string{f}, IncludeDirs: []string{filepath.Join(dir, "inc")}, Defines: map[string]string{"D": ""}, Lint: true}
 	res, err := Analyze(context.Background(), opts)
 	if err != nil || len(res.Diagnostics) != 0 {
