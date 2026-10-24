@@ -93,6 +93,7 @@ func Analyze(ctx context.Context, opts Options) (*Result, error) {
 	model := res.Comp.Model()
 	set.AddAll(model.Diagnostics())
 	set.AddAll(model.CheckStatements())
+	set.AddAll(model.CheckNames())
 
 	if opts.Elaborate || opts.Lint {
 		design, ds := elab.Elaborate(ctx, res.Comp, elab.Options{Tops: opts.Tops, DefaultNettype: opts.DefaultNettype})

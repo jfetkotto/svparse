@@ -1,0 +1,218 @@
+package sema
+
+import (
+	"github.com/jfetkotto/svparse/v2/ast"
+	"github.com/jfetkotto/svparse/v2/diag"
+)
+
+// CheckNames binds every expression of the design elements (modules,
+// interfaces, programs, packages) and returns the names that do not resolve
+// (LRM 23.9, 26): an identifier used in an expression, statement, port
+// connection, range or initialiser that no enclosing scope, import or package
+// declares, and calls of functions that are not declared. The result is sorted
+// by position.
+//
+// It reports undeclared names only. Type and width problems are for the
+// callers that need them (Bind returns them), and several kinds of body are
+// not looked into yet because their scopes need more than the name tables:
+// classes, constraints, covergroups, assertions, clocking blocks and
+// primitives.
+//
+// A bare identifier is not reported where the language declares it implicitly
+// (LRM 6.10): the target of a continuous assignment and a signal wired to an
+// instance or gate terminal become one-bit nets (see the elaborator's
+// ImplicitNets for those).
+func (m *Model) CheckNames() []diag.Diagnostic {
+	c := &nameChecker{m: m, implicit: map[*Scope]map[string]bool{}}
+	for _, f := range m.comp.files {
+		us, _ := m.UnitScope(f.Path)
+		ast.Walk(&nameWalker{c: c, scope: us, collect: true}, f)
+	}
+	for _, f := range m.comp.files {
+		us, _ := m.UnitScope(f.Path)
+		ast.Walk(&nameWalker{c: c, scope: us}, f)
+	}
+	return c.set.Sorted()
+}
+
+type nameChecker struct {
+	m   *Model
+	set diag.Set
+	// implicit holds, per design element, the names its connections and
+	// continuous assignments declare implicitly (LRM 6.10), which later
+	// expressions may use.
+	implicit map[*Scope]map[string]bool
+}
+
+// element is the design element scope s is part of.
+func element(s *Scope) *Scope {
+	for ; s != nil; s = s.Parent {
+		switch s.Kind {
+		case ScopeModule, ScopeInterface, ScopeProgram:
+			return s
+		}
+	}
+	return nil
+}
+
+// note records name as implicitly declared in s's design element, if nothing
+// declares it.
+func (c *nameChecker) note(s *Scope, e ast.Expr) {
+	switch e := e.(type) {
+	case *ast.Ident:
+		if s == nil || s.Lookup(e.Name).Symbol != nil {
+			return
+		}
+		el := element(s)
+		if el == nil {
+			return
+		}
+		if c.implicit[el] == nil {
+			c.implicit[el] = map[string]bool{}
+		}
+		c.implicit[el][e.Name] = true
+	case *ast.Paren:
+		c.note(s, e.X)
+	case *ast.Concat:
+		for _, el := range e.Elems {
+			c.note(s, el)
+		}
+	}
+}
+
+// bind resolves every name of e in scope s.
+func (c *nameChecker) bind(s *Scope, e ast.Expr) {
+	if s == nil || e == nil {
+		return
+	}
+	_, ds := c.m.Bind(s, e)
+	for _, d := range ds {
+		if d.Code != diag.CodeUndeclared {
+			continue
+		}
+		if id := identAt(e, d.Range); id != nil && c.implicit[element(s)][id.Name] {
+			continue
+		}
+		c.set.Add(d)
+	}
+}
+
+// identAt finds the identifier of e that starts at pos.
+func identAt(e ast.Expr, pos ast.Position) *ast.Ident {
+	var found *ast.Ident
+	ast.Inspect(e, func(n ast.Node) bool {
+		if id, ok := n.(*ast.Ident); ok {
+			if p := id.Pos(); p.Line == pos.Line && p.Character == pos.Character {
+				found = id
+			}
+		}
+		return found == nil
+	})
+	return found
+}
+
+// nameWalker walks the design. In collect mode it only gathers the implicit
+// net declarations; in the second pass it binds every expression.
+type nameWalker struct {
+	c       *nameChecker
+	scope   *Scope
+	collect bool
+}
+
+func (w *nameWalker) Visit(n ast.Node) ast.Visitor {
+	switch n := n.(type) {
+	case nil:
+		return nil
+	case *ast.GenerateFor:
+		// The loop header sees the loop's own genvar, which lives in the body's
+		// scope (LRM 27.4).
+		hs := w.scope
+		if bs, ok := w.c.m.ScopeOf(n.Body); ok && n.Body != nil {
+			hs = bs
+		}
+		hw := &nameWalker{c: w.c, scope: hs, collect: w.collect}
+		if n.Init != nil {
+			ast.Walk(hw, n.Init)
+		}
+		if n.Cond != nil {
+			ast.Walk(hw, n.Cond)
+		}
+		if n.Step != nil {
+			ast.Walk(hw, n.Step)
+		}
+		if n.Body != nil {
+			ast.Walk(w, n.Body)
+		}
+		return nil
+	case *ast.GateInstantiation:
+		if w.collect {
+			for i := range n.Instances {
+				for _, t := range n.Instances[i].Terminals {
+					w.c.note(w.scope, t)
+				}
+			}
+		}
+		return nil
+	case *ast.Class, *ast.Covergroup, *ast.Constraint, *ast.ConstraintBlock, *ast.AssertionItem,
+		*ast.PropertyDecl, *ast.SequenceDecl, *ast.Clocking, *ast.UDP,
+		*ast.Defparam, *ast.Bind, *ast.Let, *ast.Alias, *ast.Export:
+		return nil
+	case *ast.ContinuousAssign:
+		if w.collect {
+			for i := range n.Assigns {
+				w.c.note(w.scope, n.Assigns[i].LHS)
+			}
+			return nil
+		}
+		for i := range n.Assigns {
+			a := &n.Assigns[i]
+			if !implicitNetTarget(a.LHS) {
+				w.c.bind(w.scope, a.LHS)
+			}
+			w.c.bind(w.scope, a.RHS)
+		}
+		for _, d := range n.Delay {
+			w.c.bind(w.scope, d)
+		}
+		return nil
+	case *ast.PortConnection:
+		if w.collect {
+			w.c.note(w.scope, n.ConnExpr)
+			return nil
+		}
+		if n.ConnExpr != nil {
+			if _, bare := n.ConnExpr.(*ast.Ident); !bare {
+				w.c.bind(w.scope, n.ConnExpr)
+			}
+		}
+		return nil
+	case ast.Expr:
+		if !w.collect {
+			w.c.bind(w.scope, n)
+		}
+		return nil
+	}
+	if s, ok := w.c.m.ScopeOf(n); ok {
+		return &nameWalker{c: w.c, scope: s, collect: w.collect}
+	}
+	return w
+}
+
+// implicitNetTarget reports whether the target of a continuous assignment may
+// name an undeclared net: a bare identifier, or a concatenation of them.
+func implicitNetTarget(e ast.Expr) bool {
+	switch e := e.(type) {
+	case *ast.Ident:
+		return true
+	case *ast.Paren:
+		return implicitNetTarget(e.X)
+	case *ast.Concat:
+		for _, el := range e.Elems {
+			if !implicitNetTarget(el) {
+				return false
+			}
+		}
+		return len(e.Elems) > 0
+	}
+	return false
+}

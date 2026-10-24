@@ -429,6 +429,18 @@ into `devel`; `main` stays at the released `v0.1.9` until a `v2.0.0` release.
       port-width warning for instance arrays (an 8-bit bus to `u[7:0]` of 1-bit
       ports). README rewritten for the current capabilities.
 
+## Follow-ups
+
+- [x] `feature/undeclared-names`: `Model.CheckNames` binds every expression of
+      modules, interfaces, programs and packages and reports undeclared names
+      (class, constraint, covergroup, assertion, clocking and primitive bodies
+      are not looked into yet). Implicit nets (LRM 6.10) from continuous
+      assignment targets, instance connections and gate terminals count as
+      declared; escaped identifiers match their plain spelling (LRM 5.6.1); a
+      design element's own name is a valid hierarchical root; the std classes
+      (`process`, `mailbox`, `semaphore`) are opaque. Wired into `svparse
+      check` and the conformance elaboration stage. Conformance 156 -> 155.
+
 ## M9: sigilsv2 adoption
 
 - [ ] After M1: bump svparse, no behaviour change
@@ -485,3 +497,4 @@ into `devel`; `main` stays at the released `v0.1.9` until a `v2.0.0` release.
 | elab-ports | 163 |
 | elab-conformance (elaboration stage enabled) | 157 (61 undetected negatives, 7 parser gaps, 89 need UVM) |
 | expr-diagnostics (body errors reported) | 156 (58 undetected negatives, 9 parser gaps, 89 need UVM) |
+| undeclared-names (`CheckNames`) | 155 (57 undetected negatives, 9 parser gaps, 89 need UVM) |

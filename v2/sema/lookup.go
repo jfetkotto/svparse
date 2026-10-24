@@ -40,7 +40,7 @@ func (s *Scope) Lookup(name string) Result {
 }
 
 func (s *Scope) lookupHere(name string) (Result, bool) {
-	if sym, ok := s.syms[name]; ok {
+	if sym, ok := s.syms[canonName(name)]; ok {
 		return Result{Symbol: sym}, true
 	}
 	if pkg, ok := s.explicit[name]; ok {

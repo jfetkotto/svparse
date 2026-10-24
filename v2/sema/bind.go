@@ -271,7 +271,10 @@ func (b *binder) bindIdent(e *ast.Ident) BoundExpr {
 	if res.Symbol == nil {
 		if len(res.Ambiguous) > 0 {
 			b.errorf(diag.CodeUndeclared, e.Pos(), "%q is ambiguous: imported from several packages", e.Name)
-		} else {
+		} else if _, root := b.m.comp.Lookup(e.Name); !root {
+			// A design element's own name is the root of hierarchical names
+			// (LRM 23.7), as in $dumpports(top, ...): not a variable, but not
+			// undeclared either.
 			b.errorf(diag.CodeUndeclared, e.Pos(), "%q is not declared", e.Name)
 		}
 		return bad(e)
@@ -309,6 +312,9 @@ func (b *binder) bindScoped(e *ast.ScopedName) BoundExpr {
 		return bad(e)
 	}
 	res := b.scope.LookupQualified(path)
+	if res.Symbol == nil && builtinScope(path) {
+		return bad(e)
+	}
 	if res.Symbol == nil {
 		b.errorf(diag.CodeUndeclared, e.Pos(), "%q is not declared", strings.Join(path, "::"))
 		return bad(e)
@@ -392,6 +398,10 @@ func (b *binder) memberOf(e ast.Expr, x BoundExpr, name string) BoundExpr {
 				}
 				return &BMember{exprInfo{ty, e}, x, name, sym}
 			}
+		}
+		if builtinClasses[t.Name] == t {
+			// The members of the built-in std classes are not modelled.
+			return &BMember{exprInfo{Invalid, e}, x, name, nil}
 		}
 		b.errorf(diag.CodeUndeclared, e.Pos(), "class %s has no member %q", t.Name, name)
 		return &BMember{exprInfo{Invalid, e}, x, name, nil}
