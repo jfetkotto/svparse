@@ -639,6 +639,7 @@ func TestCorpusTypesAndParameters(t *testing.T) {
 // FuzzBind types and evaluates every declaration of arbitrary source.
 func FuzzBind(f *testing.F) {
 	f.Add("module m #(parameter W = 4, parameter D = W*2) (input [W-1:0] a); localparam int X = $clog2(D) + {2{W}}; logic [X:0] v = a + 1; typedef struct packed {logic [W:0] f;} s_t; s_t s; endmodule")
+	f.Add("module m; function automatic int f(int n); int r = 1; for (int i = 1; i <= n; i++) r *= i; return n > 1 ? r : f(n - 1); endfunction localparam P = f(5); logic [f(3):0] v; endmodule")
 	f.Add("class A; int x; function int f(int y); return x + y; endfunction endclass module m; A a; localparam P = P + 1; int q[$]; endmodule")
 	f.Add("package p; typedef enum {A=1, B} e_t; localparam e_t X = B; endpackage module m; import p::*; localparam Y = X + A; endmodule")
 	f.Fuzz(func(t *testing.T, src string) {

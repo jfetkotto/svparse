@@ -291,15 +291,19 @@ partway through an item, leave a short "Status:" note under it.
       promotes, calls resolve to user functions, class methods or built-in
       methods and system functions; diagnostics `undeclared-identifier`,
       `incompatible-types`, `cast-required`, `invalid-type`.
-- [~] `sema/consteval.go`: `Eval`, `EvalAssign`, `ParamValue`, `Env` (parameter
+- [x] `sema/consteval.go` (with constant functions in `constfunc.go`): `Eval`, `EvalAssign`, `ParamValue`, `Env` (parameter
       overrides, step budget, circular-parameter detection) evaluate bound
       expressions with `svint`: literals, parameters, enum constants, all
       operators, selects, casts, inside, and the system functions ($clog2,
       $bits, $size/$left/..., math, $signed, $countones, ...). Corpus: 90% of
       declarations typed, 89% of parameters evaluate (the rest need UVM).
-      Still to do: constant functions (LRM 13.4.3) with the statement
-      interpreter, and per-instance types (dimensions follow default
-      parameter values until elaboration).
+      Constant functions (LRM 13.4.3) run through a small statement
+      interpreter (locals, whole/bit/part assignment, compound ops, ++/--,
+      if, case/casez/casex/inside, for/while/do/repeat/forever, break,
+      continue, return, recursion to depth 200, default and named arguments)
+      under the same step budget; anything that reads simulation state is
+      `not-constant`. Still to do at elaboration: per-instance types
+      (dimensions follow default parameter values until then).
 - [x] `sema/stmt.go`: `Model.CheckStatements` applies the LRM statement rules
       to every process, subroutine and continuous assignment: assignable
       targets (`invalid-lvalue`, `assign-to-input`, `assign-to-constant`,

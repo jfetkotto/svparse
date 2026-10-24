@@ -120,6 +120,10 @@ type BCall struct {
 	Method string
 	Recv   BoundExpr
 	Args   []BoundExpr
+	// Formals gives, for each entry of Args, the index of the formal argument
+	// it is passed to (a named argument need not come in order). It is set for
+	// a call of a declared function or task.
+	Formals []int
 }
 
 // CastKind says what a cast does.

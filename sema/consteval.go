@@ -71,6 +71,7 @@ type Env struct {
 	MaxSteps int
 
 	steps  int
+	depth  int // nesting of constant function calls
 	cache  map[*Symbol]Const
 	active map[*Symbol]bool
 	limit  bool
