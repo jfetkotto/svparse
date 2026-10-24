@@ -444,7 +444,14 @@ into `devel`; `main` stays at the released `v0.1.9` until a `v2.0.0` release.
 ## M9: sigilsv2 adoption
 
 - [x] After M1: bump svparse, no behaviour change (sigilsv2 imports the v2 module path; `chore/svparse-v2`)
-- [ ] After M3: semantic tokens, outline for procedural/generate blocks
+- [x] After M3: semantic tokens, outline for procedural/generate blocks
+      (sigilsv2 `feature/outline-procedural`, `feature/semantic-tokens`): the
+      outline nests `always*`/`initial`/`final` (with their sensitivity) and
+      generate constructs, merged with the declarations by range so
+      `Declaration.Parent` and name resolution are untouched; semantic tokens
+      colour every name the model resolves (legend of 11 types, declaration
+      and readonly modifiers), from the same index as navigation, switchable
+      with `semanticTokens`.
 - [x] After M6: sema diagnostics, typed hover, sema-backed resolution
   - [x] Typed hover (sigilsv2 `feature/semantic-hover`, local `devel` only):
         hover keeps the index's declaration and adds the semantic reading of
