@@ -442,7 +442,14 @@ into `devel`; `main` stays at the released `v0.1.9` until a `v2.0.0` release.
         (`Index.ASTs`); `internal/semantic` builds the sema model lazily per
         index generation (about 1.5 ms after an edit on the bench workspace).
         Indexing and didChange benchmarks unchanged.
-  - [ ] Sema diagnostics published alongside parse errors
+  - [x] Sema diagnostics published alongside parse errors (sigilsv2
+        `feature/sema-diagnostics`): sema, statement and elaboration
+        diagnostics, grouped by file, debounced 400 ms after the index goes
+        quiet, discarded if the index changed meanwhile, skipped for files
+        that do not parse, switchable with `semanticDiagnostics` in
+        `.sigils.json`. Gap found: undeclared names inside expressions are not
+        reported by sema yet (also the largest group of undetected
+        conformance negatives).
   - [ ] Sema-backed definition and references (behind a flag, compared in tests)
 - [ ] After M7/M8: background elaboration, lint diagnostics
 - [ ] Mark raw-span AST fields `Deprecated`
