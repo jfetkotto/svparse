@@ -37,6 +37,11 @@ type PortBinding struct {
 	// and Modport the modport selected, if any.
 	Interface *Node
 	Modport   string
+	// Omitted is true when the instance does not mention the port at all (and
+	// ".*" found no signal for it), as opposed to leaving it open on purpose
+	// with ".p()". Both leave Kind at ConnNone. LRM 23.3.2 allows either; a
+	// port left out by accident is a common mistake, so a lint rule reports it.
+	Omitted bool
 	// PortType and ExprType are the types on the two sides, resolved for this
 	// instance (array bounds follow its parameters). ExprType is Invalid when
 	// the expression could not be typed.
@@ -181,6 +186,7 @@ func (e *elaborator) bindPorts(parent *Node, sc *sema.Scope, inst *Node, in *ast
 	}
 
 	for i := range bindings {
+		bindings[i].Omitted = !connected[i] && bindings[i].Kind == ConnNone
 		e.checkConnection(parent, sc, inst, in, &bindings[i], copies)
 	}
 	inst.Ports = bindings
