@@ -74,12 +74,17 @@ func (l *lexer) scanTickPrefixedLiteral(startLine, startChar, start int, sizeTex
 	}
 	if l.i >= len(l.runes) || !isBaseLetter(l.runes[l.i]) {
 		text := string(l.runes[start:l.i])
-		if text == "'" && l.i < len(l.runes) && l.runes[l.i] == '(' {
-			// The cast operator, "type'(expr)" -- a bare "'" immediately
-			// followed by "(", not a based number at all. Emitted as its
-			// own token (KindTick); the "(" that follows is picked up
-			// normally by the next call into the dispatch loop.
-			l.emit(token.KindTick, text, startLine, startChar)
+		if l.i < len(l.runes) && l.runes[l.i] == '(' && text == sizeText+"'" {
+			// The cast operator, "type'(expr)" or the size cast "8'(expr)"
+			// (LRM 6.24.1) -- a "'" immediately followed by "(", not a
+			// based number at all. The tick is emitted as its own token
+			// (KindTick), preceded by the size digits as a plain integer
+			// literal when there were any; the "(" that follows is picked
+			// up normally by the next call into the dispatch loop.
+			if sizeText != "" {
+				l.emit(token.KindIntLiteral, sizeText, startLine, startChar)
+			}
+			l.emit(token.KindTick, "'", startLine, startChar+token.UTF16Len(sizeText))
 			return
 		}
 		l.errorf(startLine, startChar, "malformed numeric literal %q", text)
