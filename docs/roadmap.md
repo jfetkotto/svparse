@@ -361,10 +361,19 @@ partway through an item, leave a short "Status:" note under it.
 
 ## M8: Lint
 
-- [ ] `lint/` rule framework and config
+- [x] `lint/` rule framework and config: `Rule` (kebab-case name = diagnostic
+      code, registered in `diag.Known`), `Register` in package `init`, `Run(ctx,
+      Input{Comp, Design, Comments}, Config)`; JSON `Config` (per-rule
+      `error|warning|info|hint|off`, `ignore` globs with `*`, `**`, `?`,
+      validated so a typo is an error); suppression comments (`// svparse:
+      disable=rule`, `disable-line`, `disable-next-line`, `disable-file`, `all`);
+      panic isolation (a failing rule becomes `internal-error`); a testdata
+      harness that requires every rule to have a positive and a negative file
+      under `lint/testdata/<rule>/` (`// want` marks expected lines). First
+      rule: `implicit-net`.
 - [ ] Rule families (one branch each): width, unused/undriven, multi-driver,
-      always_comb/latch, blocking/nonblocking misuse, implicit nets, case
-      default, unreachable/shadowing/sign mixing
+      always_comb/latch, blocking/nonblocking misuse, case default,
+      unreachable/shadowing/sign mixing (implicit nets: done with the framework)
 - [ ] `cmd/svparse` CLI
 
 ## M9: sigilsv2 adoption
