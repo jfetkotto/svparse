@@ -397,9 +397,13 @@ partway through an item, leave a short "Status:" note under it.
       mask by the narrower side. Carry and product widening, compound
       assignments, reals and non-integral values are not reported. Port
       connection widths remain the elaborator's `port-width-mismatch` warning.
-- [ ] Remaining rule families (one branch each): multi-driver (a per-bit
-      overlap rule beyond the LRM driver errors), unreachable code, shadowing,
-      sign mixing
+- [x] Hygiene rules (`feature/lint-hygiene`): `unreachable-code` (statements
+      after return/break/continue/disable), `shadowed-declaration` (a
+      declaration hiding one in an enclosing scope), `sign-mixing` (signed and
+      unsigned operands of one operator, LRM 11.8.1; literals and 1-bit
+      operands are exempt).
+- [ ] Remaining rule family: multi-driver (a per-bit overlap rule beyond the
+      LRM driver errors)
 - [x] `cmd/svparse` CLI: `check`, `lint`, `elab`, `dump-ast` over
       `internal/driver` (preprocess, parse, semantic checks, elaboration, lint)
       with `-I`, `-D`, `--top`, `-f`, `--config` (default `.svparse.json`),
