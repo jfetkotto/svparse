@@ -369,7 +369,7 @@ func (b *binder) memberOf(e ast.Expr, x BoundExpr, name string) BoundExpr {
 	case *Union:
 		return b.fieldOf(e, x, name, t.Members)
 	case *Class:
-		if cs := b.m.cache().classes[t]; cs != nil {
+		if cs := b.cache().classes[t]; cs != nil {
 			sym, ok := cs.syms[name]
 			if !ok {
 				sym, ok = b.m.inheritedMember(cs, name, 0)

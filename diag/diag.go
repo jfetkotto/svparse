@@ -120,6 +120,16 @@ const (
 	CodeGenerateLimit          = "generate-limit"
 	CodeUnknownTop             = "unknown-top"
 	CodeNoTop                  = "no-top"
+
+	CodeUnknownPort             = "unknown-port"
+	CodeTooManyPorts            = "too-many-ports"
+	CodeDuplicatePortConnection = "duplicate-port-connection"
+	CodeMixedPortConnections    = "mixed-port-connections"
+	CodePortWidthMismatch       = "port-width-mismatch"
+	CodeInvalidOutputConnection = "invalid-output-connection"
+	CodeInvalidInoutConnection  = "invalid-inout-connection"
+	CodeInterfacePortMismatch   = "interface-port-mismatch"
+	CodeUnknownBindTarget       = "unknown-bind-target"
 )
 
 // Known maps every registered code to a one-line description. A code must be
@@ -162,6 +172,16 @@ var Known = map[string]string{
 	CodeGenerateLimit:          "a generate loop runs more iterations than the limit",
 	CodeUnknownTop:             "a requested top module is not defined",
 	CodeNoTop:                  "the design has no module that nothing instantiates",
+
+	CodeUnknownPort:             "a named port connection names a port the module does not have",
+	CodeTooManyPorts:            "more positional port connections than the module has ports",
+	CodeDuplicatePortConnection: "a port is connected twice",
+	CodeMixedPortConnections:    "an instance mixes positional and named port connections",
+	CodePortWidthMismatch:       "a connection is wider or narrower than its port",
+	CodeInvalidOutputConnection: "an output port is connected to something that cannot be driven",
+	CodeInvalidInoutConnection:  "an inout port is connected to something that is not a net or variable",
+	CodeInterfacePortMismatch:   "an interface port is connected to the wrong kind of interface, or to a modport it does not have",
+	CodeUnknownBindTarget:       "a bind directive names a module or instance that does not exist",
 }
 
 // ValidCode reports whether code is well-formed: lower-case words joined by

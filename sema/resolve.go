@@ -26,17 +26,30 @@ type typeCache struct {
 	busy     map[any]bool
 }
 
+func newTypeCache() *typeCache {
+	return &typeCache{
+		byNode:   map[ast.Node]Type{},
+		byPos:    map[posKey]Type{},
+		classes:  map[*Class]*Scope{},
+		symTypes: map[*Symbol]Type{},
+		busy:     map[any]bool{},
+	}
+}
+
 func (m *Model) cache() *typeCache {
 	if m.tc == nil {
-		m.tc = &typeCache{
-			byNode:   map[ast.Node]Type{},
-			byPos:    map[posKey]Type{},
-			classes:  map[*Class]*Scope{},
-			symTypes: map[*Symbol]Type{},
-			busy:     map[any]bool{},
-		}
+		m.tc = newTypeCache()
 	}
 	return m.tc
+}
+
+// cache is the type cache this call resolves into: the model's shared one, or a
+// private one when types are being resolved for a particular instance.
+func (b *binder) cache() *typeCache {
+	if b.tc != nil {
+		return b.tc
+	}
+	return b.m.cache()
 }
 
 // binder carries the state of one resolve or bind call: the scope names are
@@ -47,6 +60,7 @@ type binder struct {
 	set   diag.Set
 	env   *Env
 	depth int
+	tc    *typeCache // private cache for per-instance resolution, or nil
 }
 
 func (m *Model) newBinder(s *Scope) *binder { return &binder{m: m, scope: s} }
@@ -80,6 +94,28 @@ func (m *Model) ResolveType(s *Scope, t *ast.Type) (Type, []diag.Diagnostic) {
 func (m *Model) TypeOf(sym *Symbol) (Type, []diag.Diagnostic) {
 	b := m.newBinder(sym.Scope)
 	r := b.typeOfSymbol(sym)
+	return r, b.diags()
+}
+
+// TypeOfIn is TypeOf for one instance: array bounds and anything else that
+// depends on a parameter use the values in env (overrides and defparams)
+// instead of the defaults. Nothing it resolves is cached for other callers.
+func (m *Model) TypeOfIn(sym *Symbol, env *Env) (Type, []diag.Diagnostic) {
+	b := m.newBinder(sym.Scope)
+	b.env, b.tc = env, newTypeCache()
+	r := b.typeOfSymbol(sym)
+	return r, b.diags()
+}
+
+// BindIn is Bind for one instance: parameters take their values from env, and
+// the result's types are resolved privately.
+func (m *Model) BindIn(s *Scope, e ast.Expr, env *Env) (BoundExpr, []diag.Diagnostic) {
+	b := m.newBinder(s)
+	b.env, b.tc = env, newTypeCache()
+	r := b.bindSelf(e)
+	if r == nil {
+		r = &BBad{exprInfo{Invalid, e}}
+	}
 	return r, b.diags()
 }
 
@@ -128,6 +164,8 @@ func (b *binder) resolveBase(t *ast.Type) Type {
 		return b.integral(base, t)
 	case "wire", "uwire", "tri", "triand", "trior", "tri0", "tri1", "wand", "wor", "trireg", "supply0", "supply1", "interconnect":
 		return b.integral(BaseLogic, t)
+	case "interface":
+		return &VirtualInterface{} // a generic interface port: any interface
 	case "genvar":
 		return typeInt
 	case "real":
@@ -316,7 +354,7 @@ func splitQual(q string) []string {
 
 // typedefType resolves a typedef once and wraps the result in an Alias.
 func (b *binder) typedefType(sym *Symbol) Type {
-	tc := b.m.cache()
+	tc := b.cache()
 	if t, ok := tc.byNode[sym.Decl]; ok {
 		return t
 	}
@@ -355,7 +393,7 @@ func (b *binder) resolveInline(t *ast.Type) Type {
 // aggregate builds the Type of a struct, union or enum declaration, once per
 // source position.
 func (b *binder) aggregate(d ast.Decl, name string) Type {
-	tc := b.m.cache()
+	tc := b.cache()
 	key := posKey{fmt.Sprintf("%T", d), d.Pos()}
 	if name != "" {
 		key.kind += ":" + name
@@ -429,7 +467,7 @@ func withSign(v svint.Value, signed bool) svint.Value {
 
 // classType resolves a class declaration to its Type once, with its base class.
 func (b *binder) classType(sym *Symbol) Type {
-	tc := b.m.cache()
+	tc := b.cache()
 	if t, ok := tc.byNode[sym.Decl]; ok {
 		return t
 	}
@@ -449,7 +487,7 @@ func (b *binder) classType(sym *Symbol) Type {
 }
 
 func (b *binder) typeParamType(sym *Symbol) Type {
-	tc := b.m.cache()
+	tc := b.cache()
 	if t, ok := tc.byNode[sym.Decl]; ok {
 		return t
 	}
@@ -537,7 +575,7 @@ func (b *binder) typeFromName(e ast.Expr) Type {
 
 // typeOfSymbol returns the declared type of a value symbol.
 func (b *binder) typeOfSymbol(sym *Symbol) Type {
-	tc := b.m.cache()
+	tc := b.cache()
 	if t, ok := tc.symTypes[sym]; ok {
 		return t
 	}
