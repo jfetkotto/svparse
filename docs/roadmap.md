@@ -388,9 +388,18 @@ partway through an item, leave a short "Status:" note under it.
       (explicit `always @(list)` only), over a new always-procedure
       classifier (`lint/procs.go`). Corpus: 11 blocking-in-sequential, 6
       latches, 2 sensitivity findings; Chipview reports one `case-no-default`.
-- [ ] Remaining rule families (one branch each): width, multi-driver (a
-      per-bit overlap rule beyond the LRM driver errors),
-      unreachable/shadowing/sign mixing
+- [x] `feature/lint-width`: `width-truncation` (warning) and `width-extension`
+      (info) for assignments, continuous assignments and initializers, checked
+      per elaborated instance and generate block so parameterised widths are the
+      instance's own. A right side counts as the bits it needs, not its
+      declared width: a literal by its value, a constant expression by its
+      value, a right shift by a constant minus the shift, `&` with a constant
+      mask by the narrower side. Carry and product widening, compound
+      assignments, reals and non-integral values are not reported. Port
+      connection widths remain the elaborator's `port-width-mismatch` warning.
+- [ ] Remaining rule families (one branch each): multi-driver (a per-bit
+      overlap rule beyond the LRM driver errors), unreachable code, shadowing,
+      sign mixing
 - [x] `cmd/svparse` CLI: `check`, `lint`, `elab`, `dump-ast` over
       `internal/driver` (preprocess, parse, semantic checks, elaboration, lint)
       with `-I`, `-D`, `--top`, `-f`, `--config` (default `.svparse.json`),
