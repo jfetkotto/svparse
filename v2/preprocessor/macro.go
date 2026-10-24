@@ -41,11 +41,14 @@ type macroParam struct {
 // token.KindLineContinuation.
 func (p *preprocessor) handleDefine(directiveTok Token, src *tokenSource) {
 	nameTok, ok := p.next(src)
-	if !ok || nameTok.Kind != token.KindIdent {
+	if !ok || (nameTok.Kind != token.KindIdent && !(nameTok.Kind == token.KindKeyword && compilerDirectives[nameTok.Text])) {
 		p.errorf(directiveTok.File, directiveTok.Line, directiveTok.Character, "define not followed by a macro name")
 		return
 	}
 
+	if compilerDirectives[nameTok.Text] {
+		p.errorf(nameTok.File, nameTok.Line, nameTok.Character, "%q is a compiler directive and cannot be redefined as a macro (LRM 22.5.1)", nameTok.Text)
+	}
 	var params []macroParam
 	isFunctionLike := false
 	bodyStartLine := nameTok.Line

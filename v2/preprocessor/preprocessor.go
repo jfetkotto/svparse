@@ -74,13 +74,14 @@ type preprocessor struct {
 	keepComments bool
 	comments     []Comment // see Options.KeepComments
 
-	stack     []*tokenSource
-	macros    map[string]*macroDef
-	expanding map[string]bool
-	including map[string]bool // resolved paths currently on the active include stack -- see handleInclude
-	cond      []condFrame
-	resolver  IncludeResolver
-	keywords  []map[string]bool // open `begin_keywords regions; nil = all SystemVerilog keywords
+	stack       []*tokenSource
+	macros      map[string]*macroDef
+	expanding   map[string]bool
+	including   map[string]bool // resolved paths currently on the active include stack -- see handleInclude
+	cond        []condFrame
+	resolver    IncludeResolver
+	designDepth int               // open module/interface/... declarations, for `resetall
+	keywords    []map[string]bool // open `begin_keywords regions; nil = all SystemVerilog keywords
 
 	out  []Token
 	errs []Error
@@ -377,7 +378,7 @@ func (p *preprocessor) handleDirective(tok Token, src *tokenSource) {
 				// `default_nettype wire`). Consistent with every
 				// conditional/macro-handled directive above, none of which
 				// produce output tokens of their own either.
-				p.collectLogicalLine(src, tok.Line)
+				p.checkDirective(tok, p.collectLogicalLine(src, tok.Line))
 				return
 			}
 			if v, ok := coverageConstants[tok.Text]; ok {

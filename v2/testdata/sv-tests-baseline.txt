@@ -14,12 +14,25 @@
 # regeneration.
 
 # --- Intentional sv-tests negative tests (:should_fail_because:) ---
+chapter-22/22.11--pragma-invalid.sv 1 # should_fail_because: The pragma specification is identified by the pragma_name, which follows the `pragma directive.
+chapter-22/22.12--line-illegal-1.sv 1 # should_fail_because: The level parameter shall be 0, 1, or 2
+chapter-22/22.12--line-illegal-2.sv 1 # should_fail_because: The filename parameter shall be a string literal
+chapter-22/22.12--line-illegal-3.sv 1 # should_fail_because: The number parameter shall be a positive integer that specifies the new line number
+chapter-22/22.12--line-illegal-4.sv 1 # should_fail_because: The level parameter shall be 0, 1, or 2
+chapter-22/22.12--line-illegal-5.sv 1 # should_fail_because: Missing filename
+chapter-22/22.3--resetall_illegal.sv 1 # should_fail_because: It shall be illegal for the `resetall directive to be specified within a design element.
 chapter-22/22.5.1--define-expansion_12.sv 1 # should_fail_because: fewer actual than formal macro args with no default for the rest
 chapter-22/22.5.1--define-expansion_18.sv 2 # should_fail_because: function-like macro invoked without parentheses
 chapter-22/22.5.1--define-expansion_21.sv 5 # should_fail_because: macro text split across string literals; the unterminated string corrupts the initial statement's own token stream too, reported as "expected ';' before \"endmodule\"" -- was 4 while the statement skip ran to EOF (taking endmodule with it, so the container reported its own unexpected-EOF as well); now 5 with the two body errors the statement parser reports at the corrupted line
+chapter-22/22.5.1--define-expansion_23.sv 1 # should_fail_because: All compiler directives shall be considered predefined macro names; it shall be illegal to redefine a compiler directive as a macro name.
 chapter-22/22.5.1--define-expansion_6.sv 1 # should_fail_because: fewer actual than formal macro args with no default for the rest
 chapter-22/22.5.1--define-expansion_7.sv 1 # should_fail_because: function-like macro invoked without parentheses
 chapter-22/22.5.1--define-expansion_8.sv 1 # should_fail_because: more actual than formal macro args -- newly detected; svparse used to drop the surplus silently, so this file sat outside the baseline entirely
+chapter-22/22.7--timescale-basic-3.sv 1 # should_fail_because: The integers in `timescale arguments specify an order of magnitude for the size of the value; the valid integers are 1, 10, and 100
+chapter-22/22.7--timescale-basic-4.sv 1 # should_fail_because: The time_precision argument shall be at least as precise as the time_unit argument; it cannot specify a longerunit of time than time_unit.
+chapter-22/22.9--unconnected_drive-invalid-1.sv 1 # should_fail_because: The directive `unconnected_drive takes one of two arguments - pull1 or pull0.
+chapter-22/22.9--unconnected_drive-invalid-2.sv 1 # should_fail_because: The directive `unconnected_drive takes one of two arguments - pull1 or pull0
+chapter-22/22.9--unconnected_drive-invalid-3.sv 1 # should_fail_because: use a strength keyword with `nounconnected_drive macro
 chapter-5/5.6--wrong-identifiers.sv 2 # should_fail_because: identifiers starting with a digit or $
 chapter-5/5.7.1--integers-unsized-illegal.sv 1 # should_fail_because: hexadecimal format requires 'h; reported from the statement body (feature/expr-diagnostics)
 chapter-5/5.7.2-real-constants-illegal.sv 5 # should_fail_because: real literals need a digit on each side of the point; reported from the statement body (feature/expr-diagnostics)
