@@ -318,3 +318,18 @@ module leaf; int lsig; endmodule`, Options{})
 		t.Error("nil node")
 	}
 }
+
+// Each instance of an array connects to a slice of a bus n times its width.
+func TestInstanceArrayPortsTakeSlices(t *testing.T) {
+	src := `module top;
+  logic [7:0] bus8, out8; logic [3:0] bus4;
+  bit1 a [7:0] (.d(bus8), .q(out8));
+  bit1 b [7:0] (.d(bus4), .q(out8));
+  bit1 c [7:0] (.d(1'b0), .q(out8));
+endmodule
+module bit1(input d, output q); endmodule`
+	_, ds := elaborate(t, src, Options{})
+	if len(ds) != 1 || ds[0].Code != diag.CodePortWidthMismatch || !strings.Contains(ds[0].Message, `connected to 4 bits`) {
+		t.Errorf("only the 4-bit bus on 8 instances is a mismatch: %v", ds)
+	}
+}

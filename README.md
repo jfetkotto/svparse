@@ -6,24 +6,60 @@ mid-edit source.
 
 ## Capabilities
 
-svparse is **declaration-grade**, not a full expression/statement parser:
+svparse is a SystemVerilog front end. From source text it produces:
 
-- Parsed for real: ports, nets/variables, parameters, `typedef`/struct/enum,
-  function/task signatures, class members, package imports, containers
-  (`module`/`interface`/`program`), and instantiations.
-- Intentionally *not* parsed: expression and statement grammar, and
-  procedural block bodies (`always`, function/task bodies, constraint
-  blocks). These are recognized and skipped via balanced-token matching,
-  and kept as raw token spans on the AST rather than an expression tree.
+- a **syntax tree** of the whole language (`ast`, `parser`): declarations,
+  expressions, statements, generate constructs, primitives, assertions,
+  constraints, covergroups, clocking blocks and configurations. Declaration
+  boundaries and error recovery are unchanged from earlier versions, so a
+  malformed construct is reported and the next one still parses;
+- a **semantic model** (`sema`): types and their LRM 6.22 relations, scopes and
+  name lookup (imports, packages, classes, hierarchy), typed expressions with
+  width and sign propagation, constant evaluation (parameters, system
+  functions, constant functions), and statement-level checks;
+- an **elaborated design** (`elab`): the instance hierarchy with resolved
+  parameters, generate unrolling, port bindings, interfaces, `bind` and
+  hierarchical names;
+- **lint diagnostics** (`lint`): rules with per-rule severity, ignore globs and
+  `// svparse: disable=rule` comments, all reported as `diag.Diagnostic`.
 
-The pipeline is layered across four packages:
+Expression and statement errors inside constructs the earlier declaration-grade
+parser skipped are not reported yet (they are kept internally); this is tracked
+as `feature/expr-diagnostics` in [docs/roadmap.md](docs/roadmap.md).
 
 | Package        | Role                                                             |
 |----------------|-------------------------------------------------------------------|
 | `token`        | Token vocabulary (`Token{Kind, Text, Line, Character}`)          |
 | `lexer`        | Scans source into a token stream                                 |
 | `preprocessor` | Macro expansion, conditional compilation, `` `include`` resolution, with source maps back to real positions |
-| `parser`       | Builds the `ast.File` declaration tree                           |
+| `parser`, `ast`| The syntax tree, with `Walk`, `Dump` and expression/statement printers |
+| `svint`        | Arbitrary-width four-state integers with the LRM 11 operators    |
+| `sema`         | Types, scopes, binding, constant evaluation, statement checks    |
+| `elab`         | Instance hierarchy, parameters, generate, ports                  |
+| `lint`         | Rule framework, configuration, suppression                       |
+| `diag`         | The diagnostic type every stage reports                          |
+
+## Command line
+
+```sh
+go install github.com/jfetkotto/svparse/cmd/svparse@latest
+
+svparse check    [flags] files...   syntax, semantic checks and elaboration
+svparse lint     [flags] files...   check, plus lint rules
+svparse elab     [flags] files...   print the elaborated instance hierarchy
+svparse dump-ast [flags] files...   print the syntax tree
+```
+
+Flags: `-I dir` (include directory), `-D name[=value]`, `--top module`,
+`-f listfile`, `--config file` (default `.svparse.json`), `--format text|json`,
+`--werror`, `--mfcu`, `--default-nettype wire|none`, and `--list-rules` for
+`lint`. The exit status is 0 without errors, 1 with errors, 2 for a usage or
+file problem. A lint configuration looks like:
+
+```json
+{"rules": {"implicit-net": "error", "unused-signal": "off"},
+ "ignore": ["third_party/**"]}
+```
 
 ## Install
 

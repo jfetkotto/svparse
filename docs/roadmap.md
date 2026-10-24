@@ -374,7 +374,13 @@ partway through an item, leave a short "Status:" note under it.
 - [ ] Rule families (one branch each): width, unused/undriven, multi-driver,
       always_comb/latch, blocking/nonblocking misuse, case default,
       unreachable/shadowing/sign mixing (implicit nets: done with the framework)
-- [ ] `cmd/svparse` CLI
+- [x] `cmd/svparse` CLI: `check`, `lint`, `elab`, `dump-ast` over
+      `internal/driver` (preprocess, parse, semantic checks, elaboration, lint)
+      with `-I`, `-D`, `--top`, `-f`, `--config` (default `.svparse.json`),
+      `--format text|json`, `--werror`, `--mfcu`, `--default-nettype`,
+      `--list-rules`; exit 0/1/2. Tried on real designs: found and fixed a false
+      port-width warning for instance arrays (an 8-bit bus to `u[7:0]` of 1-bit
+      ports). README rewritten for the current capabilities.
 
 ## M9: sigilsv2 adoption
 

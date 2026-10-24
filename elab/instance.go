@@ -338,8 +338,9 @@ func (e *elaborator) instantiate(n *Node, sc *sema.Scope, inst *ast.Instantiatio
 			return
 		}
 		in := &inst.Instances[i]
-		for _, el := range e.elements(n, sc, in) {
-			e.instance(def, el.name, n, in, ov, forwardedFor(n, in.Name), func(child *Node) { e.bindPorts(n, sc, child, in) })
+		els := e.elements(n, sc, in)
+		for _, el := range els {
+			e.instance(def, el.name, n, in, ov, forwardedFor(n, in.Name), func(child *Node) { e.bindPorts(n, sc, child, in, len(els)) })
 		}
 	}
 }
