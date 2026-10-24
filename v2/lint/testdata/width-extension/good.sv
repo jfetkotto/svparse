@@ -13,3 +13,9 @@ module carry (input [7:0] a, b, input cin, output [7:0] sum, output cout, output
   assign {cout, sum} = a + b + cin;
   assign prod = a * b;
 endmodule
+module arith_shift (input logic signed [23:0] acc, output logic signed [23:0] shifted);
+  assign shifted = acc >>> 3;
+endmodule
+module pick (input logic sel, output logic [31:0] result);
+  assign result = sel ? 32'd1 : 32'd0;
+endmodule
