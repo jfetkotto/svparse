@@ -98,7 +98,7 @@ func isLvalue(x ast.Expr) bool {
 // bindPorts connects the ports of one elaborated instance to the expressions of
 // its instantiation (LRM 23.3.2): positional, named, ".name" and ".*", with
 // the checks the language requires of each connection.
-func (e *elaborator) bindPorts(parent *Node, sc *sema.Scope, inst *Node, in *ast.Instance) {
+func (e *elaborator) bindPorts(parent *Node, sc *sema.Scope, inst *Node, in *ast.Instance, copies int) {
 	if inst.Scope == nil || inst.Env == nil {
 		return
 	}
@@ -181,7 +181,7 @@ func (e *elaborator) bindPorts(parent *Node, sc *sema.Scope, inst *Node, in *ast
 	}
 
 	for i := range bindings {
-		e.checkConnection(parent, sc, inst, in, &bindings[i])
+		e.checkConnection(parent, sc, inst, in, &bindings[i], copies)
 	}
 	inst.Ports = bindings
 }
@@ -203,8 +203,9 @@ func (e *elaborator) siblingInterface(parent *Node, name string) *Node {
 }
 
 // checkConnection types one connection and applies the direction and width
-// rules.
-func (e *elaborator) checkConnection(parent *Node, sc *sema.Scope, inst *Node, in *ast.Instance, b *PortBinding) {
+// rules. copies is the size of the instance array the instance belongs to (1
+// for a plain instance).
+func (e *elaborator) checkConnection(parent *Node, sc *sema.Scope, inst *Node, in *ast.Instance, b *PortBinding, copies int) {
 	pt, ds := e.model.TypeOfIn(b.Port, inst.Env)
 	e.addAll(ds)
 	b.PortType = pt
@@ -261,6 +262,11 @@ func (e *elaborator) checkConnection(parent *Node, sc *sema.Scope, inst *Node, i
 	}
 	pw, ok1 := sema.Bits(pt)
 	ew, ok2 := sema.Bits(b.ExprType)
+	// An instance in an array of n takes a slice of a connection n times as wide
+	// as its port (LRM 23.3.3.5).
+	if copies > 1 && ew == pw*copies {
+		return
+	}
 	if ok1 && ok2 && sema.IsIntegral(pt) && sema.IsIntegral(b.ExprType) && pw != ew {
 		e.set.Add(diag.Diagnostic{
 			Code: diag.CodePortWidthMismatch, Severity: diag.Warning, Range: b.Expr.Pos(),

@@ -1,0 +1,113 @@
+package driver
+
+import (
+	"context"
+	"os"
+	"path/filepath"
+	"strings"
+	"testing"
+
+	"github.com/jfetkotto/svparse/diag"
+	"github.com/jfetkotto/svparse/lint"
+)
+
+func write(t *testing.T, dir, name, text string) string {
+	t.Helper()
+	p := filepath.Join(dir, name)
+	if err := os.MkdirAll(filepath.Dir(p), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(p, []byte(text), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	return p
+}
+
+func codes(ds []diag.Diagnostic) string {
+	var out []string
+	for _, d := range ds {
+		out = append(out, d.Code)
+	}
+	return strings.Join(out, ",")
+}
+
+func TestAnalyzeCollectsEveryStage(t *testing.T) {
+	dir := t.TempDir()
+	// A preprocessor error, a syntax error, a semantic error, an elaboration
+	// error and a lint finding, from one design.
+	a := write(t, dir, "a.sv", "`endif\nmodule top; wire w; initial w = 1; nosuch u(); leaf v(.d(imp), .q()); endmodule\n")
+	b := write(t, dir, "b.sv", "module leaf(input d, output q); endmodule\nmodule ( ;\n")
+	res, err := Analyze(context.Background(), Options{Files: []string{a, b}, Lint: true})
+	if err != nil {
+		t.Fatal(err)
+	}
+	got := codes(res.Diagnostics)
+	for _, want := range []string{"preprocessor-error", "syntax-error", "procedural-assign-to-net", "unknown-module", "implicit-net"} {
+		if !strings.Contains(got, want) {
+			t.Errorf("missing %s in %s", want, got)
+		}
+	}
+	if !res.HasErrors() || res.Design == nil || len(res.Files) != 2 || len(res.Comp.Files()) != 2 {
+		t.Errorf("result: errors=%v design=%v files=%d", res.HasErrors(), res.Design != nil, len(res.Files))
+	}
+	for i := 1; i < len(res.Diagnostics); i++ {
+		if diag.Less(res.Diagnostics[i], res.Diagnostics[i-1]) {
+			t.Fatal("diagnostics must be sorted")
+		}
+	}
+}
+
+func TestAnalyzeStagesAreOptional(t *testing.T) {
+	dir := t.TempDir()
+	f := write(t, dir, "a.sv", "module top; nosuch u(); endmodule\n")
+	res, err := Analyze(context.Background(), Options{Files: []string{f}})
+	if err != nil || res.Design != nil || strings.Contains(codes(res.Diagnostics), "unknown-module") {
+		t.Errorf("without Elaborate there is no design and no elaboration error: %v %v", err, codes(res.Diagnostics))
+	}
+	res, _ = Analyze(context.Background(), Options{Files: []string{f}, Elaborate: true})
+	if res.Design == nil || !strings.Contains(codes(res.Diagnostics), "unknown-module") {
+		t.Errorf("with Elaborate: %v", codes(res.Diagnostics))
+	}
+}
+
+func TestAnalyzeIncludesDefinesAndSuppression(t *testing.T) {
+	dir := t.TempDir()
+	write(t, dir, "inc/w.svh", "`define W 3\n")
+	f := write(t, dir, "a.sv", "`include \"w.svh\"\nmodule top; logic [`W:0] v; `ifdef D\n leaf u(.d(imp), .q()); // svparse: disable=implicit-net\n `endif\nendmodule\nmodule leaf(input d, output q); endmodule\n")
+	opts := Options{Files: []string{f}, IncludeDirs: []string{filepath.Join(dir, "inc")}, Defines: map[string]string{"D": ""}, Lint: true}
+	res, err := Analyze(context.Background(), opts)
+	if err != nil || len(res.Diagnostics) != 0 {
+		t.Fatalf("%v %v", err, res.Diagnostics)
+	}
+	if len(res.Comments) == 0 {
+		t.Error("comments must be kept for suppression")
+	}
+	// The same file without the suppression comment's effect (rule at error).
+	opts.LintConfig = lint.Config{Rules: map[string]string{"implicit-net": "error"}}
+	res, _ = Analyze(context.Background(), opts)
+	if len(res.Diagnostics) != 0 {
+		t.Errorf("a suppressed finding stays suppressed at any severity: %v", res.Diagnostics)
+	}
+	opts.IncludeDirs = nil
+	if res, _ = Analyze(context.Background(), opts); !res.HasErrors() {
+		t.Error("an unresolved include is an error")
+	}
+}
+
+func TestAnalyzeUnreadableFile(t *testing.T) {
+	if _, err := Analyze(context.Background(), Options{Files: []string{filepath.Join(t.TempDir(), "nope.sv")}}); err == nil {
+		t.Error("expected an error for a missing file")
+	}
+}
+
+func TestResolverFindsAbsoluteAndNestedIncludes(t *testing.T) {
+	dir := t.TempDir()
+	abs := write(t, dir, "abs.svh", "wire from_abs;\n")
+	write(t, dir, "sub/near.svh", "`include \"deeper.svh\"\n")
+	write(t, dir, "sub/deeper.svh", "wire deep;\n")
+	f := write(t, dir, "sub/a.sv", "module m;\n`include \""+abs+"\"\n`include \"near.svh\"\nendmodule\n")
+	res, err := Analyze(context.Background(), Options{Files: []string{f}})
+	if err != nil || res.HasErrors() {
+		t.Errorf("%v %v", err, res.Diagnostics)
+	}
+}
