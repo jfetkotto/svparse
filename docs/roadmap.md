@@ -463,7 +463,13 @@ into `devel`; `main` stays at the released `v0.1.9` until a `v2.0.0` release.
         reported by sema yet (also the largest group of undetected
         conformance negatives).
   - [ ] Sema-backed definition and references (behind a flag, compared in tests)
-- [ ] After M7/M8: background elaboration, lint diagnostics
+- [x] After M7/M8: background elaboration, lint diagnostics (sigilsv2
+      `feature/lint-diagnostics`): the debounced semantic pass elaborates the
+      design and runs the lint rules on it, with suppression comments (the
+      index keeps only `svparse:` comments), a `lint` section in
+      `.sigils.json` (rules, ignore globs, enabled) validated against the rule
+      names, and the same skip for files that do not parse. Indexing and
+      didChange benchmarks unchanged.
 - [ ] Mark raw-span AST fields `Deprecated`
 
 ## Conformance log
