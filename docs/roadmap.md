@@ -346,8 +346,18 @@ partway through an item, leave a short "Status:" note under it.
       `bind` directives (by module, by hierarchical instance, or `bind m : a`)
       elaborated into their targets; `Node.ResolveHier` / `Design.ResolveHier`
       for hierarchical names with upward search and `$root`.
-- [ ] `feature/elab-conformance`: enable the `elaboration` stage in the
-      conformance harness and cut the baseline against it
+- [x] `feature/elab-conformance`: `conformance.MaxImplemented` is now
+      `StageElaboration`: a test that exercises elaboration (or simulation, which
+      is judged on elaboration) also runs the duplicate-name checks, the
+      statement rules and `elab.Elaborate` (the named `:top_module:`, else every
+      uninstantiated module); errors reject, warnings do not. Six negative tests
+      are now detected (6.5 x3, 10.3 bad, 13.4.1 bad, 14.3 error). Two valid
+      files it wrongly rejected were fixed in sema: `parameter int i = $` with
+      `$isunbounded` (`ConstUnbounded`) and aggregate parameters (assignment
+      patterns for arrays and structs, `ConstArray`, indexing and member
+      selects of constant aggregates). Baseline 163 to 157; the 61 remaining
+      "undetected" negatives each need a rule of their own (real bit-select,
+      enum type checking, undeclared names in expressions, class rules, ...).
 
 ## M8: Lint
 
@@ -394,3 +404,4 @@ partway through an item, leave a short "Status:" note under it.
 | sema-stmt (procedural assign extent fix) | 163 |
 | elab-instances (no conformance stage yet) | 163 |
 | elab-ports | 163 |
+| elab-conformance (elaboration stage enabled) | 157 (61 undetected negatives, 7 parser gaps, 89 need UVM) |

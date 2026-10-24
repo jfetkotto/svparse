@@ -65,6 +65,11 @@ func (b *binder) evalCall(n *BCall) (Const, bool) {
 		return realConst(f(b.conv(args[0], typeReal).Real, b.conv(args[1], typeReal).Real)), true
 	}
 	switch n.Name {
+	case "$isunbounded":
+		if !need(1) {
+			return Const{}, false
+		}
+		return intConst(svint.FromBool(args[0].Kind == ConstUnbounded)), true
 	case "$clog2":
 		if !need(1) || args[0].Kind != ConstInt {
 			return b.notConst(n.src, "$clog2 needs an integral argument")

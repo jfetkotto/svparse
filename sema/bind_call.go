@@ -244,9 +244,9 @@ func (b *binder) systemCall(e ast.Expr, name string, args []ast.Expr) BoundExpr 
 		}
 	case "$clog2", "$bits", "$size", "$left", "$right", "$low", "$high", "$increment", "$dimensions",
 		"$unpacked_dimensions", "$countones", "$countbits", "$onehot", "$onehot0", "$isunknown", "$cast",
-		"$test$plusargs", "$value$plusargs", "$rtoi", "$fopen", "$feof", "$fgetc", "$sscanf", "$fscanf", "$ferror":
+		"$test$plusargs", "$value$plusargs", "$isunbounded", "$rtoi", "$fopen", "$feof", "$fgetc", "$sscanf", "$fscanf", "$ferror":
 		n.typ = typeInt
-		if name == "$onehot" || name == "$onehot0" || name == "$isunknown" {
+		if name == "$onehot" || name == "$onehot0" || name == "$isunknown" || name == "$isunbounded" {
 			n.typ = intT(1, false, false)
 		}
 	case "$random":

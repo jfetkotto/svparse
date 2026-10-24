@@ -15,14 +15,11 @@
 # "undetected" entries only for files whose failure shows up in the newly
 # enabled stage; fix or explain each one.
 
-# --- Negative tests whose error is not a syntax error: nothing to detect until semantic checks exist (67) ---
-chapter-10/10.3--proc-assignment--bad.sv pass # undetected: Illegal to procedurally assign to wire, IEEE Table 10-1
+# --- Negative tests whose error needs a semantic or lint rule that is not implemented yet (61) ---
 chapter-11/11.3.6--assign_in_expr_inv.sv pass # undetected: blocking assignments within expression must be enclosed in parentheses
 chapter-11/11.4.14.3--unpack_stream_inv.sv pass # undetected: stream is wider than assignment target
 chapter-11/11.9--tagged_union_member_access_inv.sv pass # undetected: accessing wrong member should result in run-time error
-chapter-13/13.4.1--function-void-return.sv pass # undetected: void function returns value
 chapter-13/13.4.4--fork-invalid.sv pass # undetected: only fork-join_none is permitted inside a function
-chapter-14/14.3--clocking-block-signals-error.sv pass # undetected: assigning to net from procedural context
 chapter-16/16.10--property-local-var-fail.sv pass # undetected: pipeline increments value by 4 but property expects incrementation by 3
 chapter-16/16.10--sequence-local-var-fail.sv pass # undetected: pipeline increments value by 4 but sequence expects incrementation by 3
 chapter-16/16.15--property-disable-iff-fail.sv pass # undetected: disable iff uses wrong reset polarity
@@ -64,9 +61,6 @@ chapter-6/6.19--enum_xx_inv_order.sv pass # undetected: An unassigned enumerated
 chapter-6/6.19.3--enum_type_checking_inv.sv pass # undetected: enum enforces strict type checking rules
 chapter-6/6.19.4--enum_numerical_expr_no_cast.sv pass # undetected: enum numerical expression without casting
 chapter-6/6.20.5--specparam_inv.sv pass # undetected: specparam assignment to param should be invalid
-chapter-6/6.5--variable_mixed_assignments.sv pass # undetected: mixing procedural and continuous assignments is illegal
-chapter-6/6.5--variable_multiple_assignments.sv pass # undetected: it shall be an error to have multiple continuous assignments
-chapter-6/6.5--variable_redeclare.sv pass # undetected: Variable redeclaration
 chapter-6/6.9.2--vector_vectored_inv.sv pass # undetected: bit selects are not permitted on vectored vector nets
 chapter-7/arrays/packed/variable-slice-zero.sv pass # undetected: slicing array with zero part width
 chapter-7/structures/packed/default-value.sv pass # undetected: members of packed structures shall not be assigned individual default member values.
@@ -84,7 +78,7 @@ generic/typedef/typedef_test_25__bad.sv pass # undetected: Using undefined param
 generic/typedef/typedef_test_28__bad.sv pass # undetected: missing forward typedef declaration, type_identifier does not resolve to a data type.
 generic/typedef/typedef_test_8__bad.sv pass # undetected: defining a type using an undefined type
 
-# --- Parser gaps: valid code the declaration-grade parser rejects (statements, expressions, assertions, constraints, ...) (9) ---
+# --- Parser gaps: valid code the declaration-grade parser rejects (statements, expressions, assertions, constraints, ...) (7) ---
 chapter-18/18.5.1--implicit-external-constraint_0.sv fail # parse error: expected '{' to start block
 chapter-18/18.5.1--implicit-external-constraint_1.sv fail # parse error: expected '{' to start block
 chapter-18/18.5.14.1--soft-constraint-priorities_2.sv fail # parse error: expected '{' to start block

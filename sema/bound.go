@@ -173,6 +173,18 @@ type BIncDec struct {
 	X      BoundExpr
 }
 
+// BAssignPattern is an assignment pattern "'{...}" used where the type of the
+// target is known (LRM 10.9): Items has one bound value for each element of an
+// array or member of a struct, in order, after the pattern's positional,
+// replicated, named and default entries are matched up with them.
+type BAssignPattern struct {
+	exprInfo
+	Items []BoundExpr
+	// ElemTypes is the type each item is converted to, as an assignment to the
+	// element or member does.
+	ElemTypes []Type
+}
+
 // BBad stands for an expression that could not be bound, or that this layer
 // does not model yet (assignment patterns, streaming, new, tagged unions). Its
 // type is Invalid, so nothing that uses it reports a further error.
@@ -231,5 +243,7 @@ func WalkBound(e BoundExpr, f func(BoundExpr) bool) {
 		WalkBound(n.RHS, f)
 	case *BIncDec:
 		WalkBound(n.X, f)
+	case *BAssignPattern:
+		each(n.Items)
 	}
 }
