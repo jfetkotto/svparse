@@ -210,9 +210,11 @@ endmodule`)
 		}
 	}
 	walk(top)
+	// Unnamed blocks are numbered by generate construct, whether or not the
+	// other constructs are named (LRM 27.6): loop is construct 1, the if is 2.
 	for name, want := range map[string]string{
-		"loop": "top.loop", "genblk1": "top.genblk1", "named_else": "top.named_else", "genblk2": "top.genblk2",
-		"one": "top.one", "genblk3": "top.genblk3",
+		"loop": "top.loop", "genblk2": "top.genblk2", "named_else": "top.named_else", "genblk3": "top.genblk3",
+		"one": "top.one", "genblk4": "top.genblk4",
 	} {
 		if paths[name] != want {
 			t.Errorf("%s: path %q, want %q (all: %v)", name, paths[name], want, paths)
@@ -229,7 +231,7 @@ endmodule`)
 		t.Errorf("loop.w = %v, %v", sym, rest)
 	}
 	// "genvar j" belongs to the loop block, which sees the module's i.
-	g1 := top.Lookup("genblk2").Symbol.Child
+	g1 := top.Lookup("genblk3").Symbol.Child
 	if mustFind(t, g1, "j", SymGenvar).Scope != g1 {
 		t.Error("loop genvar scope")
 	}
@@ -743,4 +745,31 @@ func FuzzModel(f *testing.F) {
 			}
 		}
 	})
+}
+
+// The branches of one generate construct are alternatives: they may share a
+// name, and unnamed ones share a number. Two separate constructs may not.
+func TestGenerateBranchesMayShareNames(t *testing.T) {
+	m, c := model(t, `module ok #(parameter P = 1);
+  if (P) begin : g wire a; end else begin : g wire b; end
+  case (P) 0: begin : h end 1: begin : h end default: begin : h end endcase
+  if (P) begin wire c; end else begin wire d; end
+endmodule
+module bad;
+  if (1) begin : g end
+  if (0) begin : g end
+endmodule`)
+	ok := defScope(t, m, c, "ok")
+	for _, name := range []string{"g", "h", "genblk3"} {
+		if sym := mustFind(t, ok, name, SymGenerateBlock); sym.Child == nil {
+			t.Errorf("%s has no scope", name)
+		}
+	}
+	var dups []string
+	for _, d := range m.Diagnostics() {
+		dups = append(dups, d.Message)
+	}
+	if len(dups) != 1 || !strings.Contains(dups[0], `"g"`) {
+		t.Errorf("want exactly the clash between two constructs, got %v", dups)
+	}
 }

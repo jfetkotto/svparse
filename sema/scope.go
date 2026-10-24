@@ -167,6 +167,8 @@ type Model struct {
 	pending []pendingMethod
 	tc      *typeCache
 	params  map[*Symbol]*paramInfo
+	// construct numbers the generate construct a generate block symbol belongs to.
+	construct map[*Symbol]int
 
 	// boundExprs and synthetic cache what the constant function interpreter
 	// binds, so loops bind their bodies once.
@@ -469,18 +471,13 @@ func (m *Model) declareIn(s *Scope, d ast.Decl) {
 	case *ast.GenerateRegion:
 		m.declareAll(s, n.Body) // a region only brackets items
 	case *ast.GenerateBlock:
-		m.openGenerate(s, n, n.Label)
+		m.genConstruct(s, n)
 	case *ast.GenerateIf:
-		m.declareIn(s, n.Then)
-		if n.Else != nil {
-			m.declareIn(s, n.Else)
-		}
+		m.genConstruct(s, n)
 	case *ast.GenerateFor:
-		m.openGenerateFor(s, n)
+		m.genConstruct(s, n)
 	case *ast.GenerateCase:
-		for i := range n.Items {
-			m.declareIn(s, n.Items[i].Body)
-		}
+		m.genConstruct(s, n)
 	case *ast.Initial:
 		m.scanStmt(s, n.Body)
 	case *ast.Final:
@@ -531,34 +528,56 @@ func (m *Model) declareSubroutine(s *Scope, kind SymKind, n ast.Decl, name, clas
 	m.declare(s, kind, name, n, child)
 }
 
-// openGenerate opens the scope of a generate block. An unnamed block is called
-// genblkN, counting the unnamed blocks of the enclosing scope (LRM 27.6).
-func (m *Model) openGenerate(s *Scope, b *ast.GenerateBlock, label string) *Scope {
-	name := label
-	if name == "" {
-		s.anon++
-		name = fmt.Sprintf("genblk%d", s.anon)
+// genConstruct declares the blocks of one generate construct (an if chain, a
+// case, a loop or a bare block). Unnamed blocks are called genblkN, where N
+// counts the generate constructs of the enclosing scope (LRM 27.6), so every
+// branch of one construct shares the number. The branches are alternatives, so
+// two of them having the same name is not a clash.
+func (m *Model) genConstruct(s *Scope, d ast.Decl) {
+	s.anon++
+	k := s.anon
+	var walk func(d ast.Decl)
+	walk = func(d ast.Decl) {
+		switch n := d.(type) {
+		case *ast.GenerateBlock:
+			m.openGenerate(s, n, n.Label, k, nil)
+		case *ast.GenerateIf:
+			walk(n.Then)
+			if n.Else != nil {
+				walk(n.Else)
+			}
+		case *ast.GenerateCase:
+			for i := range n.Items {
+				walk(n.Items[i].Body)
+			}
+		case *ast.GenerateFor:
+			m.openGenerate(s, n.Body, n.Body.Label, k, n)
+		}
 	}
-	child := m.newScope(ScopeGenerate, name, s, b)
-	m.declareAll(child, b.Body)
-	m.declare(s, SymGenerateBlock, name, b, child)
-	return child
+	walk(d)
 }
 
-func (m *Model) openGenerateFor(s *Scope, n *ast.GenerateFor) {
-	body := n.Body
-	name := body.Label
+// openGenerate opens the scope of one generate block of construct k; loop is
+// the generate for it belongs to, whose "genvar" it declares.
+func (m *Model) openGenerate(s *Scope, b *ast.GenerateBlock, label string, k int, loop *ast.GenerateFor) {
+	name := label
 	if name == "" {
-		s.anon++
-		name = fmt.Sprintf("genblk%d", s.anon)
+		name = fmt.Sprintf("genblk%d", k)
 	}
-	child := m.newScope(ScopeGenerate, name, s, body)
-	if n.Genvar && n.Var != "" {
-		// "for (genvar i = ...)" declares i in the loop's scope.
-		m.declare(child, SymGenvar, n.Var, n, nil)
+	child := m.newScope(ScopeGenerate, name, s, b)
+	if loop != nil && loop.Genvar && loop.Var != "" {
+		m.declare(child, SymGenvar, loop.Var, loop, nil) // "for (genvar i = ...)" declares i in the loop's scope
 	}
-	m.declareAll(child, body.Body)
-	m.declare(s, SymGenerateBlock, name, body, child)
+	m.declareAll(child, b.Body)
+	if prev, dup := s.syms[name]; dup && prev.Kind == SymGenerateBlock && m.construct[prev] == k {
+		return // another branch of the same construct
+	}
+	if sym := m.declare(s, SymGenerateBlock, name, b, child); sym != nil {
+		if m.construct == nil {
+			m.construct = map[*Symbol]int{}
+		}
+		m.construct[sym] = k
+	}
 }
 
 // scanStmt opens scopes for the blocks and loops inside a statement.
