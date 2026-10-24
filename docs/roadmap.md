@@ -402,8 +402,12 @@ partway through an item, leave a short "Status:" note under it.
       declaration hiding one in an enclosing scope), `sign-mixing` (signed and
       unsigned operands of one operator, LRM 11.8.1; literals and 1-bit
       operands are exempt).
-- [ ] Remaining rule family: multi-driver (a per-bit overlap rule beyond the
-      LRM driver errors)
+- [x] `overlapping-drivers` (`feature/lint-multidriver`): partial writes to
+      one variable whose constant bit, element or member selects overlap, where
+      one driver is a continuous assignment or always_comb/latch/ff. Evaluated
+      per instance and generate iteration; non-constant selects are skipped.
+      Whole-variable conflicts stay with sema's `multiple-drivers` error. M8 is
+      complete.
 - [x] `cmd/svparse` CLI: `check`, `lint`, `elab`, `dump-ast` over
       `internal/driver` (preprocess, parse, semantic checks, elaboration, lint)
       with `-I`, `-D`, `--top`, `-f`, `--config` (default `.svparse.json`),
