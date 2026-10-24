@@ -3,6 +3,7 @@ package lint
 import (
 	"bufio"
 	"context"
+	"io/fs"
 	"os"
 	"path/filepath"
 	"reflect"
@@ -32,10 +33,18 @@ func analyze(t testing.TB, path, src string, cfg Config) []diag.Diagnostic {
 	return Run(context.Background(), Input{Comp: comp, Design: design, Comments: res.Comments}, cfg)
 }
 
-func only(rule string) Config {
+// implicitOnly is Config{} for the framework tests, which are about one rule:
+// every other rule is switched off.
+func implicitOnly() Config { return only("implicit-net") }
+
+func only(rules ...string) Config {
+	keep := map[string]bool{}
+	for _, r := range rules {
+		keep[r] = true
+	}
 	cfg := Config{Rules: map[string]string{}}
 	for _, r := range Rules() {
-		if r.Name != rule {
+		if !keep[r.Name] {
 			cfg.Rules[r.Name] = "off"
 		}
 	}
@@ -43,6 +52,19 @@ func only(rule string) Config {
 }
 
 // unregister removes a rule a test added.
+func allOff() map[string]string {
+	m := map[string]string{}
+	for _, r := range Rules() {
+		m[r.Name] = "off"
+	}
+	return m
+}
+
+func withIgnore(cfg Config, globs ...string) Config {
+	cfg.Ignore = globs
+	return cfg
+}
+
 func unregister(name string) {
 	mu.Lock()
 	defer mu.Unlock()
@@ -117,17 +139,19 @@ func TestConfigLoadAndValidate(t *testing.T) {
 const implicitSrc = "module top;\n  leaf u(.d(a), .q(b));\nendmodule\nmodule leaf(input d, output q);\nendmodule\n"
 
 func TestSeverityAndOff(t *testing.T) {
-	ds := analyze(t, "t.sv", implicitSrc, Config{})
+	ds := analyze(t, "t.sv", implicitSrc, implicitOnly())
 	if len(ds) != 2 || ds[0].Code != "implicit-net" || ds[0].Severity != diag.Warning {
 		t.Fatalf("default: %v", ds)
 	}
 	for level, want := range map[string]diag.Severity{"error": diag.Error, "info": diag.Info, "hint": diag.Hint} {
-		ds := analyze(t, "t.sv", implicitSrc, Config{Rules: map[string]string{"implicit-net": level}})
+		cfg := implicitOnly()
+		cfg.Rules["implicit-net"] = level
+		ds := analyze(t, "t.sv", implicitSrc, cfg)
 		if len(ds) != 2 || ds[0].Severity != want {
 			t.Errorf("%s: %v", level, ds)
 		}
 	}
-	if ds := analyze(t, "t.sv", implicitSrc, Config{Rules: map[string]string{"implicit-net": "off"}}); len(ds) != 0 {
+	if ds := analyze(t, "t.sv", implicitSrc, Config{Rules: allOff()}); len(ds) != 0 {
 		t.Errorf("off: %v", ds)
 	}
 }
@@ -153,7 +177,7 @@ func TestIgnoreGlobs(t *testing.T) {
 			t.Errorf("%q vs %q = %v, want %v", c.glob, c.path, got, c.want)
 		}
 	}
-	if ds := analyze(t, "third_party/x.sv", implicitSrc, Config{Ignore: []string{"third_party/**"}}); len(ds) != 0 {
+	if ds := analyze(t, "third_party/x.sv", implicitSrc, withIgnore(implicitOnly(), "third_party/**")); len(ds) != 0 {
 		t.Errorf("an ignored file still reports: %v", ds)
 	}
 }
@@ -176,7 +200,7 @@ func TestSuppressionComments(t *testing.T) {
 		{"block comment", "module top;\n  leaf u(.d(a), .q(b)); /* svparse: disable=implicit-net */\nendmodule\nmodule leaf(input d, output q);\nendmodule\n", 0},
 	}
 	for _, c := range cases {
-		if got := analyze(t, "t.sv", c.src, Config{}); len(got) != c.want {
+		if got := analyze(t, "t.sv", c.src, implicitOnly()); len(got) != c.want {
 			t.Errorf("%s: %d findings, want %d: %v", c.name, len(got), c.want, got)
 		}
 	}
@@ -189,7 +213,7 @@ func TestSuppressionComments(t *testing.T) {
 func TestARulePanicIsIsolated(t *testing.T) {
 	Register(Rule{Name: "test-panics", Doc: "always fails", Severity: diag.Warning, Check: func(c *Context) { panic("boom") }})
 	defer unregister("test-panics")
-	ds := analyze(t, "t.sv", implicitSrc, Config{})
+	ds := analyze(t, "t.sv", implicitSrc, only("implicit-net", "test-panics"))
 	var internal, implicit int
 	for _, d := range ds {
 		switch d.Code {
@@ -212,7 +236,7 @@ func TestRunWithoutElaborationAndCancellation(t *testing.T) {
 	file, _ := parser.Parse("t.sv", res.Tokens)
 	comp := sema.NewCompilation(sema.Options{})
 	comp.AddFile(file)
-	if ds := Run(context.Background(), Input{Comp: comp}, Config{}); len(ds) != 0 {
+	if ds := Run(context.Background(), Input{Comp: comp}, implicitOnly()); len(ds) != 0 {
 		t.Errorf("rules that need the design do nothing without it: %v", ds)
 	}
 	if ds := Run(nil, Input{}, Config{}); ds != nil {
@@ -274,7 +298,7 @@ func TestRuleTestdata(t *testing.T) {
 }
 
 func TestPositionsAreWithinTheirFile(t *testing.T) {
-	for _, d := range analyze(t, "t.sv", implicitSrc, Config{}) {
+	for _, d := range analyze(t, "t.sv", implicitSrc, implicitOnly()) {
 		if d.Range.File != "t.sv" || d.Range.Line != 1 {
 			t.Errorf("position %+v", d.Range)
 		}
@@ -299,5 +323,63 @@ func FuzzSuppressions(f *testing.F) {
 		res := preprocessor.PreprocessDetailed("f.sv", src, nil, preprocessor.Options{KeepComments: true})
 		s := ParseSuppressions(res.Comments)
 		s.Suppressed("implicit-net", "f.sv", 3)
+	})
+}
+
+// Every vendored file runs through every rule without panicking; the corpus is
+// full of tiny test modules, so findings are plentiful but each must carry a
+// registered code and a position in its file.
+func TestCorpusLint(t *testing.T) {
+	counts := map[string]int{}
+	files := 0
+	err := filepath.WalkDir("../testdata/sv-tests", func(path string, d fs.DirEntry, err error) error {
+		if err != nil || d.IsDir() || filepath.Ext(path) != ".sv" {
+			return err
+		}
+		data, err := os.ReadFile(path)
+		if err != nil {
+			return err
+		}
+		res := preprocessor.PreprocessDetailed(path, string(data), nil, preprocessor.Options{KeepComments: true})
+		file, _ := parser.Parse(path, res.Tokens)
+		comp := sema.NewCompilation(sema.Options{})
+		comp.AddFile(file)
+		design, _ := elab.Elaborate(context.Background(), comp, elab.Options{MaxInstances: 10000, MaxSteps: 100000})
+		files++
+		for _, d := range Run(context.Background(), Input{Comp: comp, Design: design, Comments: res.Comments}, Config{}) {
+			counts[d.Code]++
+			if _, ok := diag.Known[d.Code]; !ok {
+				t.Fatalf("%s: unregistered code %q", path, d.Code)
+			}
+			if d.Code == diag.CodeInternalError {
+				t.Errorf("%s: %s", path, d.Message)
+			}
+		}
+		return nil
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Logf("%d files: %v", files, counts)
+	if files < 900 {
+		t.Fatalf("only %d files", files)
+	}
+}
+
+// FuzzLint runs the whole front end and every rule on arbitrary source.
+func FuzzLint(f *testing.F) {
+	f.Add("module top(input a, output b); logic c; leaf u(.d(a), .q(x)); assign b = c; endmodule module leaf(input d, output q); endmodule")
+	f.Add("module t; genvar i; for (i=0;i<2;i++) begin : g logic v; assign v = 1; end initial begin $display(g[0].v); end endmodule")
+	f.Fuzz(func(t *testing.T, src string) {
+		res := preprocessor.PreprocessDetailed("f.sv", src, nil, preprocessor.Options{KeepComments: true})
+		file, _ := parser.Parse("f.sv", res.Tokens)
+		comp := sema.NewCompilation(sema.Options{})
+		comp.AddFile(file)
+		design, _ := elab.Elaborate(context.Background(), comp, elab.Options{MaxDepth: 12, MaxInstances: 2000, MaxGenerateIters: 200, MaxSteps: 20000})
+		for _, d := range Run(context.Background(), Input{Comp: comp, Design: design, Comments: res.Comments}, Config{}) {
+			if d.Code == diag.CodeInternalError {
+				t.Fatalf("a rule failed: %s", d.Message)
+			}
+		}
 	})
 }
