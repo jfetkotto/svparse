@@ -27,6 +27,13 @@ func (c *checker) checkEnums(fileScope *Scope, f *ast.File) {
 		if e, ok := n.(*ast.Enum); ok && s != nil {
 			c.checkEnum(s, e)
 		}
+		if st, ok := n.(*ast.Struct); ok && st.Packed {
+			for i := range st.Members {
+				if m := &st.Members[i]; m.InitialExpr != nil {
+					c.errorf(diag.CodeInvalidType, m.Pos(), "member %q of a packed structure cannot have a default value (LRM 7.2.2)", m.Name)
+				}
+			}
+		}
 		return true
 	})
 }

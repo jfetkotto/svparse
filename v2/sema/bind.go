@@ -438,6 +438,12 @@ func (b *binder) bindIndex(e *ast.Index) BoundExpr {
 		return bad(e)
 	}
 	var t Type = Invalid
+	b.checkVectored(e.X, e.Pos())
+	if IsReal(x.Type()) {
+		b.errorf(diag.CodeInvalidExpression, e.Pos(), "a real value cannot be indexed (LRM 6.12)")
+	} else if _, assoc := Resolve(x.Type()).(*AssocArray); !assoc && IsReal(idx.Type()) {
+		b.errorf(diag.CodeInvalidExpression, e.Index.Pos(), "an index cannot be real (LRM 11.5.1)")
+	}
 	switch xt := Resolve(x.Type()).(type) {
 	case *PackedArray:
 		t = xt.Elem
@@ -461,12 +467,30 @@ func (b *binder) bindIndex(e *ast.Index) BoundExpr {
 	return &BIndex{exprInfo{t, e}, x, idx}
 }
 
+// checkVectored reports a bit-select or part-select of a net declared
+// "vectored", which hides its bits (LRM 6.9.2).
+func (b *binder) checkVectored(x ast.Expr, at ast.Position) {
+	id, ok := x.(*ast.Ident)
+	if !ok {
+		return
+	}
+	if sym := b.scope.Lookup(id.Name).Symbol; sym != nil {
+		if v, ok := sym.Decl.(*ast.Variable); ok && v.NetQualifier == "vectored" {
+			b.errorf(diag.CodeInvalidExpression, at, "%q is a vectored net and cannot be bit-selected or part-selected (LRM 6.9.2)", id.Name)
+		}
+	}
+}
+
 func (b *binder) bindPartSelect(e *ast.RangeSelect) BoundExpr {
 	x, l, r := b.bindSelf(e.X), b.bindSelf(e.Left), b.bindSelf(e.Right)
 	if x == nil || l == nil || r == nil {
 		return bad(e)
 	}
 	var t Type = Invalid
+	b.checkVectored(e.X, e.Pos())
+	if IsReal(x.Type()) {
+		b.errorf(diag.CodeInvalidExpression, e.Pos(), "a real value cannot be part-selected (LRM 6.12)")
+	}
 	// w is the number of elements selected: bits of a vector, elements of an
 	// array (LRM 11.5.1, 7.4.3).
 	w := 0
