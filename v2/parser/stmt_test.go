@@ -101,7 +101,10 @@ var stmtGolden = []struct{ src, want string }{
 	{"if (x matches tagged Valid .v) y = v;", "(raw \"if ( x matches tagged Valid . v ) y = v ;\")\n"},
 	{"case (x) matches tagged Valid .v: y = v; endcase", "(raw \"case ( x ) matches tagged Valid . v : y = v ; endcase\")\n"},
 	{"assert property (@(posedge clk) a |-> b);", "(assert spec=(clocked @(posedge clk) (|-> a b))\n  (null))\n"},
-	{"randsequence (main) main: a; endsequence", "(raw \"randsequence ( main ) main : a ; endsequence\")\n"},
+	{"randsequence (main) main: a; endsequence", "(randsequence start=main\n  (production main\n    (rule\n      (item a))))\n"},
+	{"randsequence (main) main: a := 2 | rand join b c; endsequence", "(randsequence start=main\n  (production main\n    (rule weight=2\n      (item a))\n    (rule\n      (rs-join\n        (item b)\n        (item c)))))\n"},
+	{"randsequence (main) main: a b ; endsequence", "(randsequence start=main\n  (production main\n    (rule\n      (item a)\n      (item b))))\n"},
+	{"randsequence (main) main: @ ; endsequence", "(raw \"randsequence ( main ) main : @ ; endsequence\")\n"},
 	{";", "(null)\n"},
 }
 

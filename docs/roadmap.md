@@ -563,3 +563,4 @@ into `devel`; `main` stays at the released `v0.1.9` until a `v2.0.0` release.
 | enum-checks (member value width, x/z in 2-state, integer into enum, enum arithmetic) | 128 (39 undetected negatives, 0 parser gaps, 89 need UVM) |
 | class-checks (abstract/interface new, pure members, unimplemented pure, extern constraint, built-in methods, randc rules) | 117 (28 undetected negatives, 0 parser gaps, 89 need UVM) |
 | type-expr-checks (real select/edge, vectored, specparam in parameter, undefined typedef types, packed struct defaults, fork rules, stream width, `8'd-6`) | 105 (16 undetected negatives, 0 parser gaps, 89 need UVM) |
+| randsequence-names (randsequence parsed into nodes; undeclared names and productions) | 101 (12 undetected negatives, 0 parser gaps, 89 need UVM) |

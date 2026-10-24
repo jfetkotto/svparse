@@ -48,3 +48,29 @@ endmodule`, ""},
 		}
 	}
 }
+
+func TestRandSequenceRules(t *testing.T) {
+	const un = diag.CodeUndeclared
+	cases := []struct {
+		name, src, want string
+	}{
+		{"valid", `function int F(); int x; static int on = 1;
+  randsequence (main)
+    main : first second | third := 2 { x = 1; } | rand join first third;
+    first : { int y; y = 2; x = y; if (on) break; return; } ;
+    void second(int a) : if (x > a) first else third | repeat (3) first | case (x) 0, 1 : first; default : third; endcase;
+    int third : { x = x + first; return 5; };
+  endsequence
+  return x; endfunction`, ""},
+		{"undeclared switch variable", "function int F(); int x; randsequence (m) m : a; a : { if (nope) x = 1; }; endsequence return x; endfunction", un},
+		{"undeclared in a production condition", "function int F(); randsequence (m) m : if (nope) a else b; a : { }; b : { }; endsequence return 1; endfunction", un},
+		{"misspelled production", "function int F(); int x; randsequence (m) m : a bb; a : { x = 1; }; b : { x = 2; }; endsequence return x; endfunction", un},
+		{"unknown start production", "function int F(); randsequence (zz) m : { }; endsequence return 1; endfunction", un},
+		{"a local does not leak", "function int F(); randsequence (m) m : { int y; y = 1; }; endsequence return y; endfunction", un},
+	}
+	for _, c := range cases {
+		if got := checkAll(t, c.src); got != c.want {
+			t.Errorf("%s: got %q, want %q", c.name, got, c.want)
+		}
+	}
+}

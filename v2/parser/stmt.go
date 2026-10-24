@@ -206,7 +206,7 @@ func (p *parser) parseKeywordStatement(start int) ast.Stmt {
 	case "expect", "restrict":
 		return p.parseConcurrentAssert(start)
 	case "randsequence":
-		return p.rawStatement(start)
+		return p.parseRandSequence(start)
 	}
 	return nil
 }

@@ -159,11 +159,12 @@ func (c *checker) subroutine(s *Scope, kind, name, class string, ret ast.Type, s
 // stmtCtx is what a statement is checked against: the scope its names resolve
 // in, how many loops enclose it, and whether it is in a process or subroutine.
 type stmtCtx struct {
-	scope *Scope
-	loops int
-	forks int // enclosing fork ... join blocks
-	sub   *subInfo
-	proc  *procInfo
+	scope   *Scope
+	loops   int
+	forks   int  // enclosing fork ... join blocks
+	randSeq bool // in a randsequence code block
+	sub     *subInfo
+	proc    *procInfo
 }
 
 type stmtWalker struct {
@@ -211,6 +212,9 @@ func (w *stmtWalker) Visit(n ast.Node) ast.Visitor {
 		})
 	case *ast.While, *ast.DoWhile, *ast.Repeat, *ast.Forever:
 		return w.with(func(x *stmtCtx) { x.loops++ })
+	case *ast.RandCode:
+		// "break" and "return" end the production here (LRM 18.17.6).
+		return w.with(func(x *stmtCtx) { x.loops++; x.randSeq = true })
 	case *ast.Break:
 		if ctx.loops == 0 {
 			c.errorf(diag.CodeBreakOutsideLoop, n.Pos(), "break is not inside a loop")
@@ -269,6 +273,9 @@ func (c *checker) timing(ctx stmtCtx, at ast.Position) {
 }
 
 func (c *checker) checkReturn(ctx stmtCtx, n *ast.Return) {
+	if ctx.randSeq {
+		return // leaves the production, and may give its value
+	}
 	if ctx.forks > 0 {
 		c.errorf(diag.CodeInvalidStatement, n.Pos(), "return cannot leave a fork ... join block (LRM 9.3.2)")
 	}
