@@ -720,3 +720,64 @@ endmodule`)
 		t.Errorf("Bind (defaults) width = %d", widthOf(be.Type()))
 	}
 }
+
+func TestUnboundedAndAggregateParameters(t *testing.T) {
+	m, c := model(t, `typedef struct { int a; logic [7:0] b; } pair_t;
+module top;
+  parameter int U = $;
+  parameter int K = 5;
+  parameter logic [7:0] ARR [3:0] = '{1, 2, 3, 4};
+  parameter int ASC [0:2] = '{10, 20, 30};
+  parameter int DEF [4] = '{default: 7};
+  parameter int REP [3] = '{3{9}};
+  parameter pair_t P = '{a: 1, b: 8'hFF};
+  parameter pair_t Q = '{2, 8'h0F};
+  parameter pair_t R = '{default: 0};
+  localparam X = ARR[2] + ASC[1] + DEF[3] + REP[0] + P.a + P.b + Q.a;
+endmodule`)
+	top := defScope(t, m, c, "top")
+	eval := func(expr string) string {
+		t.Helper()
+		got, ds := m.Eval(top, parseExprText(t, expr), nil)
+		if len(ds) != 0 {
+			t.Fatalf("%s: %v", expr, ds)
+		}
+		return got.String()
+	}
+	for expr, want := range map[string]string{
+		"$isunbounded(U)": "1'b1", "$isunbounded(K)": "1'b0", "$isunbounded(1)": "1'b0",
+		"ARR[3]": "8'h01", "ARR[0]": "8'h04", "ASC[0]": "32'sh0000000a", "ASC[2]": "32'sh0000001e",
+		"DEF[0]": "32'sh00000007", "REP[2]": "32'sh00000009",
+		"P.a": "32'sh00000001", "P.b": "8'hff", "Q.a": "32'sh00000002", "Q.b": "8'h0f", "R.b": "8'h00",
+		"X": "32'h00000128",
+	} {
+		if got := eval(expr); got != want {
+			t.Errorf("%s = %s, want %s", expr, got, want)
+		}
+	}
+	// The aggregate itself, and the errors for malformed patterns.
+	if got := eval("ARR"); got != "'{8'h01, 8'h02, 8'h03, 8'h04}" {
+		t.Errorf("ARR = %s", got)
+	}
+	if got := eval("U"); got != "$" {
+		t.Errorf("U = %s", got)
+	}
+	bad := func(src string) []diag.Diagnostic {
+		mm, cc := model(t, "module t; "+src+" endmodule")
+		sc := defScope(t, mm, cc, "t")
+		sym := sc.syms["BAD"]
+		_, ds := mm.ParamValue(sym, nil)
+		return ds
+	}
+	for _, src := range []string{
+		"parameter int BAD [2] = '{1, 2, 3};",                       // too many items
+		"parameter int BAD [3] = '{1, 2};",                          // too few, no default
+		"parameter int BAD = '{1};",                                 // not an aggregate type
+		"typedef struct {int a;} s_t; parameter s_t BAD = '{b: 1};", // no such member
+		"parameter int BAD = $ + 1;",                                // arithmetic on $
+	} {
+		if ds := bad(src); len(ds) == 0 {
+			t.Errorf("%s: expected a diagnostic", src)
+		}
+	}
+}

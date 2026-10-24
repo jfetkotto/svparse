@@ -72,3 +72,51 @@ func TestRunResolvesIncludes(t *testing.T) {
 		t.Error("far.svh is outside the file's dir and no :incdirs:, expected an unresolved-include failure")
 	}
 }
+
+func TestRunElaborationStageDetectsSemanticErrors(t *testing.T) {
+	for _, tc := range []struct{ name, src string }{
+		{"procedural net", "module top; wire w; initial w = 1; endmodule"},
+		{"duplicate module", "module top; endmodule module top; endmodule"},
+		{"unknown module", "module top; nosuch u(); endmodule"},
+		{"void return", "module top; function void f(); return 1; endfunction endmodule"},
+		{"unknown parameter", "module top; leaf #(.NOPE(1)) u(); endmodule module leaf; endmodule"},
+	} {
+		res := Run(t.TempDir(), "a.sv", tc.src, ParseMetadata(":type: elaboration\n"))
+		if !res.Failed || res.Ran != StageElaboration {
+			t.Errorf("%s: Failed=%v Ran=%v %v", tc.name, res.Failed, res.Ran, res.Diagnostics)
+		}
+	}
+}
+
+func TestRunParsingOnlyDoesNotElaborate(t *testing.T) {
+	// The same files are accepted when the test only exercises parsing.
+	res := Run(t.TempDir(), "a.sv", "module top; wire w; initial w = 1; endmodule", ParseMetadata(":type: parsing\n"))
+	if res.Failed || res.Ran != StageParsing {
+		t.Errorf("Failed=%v Ran=%v %v", res.Failed, res.Ran, res.Diagnostics)
+	}
+}
+
+func TestRunWarningsDoNotFailATest(t *testing.T) {
+	// A port-width mismatch is only a warning in elaboration.
+	src := "module top; logic [15:0] a; leaf u(.d(a)); endmodule module leaf(input [7:0] d); endmodule"
+	if res := Run(t.TempDir(), "a.sv", src, ParseMetadata(":type: elaboration\n")); res.Failed {
+		t.Errorf("a warning failed the run: %v", res.Diagnostics)
+	}
+}
+
+func TestRunElaboratesTheNamedTopOnly(t *testing.T) {
+	src := "module top; endmodule module other; nosuch u(); endmodule"
+	if res := Run(t.TempDir(), "a.sv", src, ParseMetadata(":type: elaboration\n:top_module: top\n")); res.Failed {
+		t.Errorf("only top should be elaborated: %v", res.Diagnostics)
+	}
+	if res := Run(t.TempDir(), "a.sv", src, ParseMetadata(":type: elaboration\n")); !res.Failed {
+		t.Error("without :top_module: every uninstantiated module is elaborated")
+	}
+}
+
+func TestRunSimulationTestsAreJudgedOnElaboration(t *testing.T) {
+	res := Run(t.TempDir(), "a.sv", "module top; wire w; initial w = 1; endmodule", ParseMetadata(":type: simulation elaboration parsing\n"))
+	if !res.Failed || res.Ran != StageElaboration {
+		t.Errorf("Failed=%v Ran=%v", res.Failed, res.Ran)
+	}
+}

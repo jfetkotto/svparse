@@ -18,6 +18,12 @@ const (
 	ConstInt ConstKind = iota
 	ConstReal
 	ConstString
+	// ConstUnbounded is the value "$" (LRM 6.20.2.1): a parameter with no upper
+	// limit. Nothing can be computed from it; $isunbounded tests for it.
+	ConstUnbounded
+	// ConstArray is an unpacked array or struct value: Elems holds one constant
+	// per element or member, in declaration order.
+	ConstArray
 )
 
 // Const is the value of a constant expression (LRM 11.2.1): an integral value
@@ -28,6 +34,8 @@ type Const struct {
 	Int  svint.Value
 	Real float64
 	Str  string
+	// Elems are the elements of a ConstArray.
+	Elems []Const
 }
 
 func intConst(v svint.Value) Const { return Const{Kind: ConstInt, Int: v} }
@@ -45,6 +53,14 @@ func (c Const) Int64() (int64, bool) {
 
 func (c Const) String() string {
 	switch c.Kind {
+	case ConstUnbounded:
+		return "$"
+	case ConstArray:
+		parts := make([]string, len(c.Elems))
+		for i, e := range c.Elems {
+			parts[i] = e.String()
+		}
+		return "'{" + strings.Join(parts, ", ") + "}"
 	case ConstReal:
 		return fmt.Sprint(c.Real)
 	case ConstString:
@@ -227,6 +243,10 @@ func (b *binder) evalNode(be BoundExpr) (Const, bool) {
 		return b.evalIndex(n)
 	case *BPartSelect:
 		return b.evalPartSelect(n)
+	case *BMember:
+		return b.evalMember(n)
+	case *BAssignPattern:
+		return b.evalPattern(n)
 	case *BCast:
 		x, ok := b.eval(n.X)
 		if !ok {
@@ -262,7 +282,7 @@ func (b *binder) evalLiteral(n *BLiteral) (Const, bool) {
 		return strConst(n.Str), true
 	}
 	if n.Kind == ast.LitUnbounded {
-		return b.notConst(n.src, "an unbounded $ is not a constant value here")
+		return Const{Kind: ConstUnbounded}, true
 	}
 	return b.notConst(n.src, "null is not a constant value")
 }
@@ -359,6 +379,9 @@ func (b *binder) paramBound(sym *Symbol, decl *ast.Parameter) *paramInfo {
 // own signedness, rounding a real to an integer, turning an integer into a
 // real, or reading a string as its bytes (LRM 11.8.2, 6.12.2).
 func (b *binder) conv(c Const, t Type) Const {
+	if c.Kind == ConstUnbounded || c.Kind == ConstArray {
+		return c
+	}
 	t = Resolve(t)
 	switch {
 	case IsReal(t):
@@ -408,9 +431,20 @@ func twoState(v svint.Value) svint.Value {
 	return svint.FromBig(v.Width(), v.Signed(), n)
 }
 
+// operand rejects values an operator cannot use: "$" and aggregates.
+func (b *binder) operand(at ast.Expr, cs ...Const) bool {
+	for _, c := range cs {
+		if c.Kind == ConstUnbounded || c.Kind == ConstArray {
+			b.notConst(at, "an unbounded value or aggregate cannot be an operand here")
+			return false
+		}
+	}
+	return true
+}
+
 func (b *binder) evalUnary(n *BUnary) (Const, bool) {
 	x, ok := b.eval(n.X)
-	if !ok {
+	if !ok || !b.operand(n.src, x) {
 		return Const{}, false
 	}
 	if x.Kind == ConstReal {
@@ -459,7 +493,7 @@ func (b *binder) evalBinary(n *BBinary) (Const, bool) {
 		return Const{}, false
 	}
 	y, ok := b.eval(n.Y)
-	if !ok {
+	if !ok || !b.operand(n.src, x, y) {
 		return Const{}, false
 	}
 	op := n.Op
@@ -597,7 +631,7 @@ func (b *binder) evalRel(n *BBinary, x, y Const) (Const, bool) {
 
 func (b *binder) evalCond(n *BCond) (Const, bool) {
 	c, ok := b.eval(n.Cond)
-	if !ok {
+	if !ok || !b.operand(n.src, c) {
 		return Const{}, false
 	}
 	switch svint.Truth(truth(c)) {
@@ -702,6 +736,9 @@ func bitPosition(r Range, ew int, idx int64) int64 {
 
 func (b *binder) evalIndex(n *BIndex) (Const, bool) {
 	x, ok := b.eval(n.X)
+	if ok && x.Kind == ConstArray {
+		return b.arrayElement(n, x)
+	}
 	if !ok || x.Kind != ConstInt {
 		return b.notConst(n.src, "only a constant vector can be indexed in a constant expression")
 	}
@@ -795,4 +832,72 @@ func (b *binder) evalInside(n *BInside) (Const, bool) {
 		result = svint.LogicalOr(result, m)
 	}
 	return intConst(result), true
+}
+
+// arrayElement selects an element of a constant unpacked array. The first
+// element of the pattern belongs to the left bound of the dimension.
+func (b *binder) arrayElement(n *BIndex, arr Const) (Const, bool) {
+	i, ok := b.eval(n.Index)
+	if !ok {
+		return Const{}, false
+	}
+	idx, ok := i.Int64()
+	if !ok {
+		return b.notConst(n.src, "the index is not a known integer")
+	}
+	ua, isArr := Resolve(n.X.Type()).(*UnpackedArray)
+	if !isArr {
+		return b.notConst(n.src, "cannot index this value in a constant expression")
+	}
+	pos := idx - int64(ua.Range.Left)
+	if ua.Range.Left > ua.Range.Right {
+		pos = int64(ua.Range.Left) - idx
+	}
+	if pos < 0 || pos >= int64(len(arr.Elems)) {
+		d, _ := defaultValue(ua.Elem)
+		if d.Kind == ConstInt || d.Kind == ConstReal || d.Kind == ConstString {
+			if d.Kind == ConstInt {
+				d = intConst(svint.X(max(d.Int.Width(), 1), false)) // out of range reads x (LRM 7.4.6)
+			}
+			return d, true
+		}
+		return b.notConst(n.src, "index %d is outside the array", idx)
+	}
+	return arr.Elems[pos], true
+}
+
+func (b *binder) evalMember(n *BMember) (Const, bool) {
+	x, ok := b.eval(n.X)
+	if !ok {
+		return Const{}, false
+	}
+	if x.Kind != ConstArray {
+		return b.notConst(n.src, "only a constant struct has members in a constant expression")
+	}
+	var members []Member
+	switch t := Resolve(n.X.Type()).(type) {
+	case *Struct:
+		members = t.Members
+	case *Union:
+		members = t.Members
+	}
+	for i, m := range members {
+		if m.Name == n.Field && i < len(x.Elems) {
+			return x.Elems[i], true
+		}
+	}
+	return b.notConst(n.src, "no member %q in this constant", n.Field)
+}
+
+// evalPattern evaluates a bound assignment pattern to an aggregate constant.
+func (b *binder) evalPattern(n *BAssignPattern) (Const, bool) {
+	out := Const{Kind: ConstArray, Elems: make([]Const, 0, len(n.Items))}
+	for i, it := range n.Items {
+		c, ok := b.eval(it)
+		if !ok {
+			return Const{}, false
+		}
+		out.Elems = append(out.Elems, b.conv(c, n.ElemTypes[i]))
+	}
+	return out, true
 }

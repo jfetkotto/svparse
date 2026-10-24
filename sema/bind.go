@@ -40,6 +40,17 @@ func (m *Model) BindAssign(s *Scope, target Type, e ast.Expr) (BoundExpr, []diag
 }
 
 func (b *binder) bindAssign(target Type, e ast.Expr) BoundExpr {
+	inner := e
+	for {
+		p, ok := inner.(*ast.Paren)
+		if !ok {
+			break
+		}
+		inner = p.X
+	}
+	if pat, ok := inner.(*ast.AssignPattern); ok {
+		return b.bindPattern(target, pat)
+	}
 	r := b.bindSelf(e)
 	if r == nil {
 		return &BBad{exprInfo{Invalid, e}}
@@ -801,3 +812,103 @@ func propagate(n BoundExpr, t Type) {
 }
 
 func widthOf(t Type) int { w, _ := Bits(t); return w }
+
+// bindPattern binds an assignment pattern against the type it is assigned to
+// (LRM 10.9.1): the items of an unpacked array or the members of an unpacked
+// struct, matched up by position, by member name or by "default".
+func (b *binder) bindPattern(target Type, p *ast.AssignPattern) BoundExpr {
+	t := Resolve(target)
+	if p.Type != nil {
+		t = Resolve(b.typeFromName(p.Type))
+	}
+	n := &BAssignPattern{exprInfo: exprInfo{Invalid, p}}
+	fail := func(format string, args ...any) BoundExpr {
+		if !IsInvalid(t) {
+			b.errorf(diag.CodeIncompatibleTypes, p.Pos(), format, args...)
+		}
+		return n
+	}
+	var positional []ast.Expr
+	var defaultValue ast.Expr
+	named := map[string]ast.Expr{}
+	for _, it := range p.Items {
+		switch it := it.(type) {
+		case *ast.PatternItem:
+			switch {
+			case it.IsDefault:
+				defaultValue = it.Value
+			default:
+				id, ok := it.Key.(*ast.Ident)
+				if !ok {
+					return fail("only a member name or default can key an assignment pattern here")
+				}
+				named[id.Name] = it.Value
+			}
+		case *ast.Replicate:
+			count, ok := b.constInt(it.Count)
+			if !ok || count < 0 || count > maxElems {
+				return n
+			}
+			for k := int64(0); k < count; k++ {
+				positional = append(positional, it.Elems...)
+				if len(positional) > maxElems {
+					return n
+				}
+			}
+		default:
+			positional = append(positional, it)
+		}
+	}
+
+	var elemTypes []Type
+	var names []string
+	switch t := t.(type) {
+	case *UnpackedArray:
+		for i := 0; i < t.Range.Size(); i++ {
+			elemTypes = append(elemTypes, t.Elem)
+		}
+	case *DynamicArray:
+		for range positional {
+			elemTypes = append(elemTypes, t.Elem)
+		}
+	case *Queue:
+		for range positional {
+			elemTypes = append(elemTypes, t.Elem)
+		}
+	case *Struct:
+		for _, m := range t.Members {
+			elemTypes = append(elemTypes, m.Type)
+			names = append(names, m.Name)
+		}
+	default:
+		return fail("an assignment pattern needs an unpacked array or struct, not %s", t)
+	}
+	if len(positional) > len(elemTypes) {
+		return fail("the pattern has %d items for %d elements", len(positional), len(elemTypes))
+	}
+	if len(named) > 0 && len(names) == 0 {
+		return fail("a named pattern item needs a struct")
+	}
+	for i, et := range elemTypes {
+		var value ast.Expr
+		switch {
+		case i < len(positional):
+			value = positional[i]
+		case names != nil && named[names[i]] != nil:
+			value = named[names[i]]
+			delete(named, names[i])
+		case defaultValue != nil:
+			value = defaultValue
+		default:
+			return fail("the pattern gives no value for element %d", i)
+		}
+		item := b.bindAssign(et, value)
+		n.Items = append(n.Items, item)
+		n.ElemTypes = append(n.ElemTypes, et)
+	}
+	for name := range named {
+		return fail("the struct has no member %q", name)
+	}
+	n.typ = t
+	return n
+}

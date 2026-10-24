@@ -1,19 +1,24 @@
 package conformance
 
 import (
+	"context"
 	"fmt"
 	"os"
 	"path/filepath"
 
+	"github.com/jfetkotto/svparse/ast"
+	"github.com/jfetkotto/svparse/diag"
+	"github.com/jfetkotto/svparse/elab"
 	"github.com/jfetkotto/svparse/parser"
 	"github.com/jfetkotto/svparse/preprocessor"
+	"github.com/jfetkotto/svparse/sema"
 )
 
 // MaxImplemented is the latest pipeline stage svparse implements. Run clamps
 // every test to it, so a test that exercises a later stage is judged on what
 // can be checked today; raising it is how a new stage (semantic checks,
 // elaboration) is switched on for the whole corpus at once.
-const MaxImplemented = StageParsing
+const MaxImplemented = StageElaboration
 
 // Result is the outcome of running one file.
 type Result struct {
@@ -48,13 +53,46 @@ func Run(root, rel, src string, meta Metadata) Result {
 	}
 
 	if ran >= StageParsing {
-		_, parseErrs := parser.Parse(rel, toks)
+		file, parseErrs := parser.Parse(rel, toks)
 		for _, e := range parseErrs {
 			res.Diagnostics = append(res.Diagnostics, fmt.Sprintf("parse %s:%d:%d: %s", e.File, e.Line+1, e.Character+1, e.Message))
+		}
+		if ran >= StageElaboration {
+			res.Diagnostics = append(res.Diagnostics, elaborate(file, meta)...)
 		}
 	}
 	res.Failed = len(res.Diagnostics) > 0
 	return res
+}
+
+// elaborate runs the semantic stages over one parsed file: duplicate names,
+// the statement-level rules, and elaboration of the hierarchy under the test's
+// top module (or every uninstantiated one). Only errors count as a rejection;
+// warnings are reported by the tool but do not fail a test.
+func elaborate(file *ast.File, meta Metadata) []string {
+	comp := sema.NewCompilation(sema.Options{})
+	comp.AddFile(file)
+	model := comp.Model()
+
+	var all []diag.Diagnostic
+	all = append(all, comp.Diagnostics()...)
+	all = append(all, model.Diagnostics()...)
+	all = append(all, model.CheckStatements()...)
+	opts := elab.Options{MaxInstances: 100000, MaxSteps: 1_000_000}
+	if meta.TopModule != "" {
+		opts.Tops = []string{meta.TopModule}
+	}
+	_, ds := elab.Elaborate(context.Background(), comp, opts)
+	all = append(all, ds...)
+	diag.Sort(all)
+
+	var out []string
+	for _, d := range all {
+		if d.Severity == diag.Error {
+			out = append(out, "elaborate "+d.String())
+		}
+	}
+	return out
 }
 
 // includeResolver implements preprocessor.IncludeResolver over a directory
