@@ -20,10 +20,6 @@ chapter-11/11.9--tagged_union_member_access_inv.sv pass # undetected: accessing 
 chapter-16/16.10--property-local-var-fail.sv pass # undetected: pipeline increments value by 4 but property expects incrementation by 3
 chapter-16/16.10--sequence-local-var-fail.sv pass # undetected: pipeline increments value by 4 but sequence expects incrementation by 3
 chapter-16/16.15--property-disable-iff-fail.sv pass # undetected: disable iff uses wrong reset polarity
-chapter-18/18.17.2--if-else-production-statements_0_fail.sv pass # undetected: switch variable not declared
-chapter-18/18.17.2--if-else-production-statements_2_fail.sv pass # undetected: switch variable not declared
-chapter-18/18.17.3--case-production-statements_0_fail.sv pass # undetected: switch variable not declared
-chapter-18/18.17.6--aborting-productions-break-and-return_2_fail.sv pass # undetected: typo in production name
 chapter-5/5.10-structure-arrays-illegal.sv pass # undetected: C-like assignment is illegal
 chapter-7/arrays/packed/variable-slice-zero.sv pass # undetected: slicing array with zero part width
 chapter-8/8.25.1--parametrized_class_invalid_scope_resolution.sv pass # undetected: parametrized class invalid scope resolution

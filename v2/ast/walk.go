@@ -468,6 +468,47 @@ func Walk(v Visitor, n Node) {
 		walkExpr(v, n.Cond)
 		walkStmt(v, n.Then)
 		walkStmt(v, n.Else)
+	case *RandSequence:
+		walkValues(v, n.Productions)
+	case *RandProduction:
+		walkType(v, &n.ReturnType)
+		walkValues(v, n.Args)
+		walkValues(v, n.Rules)
+	case *RandRule:
+		walkStmts(v, n.Elems)
+		walkExpr(v, n.Weight)
+		if n.WeightCode != nil {
+			Walk(v, n.WeightCode)
+		}
+	case *RandItem:
+		walkExprs(v, n.Args)
+	case *RandCode:
+		walkList(v, n.Decls)
+		walkStmts(v, n.Stmts)
+	case *RandIf:
+		walkExpr(v, n.Cond)
+		if n.Then != nil {
+			Walk(v, n.Then)
+		}
+		if n.Else != nil {
+			Walk(v, n.Else)
+		}
+	case *RandRepeat:
+		walkExpr(v, n.Count)
+		if n.Item != nil {
+			Walk(v, n.Item)
+		}
+	case *RandSeqCase:
+		walkExpr(v, n.X)
+		walkValues(v, n.Items)
+	case *RandSeqCaseItem:
+		walkExprs(v, n.Exprs)
+		if n.Item != nil {
+			Walk(v, n.Item)
+		}
+	case *RandJoin:
+		walkExpr(v, n.Count)
+		walkValues(v, n.Items)
 	case *RandCase:
 		walkValues(v, n.Items)
 	case *RandCaseItem:

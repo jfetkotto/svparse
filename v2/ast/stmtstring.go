@@ -154,6 +154,101 @@ func stmtSource(s Stmt) string {
 			out += " else " + stmtSource(s.Else)
 		}
 		return out
+	case *RandSequence:
+		out := "randsequence ("
+		if s.Start != "" {
+			out += " " + s.Start + " "
+		}
+		out += ")"
+		for i := range s.Productions {
+			out += " " + stmtSource(&s.Productions[i])
+		}
+		return out + " endsequence"
+	case *RandProduction:
+		out := ""
+		if t := typeSource(s.ReturnType); t != "" {
+			out += t + " "
+		}
+		out += s.Name
+		if len(s.Args) > 0 {
+			var parts []string
+			for _, a := range s.Args {
+				parts = append(parts, strings.TrimSpace(direction(a.Direction)+" "+typeSource(a.Type)+" "+a.Name))
+			}
+			out += " ( " + strings.Join(parts, " , ") + " )"
+		}
+		out += " :"
+		for i := range s.Rules {
+			if i > 0 {
+				out += " |"
+			}
+			out += " " + stmtSource(&s.Rules[i])
+		}
+		return out + " ;"
+	case *RandRule:
+		var parts []string
+		for _, e := range s.Elems {
+			parts = append(parts, stmtSource(e))
+		}
+		out := strings.Join(parts, " ")
+		if s.Weight != nil {
+			out += " := " + exprSource(s.Weight)
+			if s.WeightCode != nil {
+				out += " " + stmtSource(s.WeightCode)
+			}
+		}
+		return out
+	case *RandItem:
+		out := s.Name
+		if len(s.Args) > 0 {
+			var parts []string
+			for _, a := range s.Args {
+				parts = append(parts, exprSource(a))
+			}
+			out += " ( " + strings.Join(parts, " , ") + " )"
+		}
+		return out
+	case *RandCode:
+		out := "{"
+		for _, d := range s.Decls {
+			out += " " + declSource(d)
+		}
+		for _, st := range s.Stmts {
+			out += " " + stmtSource(st)
+		}
+		return out + " }"
+	case *RandIf:
+		out := "if ( " + exprSource(s.Cond) + " ) " + stmtSource(s.Then)
+		if s.Else != nil {
+			out += " else " + stmtSource(s.Else)
+		}
+		return out
+	case *RandRepeat:
+		return "repeat ( " + exprSource(s.Count) + " ) " + stmtSource(s.Item)
+	case *RandSeqCase:
+		out := "case ( " + exprSource(s.X) + " )"
+		for i := range s.Items {
+			out += " " + stmtSource(&s.Items[i])
+		}
+		return out + " endcase"
+	case *RandSeqCaseItem:
+		if s.Default {
+			return "default : " + stmtSource(s.Item) + " ;"
+		}
+		var parts []string
+		for _, e := range s.Exprs {
+			parts = append(parts, exprSource(e))
+		}
+		return strings.Join(parts, " , ") + " : " + stmtSource(s.Item) + " ;"
+	case *RandJoin:
+		out := "rand join"
+		if s.Count != nil {
+			out += " ( " + exprSource(s.Count) + " )"
+		}
+		for i := range s.Items {
+			out += " " + stmtSource(&s.Items[i])
+		}
+		return out
 	case *RandCase:
 		out := "randcase"
 		for i := range s.Items {

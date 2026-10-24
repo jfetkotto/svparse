@@ -122,6 +122,36 @@ func describeStmt(n Node) (head string, kids []Node, ok bool) {
 		return "disable " + exprText(n.Target), nil, true
 	case *ImmediateAssert:
 		return n.Kind + prefixed(" ", n.Deferred) + " cond=" + exprText(n.Cond) + elseOnly(n.Then, n.Else), stmts(n.Then, n.Else), true
+	case *RandSequence:
+		return "randsequence" + prefixed(" start=", n.Start), values(n.Productions), true
+	case *RandProduction:
+		return "production " + n.Name + typeAttr(n.ReturnType), concat(typeKids(n.ReturnType), values(n.Args), values(n.Rules)), true
+	case *RandRule:
+		kids := stmts(n.Elems...)
+		if n.WeightCode != nil {
+			kids = append(kids, n.WeightCode)
+		}
+		return "rule" + prefixed(" weight=", optExprText(n.Weight)), kids, true
+	case *RandItem:
+		return "item " + n.Name + prefixed(" args=", strings.Join(exprTexts(n.Args), ",")), nil, true
+	case *RandCode:
+		return "code", concat(decls(n.Decls), stmts(n.Stmts...)), true
+	case *RandIf:
+		return "rs-if cond=" + exprText(n.Cond), randItems(n.Then, n.Else), true
+	case *RandRepeat:
+		return "rs-repeat count=" + exprText(n.Count), randItems(n.Item), true
+	case *RandSeqCase:
+		return "rs-case x=" + exprText(n.X), values(n.Items), true
+	case *RandSeqCaseItem:
+		h := "rs-case-item"
+		if n.Default {
+			h += " default"
+		} else {
+			h += " " + strings.Join(exprTexts(n.Exprs), ",")
+		}
+		return h, randItems(n.Item), true
+	case *RandJoin:
+		return "rs-join" + prefixed(" count=", optExprText(n.Count)), values(n.Items), true
 	case *RandCase:
 		return "randcase", values(n.Items), true
 	case *RandCaseItem:
@@ -252,4 +282,22 @@ func eventTermText(t *EventTerm) string {
 		s += " iff " + exprText(t.Iff)
 	}
 	return s
+}
+
+// randItems lists the non-nil items as children.
+func randItems(items ...*RandItem) []Node {
+	var out []Node
+	for _, it := range items {
+		if it != nil {
+			out = append(out, it)
+		}
+	}
+	return out
+}
+
+func optExprText(e Expr) string {
+	if e == nil {
+		return ""
+	}
+	return exprText(e)
 }

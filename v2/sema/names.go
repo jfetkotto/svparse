@@ -54,6 +54,10 @@ type nameChecker struct {
 	// continuous assignments declare implicitly (LRM 6.10), which later
 	// expressions may use.
 	implicit map[*Scope]map[string]bool
+	// ignore holds names that are in scope without a declaration the scope
+	// tables know: inside a randsequence, the productions, their arguments and
+	// the variables of its code blocks (LRM 18.17).
+	ignore map[string]bool
 }
 
 // element is the design element scope s is part of.
@@ -106,7 +110,7 @@ func (c *nameChecker) bind(s *Scope, e ast.Expr) {
 		if d.Code != diag.CodeUndeclared {
 			continue
 		}
-		if id := identAt(e, d.Range); id != nil && c.implicit[element(s)][id.Name] {
+		if id := identAt(e, d.Range); id != nil && (c.implicit[element(s)][id.Name] || c.ignore[id.Name]) {
 			continue
 		}
 		c.set.Add(d)
@@ -266,6 +270,11 @@ func (w *nameWalker) Visit(n ast.Node) ast.Visitor {
 			}
 		}
 		return nil
+	case *ast.RandSequence:
+		if !w.collect {
+			w.c.randSequence(w, n)
+		}
+		return nil
 	case *ast.Parameter:
 		if !w.collect && !n.IsSpecparam {
 			w.c.noSpecparams(w.scope, n)
@@ -315,4 +324,54 @@ func implicitNetTarget(e ast.Expr) bool {
 		return len(e.Elems) > 0
 	}
 	return false
+}
+
+// randSequence checks a randsequence: every production a rule uses must be
+// declared by the sequence, and the code blocks and expressions are resolved
+// with the productions, the production's arguments and the block's own
+// variables in scope (LRM 18.17).
+func (c *nameChecker) randSequence(w *nameWalker, n *ast.RandSequence) {
+	prods := map[string]bool{}
+	for i := range n.Productions {
+		prods[n.Productions[i].Name] = true
+	}
+	ast.Inspect(n, func(x ast.Node) bool {
+		if it, ok := x.(*ast.RandItem); ok && !prods[it.Name] {
+			c.set.Add(diag.Diagnostic{Code: diag.CodeUndeclared, Severity: diag.Error, Range: it.Pos(),
+				Message: "production " + it.Name + " is not declared in this randsequence (LRM 18.17)"})
+		}
+		return true
+	})
+	if n.Start != "" && !prods[n.Start] {
+		c.set.Add(diag.Diagnostic{Code: diag.CodeUndeclared, Severity: diag.Error, Range: n.Pos(),
+			Message: "production " + n.Start + " is not declared in this randsequence (LRM 18.17)"})
+	}
+	saved := c.ignore
+	defer func() { c.ignore = saved }()
+	for i := range n.Productions {
+		prod := &n.Productions[i]
+		c.ignore = map[string]bool{}
+		for k := range saved {
+			c.ignore[k] = true
+		}
+		for k := range prods {
+			c.ignore[k] = true
+		}
+		for _, a := range prod.Args {
+			c.ignore[a.Name] = true
+		}
+		ast.Inspect(prod, func(x ast.Node) bool {
+			if code, ok := x.(*ast.RandCode); ok {
+				for _, d := range code.Decls {
+					if v, ok := d.(*ast.Variable); ok {
+						c.ignore[v.Name] = true
+					}
+				}
+			}
+			return true
+		})
+		for r := range prod.Rules {
+			ast.Walk(w, &prod.Rules[r])
+		}
+	}
 }
