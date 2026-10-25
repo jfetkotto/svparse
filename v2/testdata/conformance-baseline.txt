@@ -21,11 +21,6 @@ chapter-16/16.10--property-local-var-fail.sv pass # undetected: pipeline increme
 chapter-16/16.10--sequence-local-var-fail.sv pass # undetected: pipeline increments value by 4 but sequence expects incrementation by 3
 chapter-16/16.15--property-disable-iff-fail.sv pass # undetected: disable iff uses wrong reset polarity
 chapter-7/arrays/packed/variable-slice-zero.sv pass # undetected: slicing array with zero part width
-chapter-8/8.26.3--type_access_implements_invalid.sv pass # undetected: typedefs are not inherited by implements operator
-chapter-8/8.26.4--illegal_implements_parameter.sv pass # undetected: implementing parameter that resolves to an interface class is not allowed
-chapter-8/8.26.6.1--name_conflict_unresolved.sv pass # undetected: unresolved interface class method name conflict
-chapter-8/8.26.6.2--parameter_type_conflict_unresolved.sv pass # undetected: superclass type declaration conflicts must be resolved in subclass
-chapter-8/8.26.6.3--diamond_relationship_parametrized.sv pass # undetected: different specializations of an interface class are treated as unique interface class types
 
 # --- Parser gaps: valid code the declaration-grade parser rejects (statements, expressions, assertions, constraints, ...) (7) ---
 
