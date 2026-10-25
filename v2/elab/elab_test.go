@@ -515,3 +515,23 @@ func FuzzElaborate(f *testing.F) {
 		Elaborate(context.Background(), c, Options{MaxDepth: 12, MaxInstances: 2000, MaxGenerateIters: 200, MaxSteps: 20000})
 	})
 }
+
+func TestIndexedPartSelectWidthMustBePositive(t *testing.T) {
+	src := `module leaf #(parameter W = 4) (input [15:0] a, output [15:0] y);
+  assign y[3 +: W] = a[8 -: W];
+endmodule
+module top; wire [15:0] a, y1, y2;
+  leaf #(.W(4)) good (a, y1);
+  leaf #(.W(0)) bad (a, y2);
+endmodule`
+	_, ds := elaborate(t, src, Options{Tops: []string{"top"}})
+	var got []string
+	for _, d := range ds {
+		if d.Code == diag.CodeInvalidExpression {
+			got = append(got, d.Message)
+		}
+	}
+	if len(got) != 2 {
+		t.Fatalf("want an error for each of the two selects of the W=0 instance only, got %v", ds)
+	}
+}
