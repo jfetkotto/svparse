@@ -565,3 +565,4 @@ into `devel`; `main` stays at the released `v0.1.9` until a `v2.0.0` release.
 | type-expr-checks (real select/edge, vectored, specparam in parameter, undefined typedef types, packed struct defaults, fork rules, stream width, `8'd-6`) | 105 (16 undetected negatives, 0 parser gaps, 89 need UVM) |
 | randsequence-names (randsequence parsed into nodes; undeclared names and productions) | 101 (12 undetected negatives, 0 parser gaps, 89 need UVM) |
 | init-pattern-and-class-scope (pattern initialisers checked; bare parameterised class scope) | 99 (10 undetected negatives, 0 parser gaps, 89 need UVM) |
+| interface-class-rules (implements a type parameter, conflicting prototypes and type names, member type names in classes) | 94 (5 undetected negatives, 0 parser gaps, 89 need UVM) |

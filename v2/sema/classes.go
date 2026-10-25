@@ -65,6 +65,8 @@ func (c *checker) classRules(cs *Scope, cl *ast.Class) {
 		c.unimplemented(cs, cl)
 	}
 	c.randcRules(cl)
+	c.interfaceRules(cs, cl)
+	c.memberTypes(cs, cl)
 }
 
 // randcRules reports the uses of a randc variable that the constraint
