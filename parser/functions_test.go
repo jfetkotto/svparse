@@ -772,3 +772,35 @@ func TestAssignAfterMissingSemicolonStillStartsAnItem(t *testing.T) {
 		t.Fatalf("want one error about the missing ';' before assign, got %+v", errs)
 	}
 }
+
+// An immediate assertion after an event control or an if/else is part of the
+// procedural block, not the next module item.
+func TestImmediateAssertAfterStatementHeader(t *testing.T) {
+	src := `module m(input clk, input a, input b);
+  always @(posedge clk) assert (a || b);
+  always @(posedge clk) assert (a || b) else $error("x");
+  always @(posedge clk) if (a) assume (b); else cover (b);
+  logic z;
+endmodule`
+	f, errs := parseSrc(t, src)
+	if len(errs) != 0 {
+		t.Fatalf("unexpected errors: %v", errs)
+	}
+	var names []string
+	for _, d := range f.Decls[0].(*ast.Container).Body {
+		if v, ok := d.(*ast.Variable); ok {
+			names = append(names, v.Name)
+		}
+	}
+	if got := strings.Join(names, ","); got != "z" {
+		t.Fatalf("variables = %s, want z", got)
+	}
+}
+
+// ... while after a missing ';' an assertion is still the start of the next item.
+func TestAssertAfterMissingSemicolonStillStartsAnItem(t *testing.T) {
+	_, errs := parseSrc(t, "module m(input clk, input a);\nlogic x;\nalways @(posedge clk) x <= a\nassert property (@(posedge clk) a);\nendmodule")
+	if len(errs) == 0 {
+		t.Fatal("expected an error for the missing ';'")
+	}
+}
