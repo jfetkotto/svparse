@@ -319,7 +319,36 @@ func (b *binder) bindScoped(e *ast.ScopedName) BoundExpr {
 		b.errorf(diag.CodeUndeclared, e.Pos(), "%q is not declared", strings.Join(path, "::"))
 		return bad(e)
 	}
+	b.checkUnspecialised(e, res.Symbol)
 	return b.nameOf(e, res.Symbol)
+}
+
+// checkUnspecialised reports "C::name" where C is a class with parameters,
+// written without "#(...)", outside C and its subclasses: the scope of a
+// parameterised class is one of its specialisations, so C must say which, and
+// "C#()::name" selects the default one (LRM 8.25.1). Only data and parameters
+// are checked; static method calls through the bare name are widely accepted.
+func (b *binder) checkUnspecialised(e *ast.ScopedName, member *Symbol) {
+	id, ok := e.Scope.(*ast.Ident)
+	if !ok || (member.Kind != SymParameter && member.Kind != SymVariable) {
+		return
+	}
+	csym := b.scope.Lookup(id.Name).Symbol
+	if csym == nil || csym.Kind != SymClass {
+		return
+	}
+	cl, ok := csym.Decl.(*ast.Class)
+	if !ok || len(cl.Params) == 0 {
+		return
+	}
+	for s := b.scope; s != nil; s = s.Parent {
+		for k, n := s, 0; k != nil && n < 64; k, n = b.m.superScope(k), n+1 {
+			if k.Node == ast.Node(cl) {
+				return
+			}
+		}
+	}
+	b.errorf(diag.CodeInvalidExpression, e.Pos(), "class %q has parameters: write %s#()::%s to use its default specialisation (LRM 8.25.1)", cl.Name, cl.Name, e.Name)
 }
 
 // returnType resolves a function's declared return type.
@@ -888,7 +917,9 @@ func (b *binder) bindPattern(target Type, p *ast.AssignPattern) BoundExpr {
 			default:
 				id, ok := it.Key.(*ast.Ident)
 				if !ok {
-					return fail("only a member name or default can key an assignment pattern here")
+					// An index ("'{1: x}") or a type ("'{int: 0}") key: not
+					// modelled, so say nothing about the pattern.
+					return n
 				}
 				named[id.Name] = it.Value
 			}
@@ -911,6 +942,8 @@ func (b *binder) bindPattern(target Type, p *ast.AssignPattern) BoundExpr {
 	var elemTypes []Type
 	var names []string
 	switch t := t.(type) {
+	case *AssocArray:
+		return n // any keys and any number of entries
 	case *UnpackedArray:
 		for i := 0; i < t.Range.Size(); i++ {
 			elemTypes = append(elemTypes, t.Elem)
