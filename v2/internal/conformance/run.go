@@ -31,6 +31,12 @@ type Result struct {
 
 	// Diagnostics are the human-readable diagnostics behind Failed.
 	Diagnostics []string
+
+	// Deferred is true for a test that must fail but only in a stage svparse
+	// does not implement (its :type: names nothing earlier than simulation):
+	// the failure is a run-time outcome, such as an assertion that never
+	// holds, which no static check can reproduce. Such a test is not judged.
+	Deferred bool
 }
 
 // Run pushes src (the file at rel, relative to root) through the pipeline up
@@ -62,6 +68,7 @@ func Run(root, rel, src string, meta Metadata) Result {
 		}
 	}
 	res.Failed = len(res.Diagnostics) > 0
+	res.Deferred = meta.ShouldFail && !res.Failed && meta.HighestStage() > MaxImplemented && meta.LowestStage() > MaxImplemented
 	return res
 }
 

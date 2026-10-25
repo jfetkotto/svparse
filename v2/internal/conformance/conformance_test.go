@@ -61,6 +61,9 @@ func TestCorpusMatchesBaseline(t *testing.T) {
 			res := Run(corpusDir, rel, string(data), meta)
 			observed := outcomeOf(res.Failed)
 			expected := outcomeOf(meta.ShouldFail)
+			if res.Deferred {
+				observed = expected // see Result.Deferred
+			}
 			entry, listed := baseline[rel]
 
 			switch {

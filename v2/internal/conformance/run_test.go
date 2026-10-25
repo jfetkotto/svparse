@@ -120,3 +120,23 @@ func TestRunSimulationTestsAreJudgedOnElaboration(t *testing.T) {
 		t.Errorf("Failed=%v Ran=%v", res.Failed, res.Ran)
 	}
 }
+
+func TestRunDefersFailuresOnlySimulationCanShow(t *testing.T) {
+	src := "module m; endmodule\n"
+	sim := ParseMetadata(":should_fail_because: the assertion never holds\n:type: simulation\n")
+	if res := Run(t.TempDir(), "a.sv", src, sim); res.Failed || !res.Deferred {
+		t.Errorf("a simulation-only negative should be deferred: %+v", res)
+	}
+	elab := ParseMetadata(":should_fail_because: x\n:type: simulation elaboration\n")
+	if res := Run(t.TempDir(), "a.sv", src, elab); res.Deferred {
+		t.Errorf("a test that names elaboration is judged: %+v", res)
+	}
+	valid := ParseMetadata(":type: simulation\n")
+	if res := Run(t.TempDir(), "a.sv", src, valid); res.Deferred {
+		t.Errorf("a test that must pass is never deferred: %+v", res)
+	}
+	caught := ParseMetadata(":should_fail_because: x\n:type: simulation\n")
+	if res := Run(t.TempDir(), "a.sv", "module ( ;\n", caught); !res.Failed || res.Deferred {
+		t.Errorf("a failure that is detected is a failure, not deferred: %+v", res)
+	}
+}

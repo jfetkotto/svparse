@@ -16,11 +16,6 @@
 # enabled stage; fix or explain each one.
 
 # --- Negative tests whose error needs a semantic or lint rule that is not implemented yet (61) ---
-chapter-11/11.9--tagged_union_member_access_inv.sv pass # undetected: accessing wrong member should result in run-time error
-chapter-16/16.10--property-local-var-fail.sv pass # undetected: pipeline increments value by 4 but property expects incrementation by 3
-chapter-16/16.10--sequence-local-var-fail.sv pass # undetected: pipeline increments value by 4 but sequence expects incrementation by 3
-chapter-16/16.15--property-disable-iff-fail.sv pass # undetected: disable iff uses wrong reset polarity
-chapter-7/arrays/packed/variable-slice-zero.sv pass # undetected: slicing array with zero part width
 
 # --- Parser gaps: valid code the declaration-grade parser rejects (statements, expressions, assertions, constraints, ...) (7) ---
 

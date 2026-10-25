@@ -258,6 +258,7 @@ func Elaborate(ctx context.Context, comp *sema.Compilation, opts Options) (*Desi
 		d.Tops = append(d.Tops, e.instance(def, def.Name, nil, nil, nil, nil, nil))
 	}
 	e.applyBinds(d)
+	e.checkPartSelects(d)
 	d.Count = e.count
 	return d, e.set.Sorted()
 }

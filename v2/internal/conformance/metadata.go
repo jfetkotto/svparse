@@ -141,6 +141,17 @@ func parseDefines(value string) map[string]string {
 	return defs
 }
 
+// LowestStage is the earliest stage the test exercises, or 0 if it names none.
+func (m Metadata) LowestStage() Stage {
+	var lo Stage
+	for _, s := range m.Types {
+		if lo == 0 || s < lo {
+			lo = s
+		}
+	}
+	return lo
+}
+
 // HighestStage is the latest stage the test exercises, or 0 if it names none.
 func (m Metadata) HighestStage() Stage {
 	var hi Stage
