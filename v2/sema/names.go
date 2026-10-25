@@ -12,11 +12,13 @@ import (
 // declares, and calls of functions that are not declared. The result is sorted
 // by position.
 //
-// It reports undeclared names only. Type and width problems are for the
-// callers that need them (Bind returns them), and several kinds of body are
-// not looked into yet because their scopes need more than the name tables:
-// classes, constraints, covergroups, assertions, clocking blocks and
-// primitives.
+// It reports undeclared names (and a few expressions that are never legal, see
+// diag.CodeInvalidExpression). Other type and width problems are for the
+// callers that need them (Bind returns them). Class bodies, constraints,
+// randsequences and the bodies of properties and sequences are looked into;
+// a class whose base cannot be found is skipped, since it inherits members
+// that cannot be seen. Covergroups, clocking blocks and primitives are not
+// looked into yet because their scopes need more than the name tables.
 //
 // A bare identifier is not reported where the language declares it implicitly
 // (LRM 6.10): the target of a continuous assignment and a signal wired to an
@@ -58,6 +60,8 @@ type nameChecker struct {
 	// tables know: inside a randsequence, the productions, their arguments and
 	// the variables of its code blocks (LRM 18.17).
 	ignore map[string]bool
+	// suppress is positive while walking a class whose base is unknown.
+	suppress int
 }
 
 // element is the design element scope s is part of.
@@ -105,6 +109,9 @@ func (c *nameChecker) bind(s *Scope, e ast.Expr) {
 	for _, d := range ds {
 		if d.Code == diag.CodeInvalidExpression {
 			c.set.Add(d)
+			continue
+		}
+		if c.suppress > 0 {
 			continue
 		}
 		if d.Code != diag.CodeUndeclared {
@@ -237,8 +244,7 @@ func (w *nameWalker) Visit(n ast.Node) ast.Visitor {
 			}
 		}
 		return nil
-	case *ast.Class, *ast.Covergroup, *ast.Constraint, *ast.ConstraintBlock, *ast.AssertionItem,
-		*ast.PropertyDecl, *ast.SequenceDecl, *ast.Clocking, *ast.UDP,
+	case *ast.ConstraintBlock, *ast.UDP,
 		*ast.Defparam, *ast.Bind, *ast.Let, *ast.Alias, *ast.Export:
 		return nil
 	case *ast.ContinuousAssign:
@@ -268,6 +274,55 @@ func (w *nameWalker) Visit(n ast.Node) ast.Visitor {
 			if _, bare := n.ConnExpr.(*ast.Ident); !bare {
 				w.c.bind(w.scope, n.ConnExpr)
 			}
+		}
+		return nil
+	case *ast.Class:
+		// A class whose base cannot be found (a type parameter, a class in a
+		// library that is not part of the compilation) inherits members this
+		// check cannot see: say nothing about names inside it.
+		if cs, ok := w.c.m.ScopeOf(n); ok && !w.collect && w.c.m.hasOpenBase(cs) {
+			w.c.suppress++
+			for _, d := range n.Body {
+				ast.Walk(&nameWalker{c: w.c, scope: cs}, d)
+			}
+			w.c.suppress--
+			return nil
+		}
+	case *ast.Clocking:
+		if !w.collect {
+			w.c.clocking(w, n)
+		}
+		return nil
+	case *ast.Covergroup:
+		if !w.collect {
+			w.c.covergroup(w, n)
+		}
+		return nil
+	case *ast.PropertyDecl:
+		if !w.collect {
+			w.c.assertionDecl(w, n.Ports, n.Decls, n.Body)
+		}
+		return nil
+	case *ast.SequenceDecl:
+		if !w.collect {
+			w.c.assertionDecl(w, n.Ports, n.Decls, n.Body)
+		}
+		return nil
+	case *ast.ValueRange, *ast.Streaming, *ast.WithRange:
+		return w // the binder does not look inside these; their operands are ordinary expressions
+	case *ast.SeqDelay, *ast.SeqRepeat, *ast.PropPrefix, *ast.PropIf, *ast.PropCase,
+		*ast.ClockedProp, *ast.DisableIff, *ast.SeqMatch:
+		// Assertion operators are not typed by the binder: look at their
+		// operands, which are ordinary expressions.
+		return w
+	case *ast.Constraint:
+		if !w.collect {
+			w.c.constraint(w, n)
+		}
+		return nil
+	case *ast.ConstraintForeach:
+		if !w.collect {
+			w.c.constraintForeach(w, n)
 		}
 		return nil
 	case *ast.RandSequence:
@@ -372,6 +427,157 @@ func (c *nameChecker) randSequence(w *nameWalker, n *ast.RandSequence) {
 		})
 		for r := range prod.Rules {
 			ast.Walk(w, &prod.Rules[r])
+		}
+	}
+}
+
+// hasOpenBase reports whether the class that cs opens, or one of its base
+// classes, extends something that does not resolve to a class declaration.
+func (m *Model) hasOpenBase(cs *Scope) bool {
+	for k, n := cs, 0; k != nil && n < 64; n++ {
+		cl, ok := k.Node.(*ast.Class)
+		if !ok {
+			return false
+		}
+		if cl.Extends == "" {
+			return false
+		}
+		sup := m.superScope(k)
+		if sup == nil {
+			return true
+		}
+		k = sup
+	}
+	return true
+}
+
+// constraint resolves the names of a class constraint block: against the
+// class that declares it, which for "constraint C::name { ... }" written
+// outside the class is C (LRM 18.5, 18.5.1).
+func (c *nameChecker) constraint(w *nameWalker, n *ast.Constraint) {
+	scope := w.scope
+	if n.Scope != "" {
+		csym := c.m.classOf(scope.Lookup(n.Scope).Symbol, 0)
+		if csym == nil || csym.Child == nil {
+			return
+		}
+		scope = csym.Child
+	}
+	if scope == nil {
+		return
+	}
+	if c.m.hasOpenBase(scope) {
+		c.suppress++
+		defer func() { c.suppress-- }()
+	}
+	cw := &nameWalker{c: c, scope: scope}
+	for _, it := range n.Items {
+		ast.Walk(cw, it)
+	}
+}
+
+// constraintForeach resolves "foreach (arr[i, j]) body": the array in the
+// enclosing scope, the body with the loop variables in scope (LRM 18.5.8).
+func (c *nameChecker) constraintForeach(w *nameWalker, n *ast.ConstraintForeach) {
+	if n.Array != nil {
+		ast.Walk(w, n.Array)
+	}
+	saved := c.ignore
+	c.ignore = map[string]bool{}
+	for k := range saved {
+		c.ignore[k] = true
+	}
+	for _, v := range n.Vars {
+		if v != "" {
+			c.ignore[v] = true
+		}
+	}
+	if n.Body != nil {
+		ast.Walk(w, n.Body)
+	}
+	c.ignore = saved
+}
+
+// assertionDecl resolves the names of a property or sequence body. Its formal
+// arguments and local variables are in scope inside it (LRM 16.8, 16.12).
+func (c *nameChecker) assertionDecl(w *nameWalker, ports []ast.Arg, decls []ast.Decl, body ast.Expr) {
+	saved := c.ignore
+	c.ignore = map[string]bool{}
+	for k := range saved {
+		c.ignore[k] = true
+	}
+	for _, p := range ports {
+		c.ignore[p.Name] = true
+	}
+	for _, d := range decls {
+		if v, ok := d.(*ast.Variable); ok {
+			c.ignore[v.Name] = true
+		}
+	}
+	if body != nil {
+		ast.Walk(w, body)
+	}
+	c.ignore = saved
+}
+
+// covergroup resolves the names of a covergroup. Its formal arguments, the
+// labels of its coverpoints and crosses, its bins and the "item" of a with
+// clause are in scope inside it, and binsof/intersect are part of the language
+// (LRM 19).
+func (c *nameChecker) covergroup(w *nameWalker, n *ast.Covergroup) {
+	saved := c.ignore
+	c.ignore = map[string]bool{"item": true, "binsof": true, "intersect": true}
+	for k := range saved {
+		c.ignore[k] = true
+	}
+	for _, p := range n.Ports {
+		c.ignore[p.Name] = true
+	}
+	for _, p := range n.SamplePorts {
+		c.ignore[p.Name] = true
+	}
+	ast.Inspect(n, func(x ast.Node) bool {
+		switch x := x.(type) {
+		case *ast.CoverPoint:
+			if x.Name != "" {
+				c.ignore[x.Name] = true
+			}
+		case *ast.CoverCross:
+			if x.Name != "" {
+				c.ignore[x.Name] = true
+			}
+		case *ast.CoverBin:
+			if x.Name != "" {
+				c.ignore[x.Name] = true
+			}
+		}
+		return true
+	})
+	if n.Event != nil {
+		ast.Walk(w, n.Event)
+	}
+	for _, it := range n.Items {
+		ast.Walk(w, it)
+	}
+	c.ignore = saved
+}
+
+// clocking resolves the names of a clocking block: its event, and each signal
+// it lists, which is either given an expression or is a signal of the
+// enclosing scope that the block samples or drives (LRM 14.3).
+func (c *nameChecker) clocking(w *nameWalker, n *ast.Clocking) {
+	if n.Event != nil {
+		ast.Walk(w, n.Event)
+	}
+	for i := range n.Items {
+		for _, s := range n.Items[i].Signals {
+			switch {
+			case s.Expr != nil:
+				c.bind(w.scope, s.Expr)
+			case w.scope != nil && w.scope.Lookup(s.Name).Symbol == nil:
+				c.set.Add(diag.Diagnostic{Code: diag.CodeUndeclared, Severity: diag.Error, Range: s.Pos(),
+					Message: "\"" + s.Name + "\" is not declared"})
+			}
 		}
 	}
 }
