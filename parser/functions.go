@@ -433,13 +433,21 @@ func (p *parser) skipProceduralConstruct() {
 }
 
 // isProceduralAssign reports whether the "assign" under the cursor is a
-// procedural continuous assignment (LRM 10.6.1) rather than the start of the
-// next module item. It is one when it follows a token that can only introduce a
+// procedural continuous assignment (LRM 10.6.1), or the "assert", "assume",
+// "cover" or "restrict" an immediate assertion statement starts (LRM 16.3),
+// rather than the start of the next module item. It is one when it follows a token that can only introduce a
 // statement: the "else" of an if, the ")" of an if, while or event control, a
 // ":" of a case item or block label, or a "begin"/"fork". After a missing ';'
 // the token before the next item is a name or a literal, never these.
 func (p *parser) isProceduralAssign(tok preprocessor.Token) bool {
-	if tok.Text != "assign" || p.pos == 0 {
+	switch tok.Text {
+	case "assign", "assert", "assume", "cover", "restrict":
+		// "assert" and its kin begin an immediate assertion statement here
+		// ("always @(posedge clk) assert (a);"), not the next module item.
+	default:
+		return false
+	}
+	if p.pos == 0 {
 		return false
 	}
 	prev := p.toks[p.pos-1]
