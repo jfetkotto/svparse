@@ -11,7 +11,7 @@ the one that matches what you need.
 | | **v0.1** (this directory) | **v2** ([`v2/`](v2/)) |
 |---|---|---|
 | Import path | `github.com/jfetkotto/svparse` | `github.com/jfetkotto/svparse/v2` |
-| Status | Released; latest `v0.1.10`. Bug fixes only. | In development on the `devel` branch; not yet tagged `v2.0.0`. |
+| Status | Released; latest `v0.1.11`. Bug fixes only. | In development on the `devel` branch; not yet tagged `v2.0.0`. |
 | What it parses | **Declarations** only: ports, nets and variables, parameters, typedefs, struct/enum, function and task signatures, class members, imports, containers, instantiations. | **The whole language**: also expressions, statements, `always`/`initial`/`assign`, generate constructs, gate and UDP primitives, assertions and sequences, constraints, covergroups, clocking blocks, `bind`, `defparam`, configurations. |
 | Expressions and statements | Skipped by balanced-token matching and kept as raw token spans. | Parsed into trees (`ast.Expr`, `ast.Stmt`); the raw spans stay populated but are deprecated. |
 | Errors reported | Syntax errors in declarations. Errors inside skipped bodies are invisible. | Also errors inside bodies, procedural items and expressions. |
@@ -70,7 +70,7 @@ The details are in [v2/README.md](v2/README.md) and
 
 ## Branches and releases
 
-- `main` holds released code: the v0.1 line (`v0.1.10`), and later the v2
+- `main` holds released code: the v0.1 line (`v0.1.11`), and later the v2
   release.
 - `devel` is where development happens. Each change is made on its own branch
   and merged into `devel` with a merge commit.
@@ -149,7 +149,14 @@ against a checked-in baseline.
 
 ## Releases
 
-`v0.1.10` is a bug-fix release of the declaration-grade parser.
+`v0.1.11` is a bug-fix release of the declaration-grade parser.
+
+- An immediate assertion (`assert`, `assume`, `cover`, `restrict`) after an event
+  control or an `if`/`else` stays in its `always` block, as in
+  `always @(posedge clk) assert (a);`. It used to report "expected ';' before
+  assert".
+
+`v0.1.10` fixed:
 
 - Size casts such as `16'(a)` and `8'(N)` lex as a size literal and a cast tick
   instead of a "malformed numeric literal" error.
