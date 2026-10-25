@@ -69,8 +69,15 @@ against a checked-in baseline.
 
 ## Releases
 
-`v0.1.10` is a bug-fix release of the declaration-grade parser; development of
+`v0.1.11` is a bug-fix release of the declaration-grade parser; development of
 the full front end continues in the `v2` module (`github.com/jfetkotto/svparse/v2`).
+
+- An immediate assertion (`assert`, `assume`, `cover`, `restrict`) after an event
+  control or an `if`/`else` stays in its `always` block, as in
+  `always @(posedge clk) assert (a);`. It used to report "expected ';' before
+  assert".
+
+`v0.1.10` fixed:
 
 - Size casts such as `16'(a)` and `8'(N)` lex as a size literal and a cast tick
   instead of a "malformed numeric literal" error.
