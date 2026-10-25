@@ -74,3 +74,29 @@ func TestRandSequenceRules(t *testing.T) {
 		}
 	}
 }
+
+func TestPatternInitialisersAndClassScope(t *testing.T) {
+	const ie, it = diag.CodeInvalidExpression, diag.CodeIncompatibleTypes
+	cases := []struct {
+		name, src, want string
+	}{
+		{"valid patterns", `module m; typedef struct {int a; int b;} s_t; typedef int triple [1:3];
+  s_t one = '{1, 2}; s_t two = '{a: 1, b: 2}; s_t d = '{default: 0};
+  s_t arr [1:0] = '{'{0, 0}, '{1, 1}}; triple k = '{1: 1, default: 0};
+  string words [int] = '{default: "hello"}; int q [$] = '{1, 2, 3}; int rep [4] = '{4{0}};
+  initial begin s_t loc = '{3, 4}; end endmodule`, ""},
+		{"flat values for a struct array", "module m; typedef struct {int a; int b;} s_t; s_t ms [1:0] = '{0, 0, 1, 1}; endmodule", it},
+		{"too many for an array", "module m; int a [2] = '{1, 2, 3}; endmodule", it},
+		{"unknown member", "module m; typedef struct {int a;} s_t; s_t v = '{zz: 1}; endmodule", it},
+		{"local too", "module m; initial begin int a [2] = '{1, 2, 3}; end endmodule", it},
+		{"unspecialised class scope", "module m; class c #(int a = 1); parameter int b = 2; endclass initial $display(c::b); endmodule", ie},
+		{"specialised class scope", "module m; class c #(int a = 1); parameter int b = 2; endclass initial $display(c#()::b); endmodule", ""},
+		{"plain class scope", "module m; class c; parameter int b = 2; endclass initial $display(c::b); endmodule", ""},
+		{"inside the class", "module m; class c #(int a = 1); parameter int b = 2; function int f(); return c::b; endfunction endclass class d extends c; function int g(); return c::b; endfunction endclass endmodule", ""},
+	}
+	for _, c := range cases {
+		if got := checkAll(t, c.src); got != c.want {
+			t.Errorf("%s: got %q, want %q", c.name, got, c.want)
+		}
+	}
+}

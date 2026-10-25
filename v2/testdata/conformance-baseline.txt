@@ -20,9 +20,7 @@ chapter-11/11.9--tagged_union_member_access_inv.sv pass # undetected: accessing 
 chapter-16/16.10--property-local-var-fail.sv pass # undetected: pipeline increments value by 4 but property expects incrementation by 3
 chapter-16/16.10--sequence-local-var-fail.sv pass # undetected: pipeline increments value by 4 but sequence expects incrementation by 3
 chapter-16/16.15--property-disable-iff-fail.sv pass # undetected: disable iff uses wrong reset polarity
-chapter-5/5.10-structure-arrays-illegal.sv pass # undetected: C-like assignment is illegal
 chapter-7/arrays/packed/variable-slice-zero.sv pass # undetected: slicing array with zero part width
-chapter-8/8.25.1--parametrized_class_invalid_scope_resolution.sv pass # undetected: parametrized class invalid scope resolution
 chapter-8/8.26.3--type_access_implements_invalid.sv pass # undetected: typedefs are not inherited by implements operator
 chapter-8/8.26.4--illegal_implements_parameter.sv pass # undetected: implementing parameter that resolves to an interface class is not allowed
 chapter-8/8.26.6.1--name_conflict_unresolved.sv pass # undetected: unresolved interface class method name conflict

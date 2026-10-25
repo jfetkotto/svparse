@@ -81,6 +81,8 @@ func (c *checker) decl(s *Scope, d ast.Decl) {
 		return
 	}
 	switch n := d.(type) {
+	case *ast.Variable:
+		c.checkPatternInit(s, n)
 	case *ast.Container:
 		c.decls(c.scopeOf(n, s), n.Body)
 	case *ast.Package:
@@ -241,6 +243,7 @@ func (w *stmtWalker) Visit(n ast.Node) ast.Visitor {
 			c.timing(ctx, n.Control.Pos())
 		}
 	case *ast.Variable:
+		c.checkPatternInit(ctx.scope, n)
 		if st, ok := n.InitialExpr.(*ast.Streaming); ok && len(n.UnpackedDims) == 0 {
 			if t, _ := c.m.ResolveType(ctx.scope, &n.Type); t != nil {
 				c.checkStream(ctx.scope, t, st)
