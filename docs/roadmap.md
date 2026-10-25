@@ -439,6 +439,9 @@ into `devel`; `main` stays at the released `v0.1.9` until a `v2.0.0` release.
       parameterized `extends`, inline aggregates), which need new AST nodes.
       The released sigils shows three false errors on `casts.sv`; sigils `main`
       built against `v0.1.10` shows none, and its tests pass.
+      Pending `v0.1.11` (merged into `main`, untagged and unpushed): an
+      immediate assertion (`assert`, `assume`, `cover`, `restrict`) after an
+      event control or `if`/`else` staying in its `always` block.
 
 - [x] Lint performance (`perf/instance-binder`, `perf/shared-width-analysis`,
       `perf/specialization-dedupe`, `perf/parallel-parse`): on the 954k-line
@@ -462,8 +465,11 @@ into `devel`; `main` stays at the released `v0.1.9` until a `v2.0.0` release.
 
 - [x] `feature/undeclared-names`: `Model.CheckNames` binds every expression of
       modules, interfaces, programs and packages and reports undeclared names
-      (class, constraint, covergroup, assertion, clocking and primitive bodies
-      are not looked into yet). Implicit nets (LRM 6.10) from continuous
+      (class bodies, constraints, randsequences, properties, sequences,
+      assertions, covergroups and clocking blocks were added later in
+      `feature/class-body-names`; primitives are still not looked into; a
+      class whose base is not found is skipped, since it inherits members that
+      cannot be seen). Implicit nets (LRM 6.10) from continuous
       assignment targets, instance connections and gate terminals count as
       declared; escaped identifiers match their plain spelling (LRM 5.6.1); a
       design element's own name is a valid hierarchical root; the std classes
