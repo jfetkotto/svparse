@@ -14,6 +14,10 @@ func (b *binder) bindCall(e *ast.Call) BoundExpr {
 			return b.systemCall(e, f.Name, e.Args)
 		}
 		res := b.scope.Lookup(f.Name)
+		if res.Symbol == nil && classBuiltinMethods[f.Name] && b.scope.inClass() {
+			b.bindArgsSelf(e.Args)
+			return bad(e)
+		}
 		if res.Symbol == nil {
 			b.errorf(diag.CodeUndeclared, f.Pos(), "function %q is not declared", f.Name)
 			b.bindArgsSelf(e.Args)
@@ -275,4 +279,22 @@ func (b *binder) systemCall(e ast.Expr, name string, args []ast.Expr) BoundExpr 
 		n.typ = String
 	}
 	return n
+}
+
+// classBuiltinMethods are the methods every class has without declaring them
+// (LRM 18.6, 18.8, 18.9, 18.13), callable unqualified from inside the class.
+var classBuiltinMethods = map[string]bool{
+	"randomize": true, "pre_randomize": true, "post_randomize": true,
+	"rand_mode": true, "constraint_mode": true,
+	"srandom": true, "get_randstate": true, "set_randstate": true,
+}
+
+// inClass reports whether s is, or is nested in, a class scope.
+func (s *Scope) inClass() bool {
+	for ; s != nil; s = s.Parent {
+		if s.Kind == ScopeClass {
+			return true
+		}
+	}
+	return false
 }

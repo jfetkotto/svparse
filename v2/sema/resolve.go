@@ -340,7 +340,7 @@ func builtinScope(path []string) bool {
 		return false
 	}
 	_, class := builtinClasses[path[0]]
-	return class || path[0] == "std"
+	return class || path[0] == "std" || path[0] == "local" || path[0] == "super"
 }
 
 func splitQual(q string) []string {
